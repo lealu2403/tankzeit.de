@@ -6,6 +6,9 @@ on:
     # and may wait up to 3 hours for source data. Sync after that window.
     - cron: "30 4 * * *"
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/sync-upstream-data.yml"
 
 permissions:
   contents: write
