@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       <meta
         name="description"
-        content="Mittagspreise und Preisänderung zur ausgewählten 12:00-Referenz für eine Tankstelle."
+        content="Mittagspreise und PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Referenz fÃ¼r eine Tankstelle."
       />
     <meta name="robots" content="noindex,follow" />
     <title>Tankzeit | Chart</title>
@@ -35,7 +35,7 @@
       <header>
         <div class="brand">
           <h1>Tankzeit</h1>
-          <p>Mittagspreise seit 1. April und Preisänderung zur ausgewählten 12:00-Referenz.</p>
+          <p>Mittagspreise seit 1. April und PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Referenz.</p>
         </div>
       </header>
 
@@ -44,10 +44,20 @@
           <button class="btn primary" id="history-view" type="button">
             Mittagspreise
           </button>
-          <button class="btn" id="profile-view" type="button">Preisänderung</button>
+          <button class="btn" id="profile-view" type="button">PreisÃ¤nderung</button>
           <a class="btn" id="maps-link" href="#" target="_blank" rel="noopener"
             >Zur Tankstelle</a
           >
+        </div>
+        <div class="chart-range-controls" id="history-range-controls" hidden>
+          <label class="chart-range-label" for="history-range">Zeitraum</label>
+          <select class="chart-range-select" id="history-range">
+            <option value="7">7 Tage</option>
+            <option value="14">14 Tage</option>
+            <option value="30">30 Tage</option>
+            <option value="90">90 Tage</option>
+            <option value="all">Alle Tage</option>
+          </select>
         </div>
         <h2 class="chart-title" id="chart-title">Lade Chart...</h2>
         <canvas id="chart"></canvas>
@@ -108,8 +118,22 @@
       const APP_TIME_ZONE = "Europe/Berlin";
       const DATA_BASE = "data2/";
       const HISTORY_START = "2026-04-01";
+      const DEFAULT_HISTORY_RANGE = "30";
+      const HISTORY_RANGE_LABELS = {
+        "7": "letzte 7 Tage",
+        "14": "letzte 14 Tage",
+        "30": "letzte 30 Tage",
+        "90": "letzte 90 Tage",
+        all: "gesamter Zeitraum",
+      };
       let chartInstance = null;
       let activeView = params.get("view") === "profile" ? "profile" : "history";
+      let activeHistoryRange = Object.prototype.hasOwnProperty.call(
+        HISTORY_RANGE_LABELS,
+        params.get("range"),
+      )
+        ? params.get("range")
+        : DEFAULT_HISTORY_RANGE;
       const DARK_MODE_MEDIA_QUERY = window.matchMedia(
         "(prefers-color-scheme: dark)",
       );
@@ -317,10 +341,13 @@
       };
       const historyButton = document.getElementById("history-view");
       const profileButton = document.getElementById("profile-view");
+      const historyRangeControls = document.getElementById("history-range-controls");
+      const historyRangeSelect = document.getElementById("history-range");
 
-      const title = `${name} · ${fuel.toUpperCase()}`;
+      const title = `${name} Â· ${fuel.toUpperCase()}`;
       document.getElementById("chart-title").textContent = title;
       document.getElementById("chart-sub").textContent = "Lade Chart...";
+      historyRangeSelect.value = activeHistoryRange;
 
       if (lat && lng) {
         const maps = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
@@ -364,10 +391,12 @@
       function setButtonState() {
         historyButton.classList.toggle("primary", activeView === "history");
         profileButton.classList.toggle("primary", activeView === "profile");
+        historyRangeControls.hidden = activeView !== "history";
       }
 
       function updateViewInUrl() {
         params.set("view", activeView);
+        params.set("range", activeHistoryRange);
         const nextUrl = `${window.location.pathname}?${params.toString()}`;
         window.history.replaceState({}, "", nextUrl);
       }
@@ -381,6 +410,19 @@
 
       historyButton.addEventListener("click", () => switchView("history"));
       profileButton.addEventListener("click", () => switchView("profile"));
+      historyRangeSelect.addEventListener("change", () => {
+        const nextRange = historyRangeSelect.value;
+        activeHistoryRange = Object.prototype.hasOwnProperty.call(
+          HISTORY_RANGE_LABELS,
+          nextRange,
+        )
+          ? nextRange
+          : DEFAULT_HISTORY_RANGE;
+        updateViewInUrl();
+        if (activeView === "history") {
+          loadChart();
+        }
+      });
       setButtonState();
       updateViewInUrl();
 
@@ -397,11 +439,11 @@
       }
 
       function buildReferenceSubtitle() {
-        return `${fuel.toUpperCase()} · Preisänderung zur jeweiligen 12:00-Referenz · Grau = 00:00-11:59 ggü. Vortag 12:00 · Blau = 12:00-23:59 ggü. Tages-12:00 · negative Werte = günstiger, positive Werte = teurer`;
+        return `${fuel.toUpperCase()} Â· PreisÃ¤nderung zur jeweiligen 12:00-Referenz Â· Grau = 00:00-11:59 ggÃ¼. Vortag 12:00 Â· Blau = 12:00-23:59 ggÃ¼. Tages-12:00 Â· negative Werte = gÃ¼nstiger, positive Werte = teurer`;
       }
 
       function buildCycleSubtitle() {
-        return `${fuel.toUpperCase()} · Preisänderung zur ausgewählten 12:00-Referenz im Zyklus 12:00 Vortag → 12:00 Tag · Erhöhungen bis 12:15 zählen noch zum Noon-Anker, spätere nicht · Mitternacht markiert die Tagesgrenze`;
+        return `${fuel.toUpperCase()} Â· PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Referenz im Zyklus 12:00 Vortag â†’ 12:00 Tag Â· ErhÃ¶hungen bis 12:15 zÃ¤hlen noch zum Noon-Anker, spÃ¤tere nicht Â· Mitternacht markiert die Tagesgrenze`;
       }
 
       function sanitizeRelativeValue(valueInEuro) {
@@ -416,7 +458,7 @@
         if (!Number.isFinite(amount)) return "-";
         if (Math.abs(amount) < 0.0005) return `auf ${referenceMeta.label}-Niveau`;
         return `${(Math.abs(amount) * 100).toFixed(1)} ct/l ${
-          amount > 0 ? "teurer" : "günstiger"
+          amount > 0 ? "teurer" : "gÃ¼nstiger"
         } als ${referenceMeta.label}`;
       }
 
@@ -516,18 +558,27 @@
           .sort((left, right) => left.date.localeCompare(right.date));
       }
 
-      function buildHistorySubtitle(rows) {
+      function filterHistoryRows(rows, rangeKey) {
+        if (rangeKey === "all") return rows;
+        const rangeLength = Number(rangeKey);
+        if (!Number.isFinite(rangeLength) || rangeLength <= 0) return rows;
+        if (rows.length <= rangeLength) return rows;
+        return rows.slice(-rangeLength);
+      }
+
+      function buildHistorySubtitle(rows, totalRows, rangeKey) {
         if (!rows.length) {
-          return `${fuel.toUpperCase()} · Keine Mittagspreise ab ${formatHistoryDay(HISTORY_START)} verfügbar.`;
+          return `${fuel.toUpperCase()} Â· Keine Mittagspreise ab ${formatHistoryDay(HISTORY_START)} verfÃ¼gbar.`;
         }
         const first = rows[0].date;
         const last = rows[rows.length - 1].date;
         return [
-          `${fuel.toUpperCase()} · Mittagspreise`,
-          `${rows.length} Tage`,
+          `${fuel.toUpperCase()} Â· Mittagspreise`,
+          HISTORY_RANGE_LABELS[rangeKey] || HISTORY_RANGE_LABELS[DEFAULT_HISTORY_RANGE],
+          `${rows.length} von ${totalRows} Tagen`,
           `${formatHistoryDay(first)} - ${formatHistoryDay(last)}`,
           "y-Achse = etablierter Mittagspreis",
-        ].join(" · ");
+        ].join(" Â· ");
       }
 
       function renderNoonHistoryChart(rows) {
@@ -582,7 +633,7 @@
                 },
                 title: {
                   display: true,
-                  text: "Mittagspreis (€/l)",
+                  text: "Mittagspreis (â‚¬/l)",
                 },
               },
             },
@@ -599,7 +650,7 @@
                   label(context) {
                     const row = rows[context.dataIndex];
                     if (!row) return "";
-                    return `${formatFuelPrice(row.price)} €/l`;
+                    return `${formatFuelPrice(row.price)} â‚¬/l`;
                   },
                   afterBody(context) {
                     const row = rows[context[0].dataIndex];
@@ -710,7 +761,7 @@
                 },
                 title: {
                   display: true,
-                  text: "Preisänderung zur jeweiligen 12:00-Referenz (€/l)",
+                  text: "PreisÃ¤nderung zur jeweiligen 12:00-Referenz (â‚¬/l)",
                 },
               },
             },
@@ -809,7 +860,7 @@
             labels,
             datasets: [
               {
-                label: "12:00 Vortag → 12:00 Tag",
+                label: "12:00 Vortag â†’ 12:00 Tag",
                 data: values,
                 borderColor: SAME_DAY_COLOR.stroke,
                 backgroundColor: SAME_DAY_COLOR.stroke,
@@ -836,7 +887,7 @@
               x: {
                 title: {
                   display: true,
-                  text: "Stunde im 24h-Zyklus (12 Vortag → 12 Tag)",
+                  text: "Stunde im 24h-Zyklus (12 Vortag â†’ 12 Tag)",
                 },
                 ticks: {
                   align: "start",
@@ -859,7 +910,7 @@
                 },
                 title: {
                   display: true,
-                  text: "Preisänderung zum 12:00-Anker (€/l)",
+                  text: "PreisÃ¤nderung zum 12:00-Anker (â‚¬/l)",
                 },
               },
             },
@@ -882,7 +933,7 @@
                     const row = cycleRows[context[0]?.dataIndex];
                     if (!row) return [];
                     return [
-                      `Zyklus: 12:00 Vortag → 12:00 Tag`,
+                      `Zyklus: 12:00 Vortag â†’ 12:00 Tag`,
                       `Uhrzeit: ${row.label}:00`,
                       `Referenz: Vortag 12:00`,
                     ];
@@ -905,7 +956,7 @@
             labels: hours,
             datasets: [
               {
-                label: "Preisabweichung (€/l)",
+                label: "Preisabweichung (â‚¬/l)",
                 data: values,
                 borderColor: "#0f766e",
                 backgroundColor: "rgba(15, 118, 110, 0.15)",
@@ -923,7 +974,7 @@
                 title: { display: true, text: "Stunde" },
               },
               y: {
-                title: { display: true, text: "Abweichung (€/l)" },
+                title: { display: true, text: "Abweichung (â‚¬/l)" },
               },
             },
             plugins: {
@@ -937,12 +988,13 @@
 
       async function loadHistoryChart() {
         const historyUrl = `${DATA_BASE}${stationPath(stationId)}/${fuel}/history.csv`;
-        const rows = normalizeHistoryRows(await fetchCsv(historyUrl));
+        const allRows = normalizeHistoryRows(await fetchCsv(historyUrl));
+        const rows = filterHistoryRows(allRows, activeHistoryRange);
         if (!rows.length) {
           throw new Error("History unavailable");
         }
         document.getElementById("chart-sub").textContent =
-          buildHistorySubtitle(rows);
+          buildHistorySubtitle(rows, allRows.length, activeHistoryRange);
         renderNoonHistoryChart(rows);
       }
 
