@@ -1,0 +1,50 @@
+name: Sync upstream daily data
+
+on:
+  schedule:
+    # volzinnovation/tankzeit.de starts its daily data update at 00:05 UTC
+    # and may wait up to 3 hours for source data. Sync after that window.
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-daily-data
+  cancel-in-progress: false
+
+jobs:
+  sync-upstream-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this site
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch upstream repository
+        run: |
+          git remote add upstream https://github.com/volzinnovation/tankzeit.de.git
+          git fetch --depth=1 --filter=blob:none upstream master
+
+      - name: Copy generated data into this site
+        run: |
+          git checkout upstream/master -- data data2 station sitemap.xml robots.txt
+
+      - name: Configure git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+      - name: Commit synced data
+        run: |
+          git add data data2 station sitemap.xml robots.txt
+          if git diff --cached --quiet; then
+            echo "No upstream data changes to sync."
+            exit 0
+          fi
+          git commit -m "Sync upstream daily data"
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
