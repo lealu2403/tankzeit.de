@@ -1,1 +1,2 @@
 python3 scripts/generate_data.py
+python3 scripts/build_management_range_exports.py
