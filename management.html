@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta
       name="description"
-      content="Management View: Mittagspreise nach Marke und untertÃ¤gige Preissenkungen fÃ¼r Diesel, E10 und E5."
+      content="Management View: Mittagspreise nach Marke und untert&auml;gige Preissenkungen f&uuml;r Diesel, E10 und E5."
     />
     <link rel="canonical" href="https://tankzeit.de/management.html" />
     <meta property="og:type" content="website" />
@@ -22,7 +22,7 @@
     <meta property="og:title" content="Tankzeit | Management-Ansicht" />
     <meta
       property="og:description"
-      content="Mittagspreise und untertÃ¤gige Preissenkungen fÃ¼r Diesel, E10 und E5 im Ãœberblick."
+      content="Mittagspreise und untert&auml;gige Preissenkungen f&uuml;r Diesel, E10 und E5 im &Uuml;berblick."
     />
     <meta property="og:url" content="https://tankzeit.de/management.html" />
     <meta property="og:image" content="https://tankzeit.de/img/social-card.png" />
@@ -31,18 +31,18 @@
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="Tankzeit Vorschaugrafik mit Logo und Hinweis auf beste Tankzeiten fÃ¼r Diesel, E10 und E5"
+      content="Tankzeit Vorschaugrafik mit Logo und Hinweis auf beste Tankzeiten f&uuml;r Diesel, E10 und E5"
     />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Tankzeit | Management-Ansicht" />
     <meta
       name="twitter:description"
-      content="Mittagspreise und untertÃ¤gige Preissenkungen fÃ¼r Diesel, E10 und E5 im Ãœberblick."
+      content="Mittagspreise und untert&auml;gige Preissenkungen f&uuml;r Diesel, E10 und E5 im &Uuml;berblick."
     />
     <meta name="twitter:image" content="https://tankzeit.de/img/social-card.png" />
     <meta
       name="twitter:image:alt"
-      content="Tankzeit Vorschaugrafik mit Logo und Hinweis auf beste Tankzeiten fÃ¼r Diesel, E10 und E5"
+      content="Tankzeit Vorschaugrafik mit Logo und Hinweis auf beste Tankzeiten f&uuml;r Diesel, E10 und E5"
     />
     <title>Tankzeit | Management</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -59,10 +59,7 @@
       <header>
         <div class="brand">
           <h1>Tankzeit</h1>
-          <p>
-            Spritpreise im Vergleich: Preisunterschiede fÃ¼r Diesel, E10, E5 in
-            Deutschlandâ€œ
-          </p>
+          <p>Spritpreise im Vergleich: Preisunterschiede f&uuml;r Diesel, E10, E5 in Deutschland</p>
         </div>
       </header>
 
@@ -71,31 +68,34 @@
       <section class="card management-controls">
         <div class="toolbar">
           <div class="left">
-            <h2>Datum & Kraftstoff</h2>
+            <h2>Zeitraum & Kraftstoff</h2>
           </div>
           <div class="control-grid">
-            <div class="control-group">
-              <div class="control-label">Datum</div>
-              <div class="date-nav" aria-label="Datum wechseln">
+            <div class="control-group range-control-group">
+              <div class="control-label">Zeitraum w&auml;hlen</div>
+              <div class="range-picker" aria-label="Zeitraum w&auml;hlen">
                 <button
                   class="btn"
-                  id="prev-day"
+                  id="range-toggle"
                   type="button"
-                  title="Vorheriger Tag"
-                  aria-label="Vorheriger Tag"
+                  aria-expanded="false"
+                  aria-controls="range-panel"
                 >
-                  â†
+                  Zeitraum w&auml;hlen
                 </button>
-                <input id="date-picker" type="date" />
-                <button
-                  class="btn"
-                  id="next-day"
-                  type="button"
-                  title="NÃ¤chster Tag"
-                  aria-label="NÃ¤chster Tag"
-                >
-                  â†’
-                </button>
+                <div class="range-panel" id="range-panel" hidden>
+                  <div class="range-inputs">
+                    <input id="range-start-picker" type="date" aria-label="Startdatum" />
+                    <span class="range-separator">bis</span>
+                    <input id="range-end-picker" type="date" aria-label="Enddatum" />
+                  </div>
+                  <button class="btn primary" id="range-apply" type="button">
+                    Anzeigen
+                  </button>
+                </div>
+              </div>
+              <div class="control-hint" id="range-hint">
+                Gilt aktuell nur f&uuml;r den Chart Preis&auml;nderung zur 12:00-Referenz im 12:00-&gt;12:00-Zyklus.
               </div>
             </div>
             <div class="control-group">
@@ -145,7 +145,7 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
-            <h2 id="title">UntertÃ¤gige Preissenkungen</h2>
+            <h2 id="title">Untert&auml;gige Preissenkungen</h2>
           </div>
         </div>
 
@@ -170,29 +170,29 @@
         <div class="footer-notes">
           <p class="footer-note">
             <strong>12:00-Referenzpreis nach Marke:</strong> Zeigt je Marke den
-            ausgewÃ¤hlten Referenzpreis. FÃ¼r jeden Kraftstoff gilt: Eine positive
-            PreisÃ¤nderung zwischen <code>12:00</code> und
-            <code>12:15</code> zÃ¤hlt noch als 12:00-Referenz. Ohne solche
-            ErhÃ¶hung bleibt der bis <code>12:00</code> etablierte Preis
-            maÃŸgeblich.
+            ausgew&auml;hlten Referenzpreis. F&uuml;r jeden Kraftstoff gilt: Eine positive
+            Preis&auml;nderung zwischen <code>12:00</code> und
+            <code>12:15</code> z&auml;hlt noch als 12:00-Referenz. Ohne solche
+            Erh&ouml;hung bleibt der bis <code>12:00</code> etablierte Preis
+            ma&szlig;geblich.
           </p>
           <p class="footer-note">
-            <strong>PreisÃ¤nderung zur 12:00-Referenz:</strong> Grau zeigt den
+            <strong>Preis&auml;nderung zur 12:00-Referenz:</strong> Grau zeigt den
             Zyklus von <code>12:00</code> Vortag bis <code>12:00</code> des
-            gewÃ¤hlten Tags relativ zur ausgewÃ¤hlten Noon-Referenz. Die
+            gew&auml;hlten Tags relativ zur ausgew&auml;hlten Noon-Referenz. Die
             gestrichelte Linie markiert Mitternacht. Ein sichtbarer "Noon Dip"
-            kann entstehen, wenn viele Stationen ihre ReferenzerhÃ¶hung erst kurz
-            nach Mittag melden. SpÃ¤ter als <code>12:15</code> gemeldete
-            ErhÃ¶hungen verschieben den Noon-Anker dagegen nicht mehr. Antippen
-            zeigt zusÃ¤tzlich Quartilspanne und Spannweite.
+            kann entstehen, wenn viele Stationen ihre Referenzerh&ouml;hung erst kurz
+            nach Mittag melden. Sp&auml;ter als <code>12:15</code> gemeldete
+            Erh&ouml;hungen verschieben den Noon-Anker dagegen nicht mehr. Antippen
+            zeigt zus&auml;tzlich Quartilspanne und Spannweite.
           </p>
           <p class="footer-note">
             <strong>Zeitpunkt der 12:00-Referenz:</strong> Das Histogramm zeigt
             je Kraftstoff, wann der verwendete Referenzpreis pro Station
-            tatsÃ¤chlich feststeht. Balken nach <code>12:00</code> bedeuten
-            qualifizierte VerzÃ¶gerungen bis <code>12:15</code>. Balken bis
+            tats&auml;chlich feststeht. Balken nach <code>12:00</code> bedeuten
+            qualifizierte Verz&ouml;gerungen bis <code>12:15</code>. Balken bis
             <code>12:00</code> zeigen Referenzen, die ohne passende
-            MittagserhÃ¶hung auf dem letzten bekannten Preis bis Mittag beruhen
+            Mittagserh&ouml;hung auf dem letzten bekannten Preis bis Mittag beruhen
             oder exakt um <code>12:00</code> gemeldet wurden.
           </p>
         </div>
@@ -254,9 +254,11 @@
       const histogramTitleEl = document.getElementById("histogram-title");
       const histogramCanvas = document.getElementById("histogram-plot");
       const histogramCtx = histogramCanvas.getContext("2d");
-      const datePicker = document.getElementById("date-picker");
-      const prevBtn = document.getElementById("prev-day");
-      const nextBtn = document.getElementById("next-day");
+      const rangeToggleBtn = document.getElementById("range-toggle");
+      const rangePanel = document.getElementById("range-panel");
+      const rangeStartPicker = document.getElementById("range-start-picker");
+      const rangeEndPicker = document.getElementById("range-end-picker");
+      const rangeApplyBtn = document.getElementById("range-apply");
       const FUEL_COLORS = {
         diesel: "#0f766e",
         e10: "#ea580c",
@@ -313,7 +315,13 @@
         brandLayout: null,
         histogramLayout: null,
         date: null,
-        nav: { prev: false, next: false },
+        startDate: null,
+        endDate: null,
+        rangeSummaries: [],
+        rangeNoonDeltaSummaries: [],
+        rangeDates: [],
+        chartEntries: [],
+        rangePanelOpen: false,
       };
 
       function setStatus(message, type = "info") {
@@ -371,7 +379,7 @@
         if (Math.abs(displayValue) < 0.0005)
           return `auf ${referenceLabel}-Niveau`;
         return `${(Math.abs(displayValue) * 100).toFixed(1)} ct/l ${
-          displayValue > 0 ? "teurer" : "gÃ¼nstiger"
+          displayValue > 0 ? "teurer" : "g\u00fcnstiger"
         }`;
       }
 
@@ -390,7 +398,7 @@
           return `nahe ${referenceLabel}-Niveau`;
         }
         const format = (value) =>
-          `${Math.abs(value).toFixed(1)} ct/l ${value > 0 ? "teurer" : "gÃ¼nstiger"}`;
+          `${Math.abs(value).toFixed(1)} ct/l ${value > 0 ? "teurer" : "g\u00fcnstiger"}`;
         if (Math.abs(low - high) < 0.05) {
           return format(low);
         }
@@ -409,7 +417,7 @@
       function hourlyReferenceMeta(bucket, viewMode) {
         if (viewMode === "cycle") {
           return {
-            label: "12:00 Vortag â†’ 12:00 Tag",
+            label: "12:00 Vortag \u2192 12:00 Tag",
             referenceLabel: "Vortag 12:00",
             colors: HOURLY_REFERENCE_COLORS.sameDay,
           };
@@ -585,42 +593,93 @@
         });
         const parts = Object.create(null);
         formatter.formatToParts(now).forEach((part) => {
-          if (part.type !== "literal") parts[part.type] = part.value;
+          if (part.type !== "literal") {
+            parts[part.type] = part.value;
+          }
         });
         return {
-          year: Number(parts.year),
-          month: Number(parts.month),
-          day: Number(parts.day),
+          y: parts.year,
+          m: parts.month,
+          d: parts.day,
         };
       }
 
       function berlinToday() {
         const parts = berlinDateParts();
-        return new Date(parts.year, parts.month - 1, parts.day);
-      }
-
-      function addDays(date, days) {
-        return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+        return parseISODate(`${parts.y}-${parts.m}-${parts.d}`);
       }
 
       function parseISODate(value) {
-        const [y, m, d] = String(value).split("-").map((part) => Number(part));
-        return new Date(y, (m || 1) - 1, d || 1);
+        const [y, m, d] = value.split("-").map((x) => parseInt(x, 10));
+        return new Date(Date.UTC(y, m - 1, d));
       }
 
-      function formatISODate(date) {
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, "0");
-        const d = String(date.getDate()).padStart(2, "0");
-        return `${y}-${m}-${d}`;
+      function formatISODate(d) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
       }
 
-      function dateParts(date) {
+      function formatShortDate(d) {
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        return `${day}.${m}.`;
+      }
+
+      function sameISODate(left, right) {
+        if (!(left instanceof Date) || !(right instanceof Date)) return false;
+        return formatISODate(left) === formatISODate(right);
+      }
+
+      function dateParts(d) {
         return {
-          y: String(date.getFullYear()),
-          m: String(date.getMonth() + 1).padStart(2, "0"),
-          d: String(date.getDate()).padStart(2, "0"),
+          y: String(d.getUTCFullYear()),
+          m: String(d.getUTCMonth() + 1).padStart(2, "0"),
+          d: String(d.getUTCDate()).padStart(2, "0"),
         };
+      }
+
+      function addDays(d, delta) {
+        const copy = new Date(d.getTime());
+        copy.setUTCDate(copy.getUTCDate() + delta);
+        return copy;
+      }
+
+      function datesInRange(startDate, endDate) {
+        const dates = [];
+        let current = startDate;
+        while (current <= endDate) {
+          dates.push(current);
+          current = addDays(current, 1);
+        }
+        return dates;
+      }
+
+      function normalizeDateRange(startDate, endDate, minDate, maxDate) {
+        let normalizedStart = startDate;
+        let normalizedEnd = endDate;
+        if (normalizedStart < minDate) normalizedStart = minDate;
+        if (normalizedStart > maxDate) normalizedStart = maxDate;
+        if (normalizedEnd < minDate) normalizedEnd = minDate;
+        if (normalizedEnd > maxDate) normalizedEnd = maxDate;
+        if (normalizedStart > normalizedEnd) {
+          normalizedEnd = normalizedStart;
+        }
+        return {
+          startDate: normalizedStart,
+          endDate: normalizedEnd,
+        };
+      }
+
+      function syncRangeUrl(startDate, endDate) {
+        const params = new URLSearchParams(window.location.search);
+        params.delete("date");
+        params.set("start", formatISODate(startDate));
+        params.set("end", formatISODate(endDate));
+        const nextSearch = params.toString();
+        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+        window.history.replaceState({}, "", nextUrl);
       }
 
       function parseCsv(text) {
@@ -751,6 +810,78 @@
         return null;
       }
 
+      async function fetchManagementDay(date) {
+        const url = urlForDate(date);
+        const noonUrl = urlForNoonDate(date);
+        const previousNoonUrl = urlForNoonDate(addDays(date, -1));
+        const [summary, noonDeltaSummary] = await Promise.all([
+          fetch(url, { cache: "no-store" }).then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          }),
+          Promise.all([fetchCsv(noonUrl), fetchCsv(previousNoonUrl)])
+            .then(([currentRows, previousRows]) =>
+              buildNoonDeltaSummary(currentRows, previousRows),
+            )
+            .catch(() => null),
+        ]);
+        return {
+          date,
+          summary,
+          noonDeltaSummary,
+        };
+      }
+
+      function clearManagementCharts() {
+        state.summary = null;
+        state.noonDeltaSummary = null;
+        state.rangeSummaries = [];
+        state.rangeNoonDeltaSummaries = [];
+        state.rangeDates = [];
+        state.brandLayout = null;
+        state.histogramLayout = null;
+        brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
+        histogramCtx.clearRect(
+          0,
+          0,
+          histogramCanvas.width,
+          histogramCanvas.height,
+        );
+      }
+
+      function isRangeModeActive() {
+        return (
+          state.startDate instanceof Date &&
+          state.endDate instanceof Date &&
+          !sameISODate(state.startDate, state.endDate)
+        );
+      }
+
+      function setRangePanelOpen(isOpen) {
+        state.rangePanelOpen = isOpen;
+        rangePanel.hidden = !isOpen;
+        rangeToggleBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        rangeToggleBtn.classList.toggle("primary", isOpen || isRangeModeActive());
+      }
+
+      function syncRangeInputs() {
+        if (state.startDate) {
+          rangeStartPicker.value = formatISODate(state.startDate);
+        }
+        if (state.endDate) {
+          rangeEndPicker.value = formatISODate(state.endDate);
+        }
+      }
+
+      function updateRangeToggleLabel() {
+        if (isRangeModeActive()) {
+          rangeToggleBtn.textContent =
+            `${formatISODate(state.startDate)} bis ${formatISODate(state.endDate)}`;
+          return;
+        }
+        rangeToggleBtn.textContent = "Zeitraum w\u00e4hlen";
+      }
+
       function resizeCanvas(targetCanvas, targetCtx) {
         const rect = targetCanvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
@@ -766,6 +897,36 @@
         );
       }
 
+      function chartEntriesForCurrentSelection() {
+        const rangeSummaries = state.rangeSummaries || [];
+        if (rangeSummaries.length <= 1) {
+          const stats = state.summary?.fuels?.[state.fuel] || [];
+          return stats.map((bucket, index) => ({
+            bucket,
+            index,
+            dayIndex: 0,
+            date: state.date,
+            summaryDate: state.date,
+          }));
+        }
+
+        const entries = [];
+        rangeSummaries.forEach((rangeDay, dayIndex) => {
+          const dayBuckets = rangeDay.summary?.fuels?.[state.fuel] || [];
+          dayBuckets.forEach((bucket, bucketIndex) => {
+            if (dayIndex > 0 && bucketIndex === 0) return;
+            entries.push({
+              bucket,
+              index: entries.length,
+              dayIndex,
+              date: rangeDay.date,
+              summaryDate: rangeDay.date,
+            });
+          });
+        });
+        return entries;
+      }
+
       function yScale(domain, plot, value) {
         const t = (domain.max - value) / (domain.max - domain.min);
         return plot.top + t * plot.height;
@@ -776,28 +937,53 @@
         return plot.left + t * plot.width;
       }
 
+      function rangeHourTicks(dayCount) {
+        if (dayCount <= 3) return [12, 16, 20, 0, 4, 8, 12];
+        if (dayCount <= 7) return [12, 18, 0, 6, 12];
+        return [12, 0, 12];
+      }
+
+      function rangeDayStartIndex(dayIndex) {
+        return dayIndex === 0 ? 0 : 25 + (dayIndex - 1) * 24;
+      }
+
+      function rangeDayEntryCount(dayIndex, dayCount) {
+        if (dayCount <= 1) return 25;
+        return dayIndex === 0 ? 25 : 24;
+      }
+
+      function rangeHourTickOffset(hour, tickIndex) {
+        if (tickIndex === 0) return 0;
+        return hour >= 12 ? hour - 12 : hour + 12;
+      }
+
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
       }
 
       function draw() {
         if (!state.summary) return;
-        const stats = state.summary.fuels[state.fuel] || [];
+        const chartEntries = chartEntriesForCurrentSelection();
+        const stats = chartEntries.map((entry) => entry.bucket);
         if (!stats.length) return;
         const viewMode = viewModeForFuel();
         const isPartialCycle = viewMode === "cycle" && stats.length < 25;
+        const rangeModeActive = isRangeModeActive();
         const theme = currentChartTheme();
 
         resizeCanvas(canvas, ctx);
         const w = canvas.getBoundingClientRect().width;
         const h = canvas.getBoundingClientRect().height;
 
-        const plot = { left: 54, right: 18, top: 18, bottom: 42 };
-        plot.left = 72;
+        const plot = { left: 54, right: 18, top: 18, bottom: 62 };
+        plot.left = 92;
         plot.width = w - plot.left - plot.right;
         plot.height = h - plot.top - plot.bottom;
-        state.layout = { plot, w, h };
-        titleEl.textContent = `PreisÃ¤nderung zur 12:00-Referenz Â· ${fuelDisplayName(state.fuel)}`;
+        state.layout = { plot, w, h, chartEntries };
+        state.chartEntries = chartEntries;
+        titleEl.textContent = rangeModeActive
+          ? `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)} \u00b7 ${formatISODate(state.startDate)} bis ${formatISODate(state.endDate)}`
+          : `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}`;
 
         ctx.clearRect(0, 0, w, h);
 
@@ -818,7 +1004,7 @@
           ctx.moveTo(plot.left, y);
           ctx.lineTo(plot.left + plot.width, y);
           ctx.stroke();
-          ctx.fillText(formatValue(v), 8, y + 4);
+          ctx.fillText(formatValue(v), 12, y + 4);
         }
 
         const zeroInDomain = domain.min <= 0 && domain.max >= 0;
@@ -833,27 +1019,29 @@
         }
 
         ctx.save();
-        ctx.translate(18, plot.top + plot.height / 2);
+        ctx.translate(20, plot.top + plot.height / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = "center";
         ctx.fillStyle = theme.axisTitle;
         ctx.fillText(
-          `PreisÃ¤nderung ${fuelDisplayName(state.fuel)} (Euro / Liter)`,
+          `Preis\u00e4nderung ${fuelDisplayName(state.fuel)} (Euro / Liter)`,
           0,
           0,
         );
         ctx.restore();
 
         if (viewMode === "cycle" && stats.length >= 13) {
-          const midnightIndex = stats.findIndex((bucket) => {
-            if (Number.isFinite(Number(bucket?.clock_hour))) {
-              return Number(bucket.clock_hour) === 0;
-            }
-            return bucketLabel(bucket) === "00";
-          });
-          if (midnightIndex >= 0) {
+          const midnightIndexes = chartEntries
+            .map((entry, index) => ({ entry, index }))
+            .filter(({ entry }) => {
+              if (Number.isFinite(Number(entry.bucket?.clock_hour))) {
+                return Number(entry.bucket.clock_hour) === 0;
+              }
+              return bucketLabel(entry.bucket) === "00";
+            });
+          midnightIndexes.forEach(({ index }) => {
             const midnightX =
-              plot.left + (midnightIndex * plot.width) / stats.length;
+              plot.left + (index * plot.width) / stats.length;
             ctx.save();
             ctx.setLineDash([6, 4]);
             ctx.strokeStyle = "rgba(37,99,235,0.35)";
@@ -865,7 +1053,7 @@
             ctx.fillStyle = "rgba(37,99,235,0.78)";
             ctx.fillText("00:00", midnightX + 6, plot.top + 14);
             ctx.restore();
-          }
+          });
         } else if (viewMode !== "cycle" && stats.length >= 24) {
           const noonX = plot.left + (12 * plot.width) / stats.length;
           const noonBucket = stats.find(
@@ -919,39 +1107,92 @@
         }
 
         // X labels
-        const step = w < 600 ? 2 : 1;
         ctx.fillStyle = theme.tickText;
-        for (let index = 0; index < stats.length; index += step) {
-          const x = plot.left + ((index + 0.5) * plot.width) / stats.length;
-          ctx.fillText(
-            bucketLabel(stats[index]),
-            x - 6,
-            plot.top + plot.height + 26,
-          );
+        if (rangeModeActive) {
+          const dayCount = state.rangeSummaries.length;
+          const hourTicks = rangeHourTicks(dayCount);
+          state.rangeSummaries.forEach((rangeDay, dayIndex) => {
+            const startIndex = rangeDayStartIndex(dayIndex);
+            const entryCount = rangeDayEntryCount(dayIndex, dayCount);
+            const boundaryX =
+              plot.left + (startIndex * plot.width) / stats.length;
+            ctx.beginPath();
+            ctx.moveTo(boundaryX, plot.top);
+            ctx.lineTo(boundaryX, plot.top + plot.height);
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+            ctx.stroke();
+
+            const dayCenterX =
+              plot.left +
+              ((startIndex + entryCount / 2) * plot.width) / stats.length;
+            ctx.font = "600 11px Manrope, sans-serif";
+            ctx.fillStyle = theme.axisText;
+            ctx.textAlign = "center";
+            ctx.fillText(
+              formatShortDate(rangeDay.date),
+              dayCenterX,
+              plot.top + plot.height + 12,
+            );
+
+            ctx.font = "11px Manrope, sans-serif";
+            ctx.fillStyle = theme.tickText;
+            hourTicks.forEach((hour, tickIndex) => {
+              const offset = rangeHourTickOffset(hour, tickIndex);
+              if (offset > entryCount) return;
+              const x =
+                plot.left +
+                ((startIndex + offset) * plot.width) / stats.length;
+              if (x < plot.left - 1 || x > plot.left + plot.width + 1) return;
+              ctx.fillText(
+                String(hour).padStart(2, "0"),
+                x,
+                plot.top + plot.height + 28,
+              );
+            });
+          });
+          ctx.textAlign = "left";
+        } else {
+          const step = w < 600 ? 2 : 1;
+          for (let index = 0; index < stats.length; index += step) {
+            const x = plot.left + ((index + 0.5) * plot.width) / stats.length;
+            ctx.fillText(
+              bucketLabel(stats[index]),
+              x - 6,
+              plot.top + plot.height + 26,
+            );
+          }
         }
         ctx.fillText(
           viewMode === "cycle"
             ? isPartialCycle
               ? "Stunde seit 12:00"
-              : "Stunde im 24h-Zyklus (12 Vortag â†’ 12 Tag)"
+              : rangeModeActive
+                ? "Stunde im 12:00 \u2192 12:00-Zyklus \u00b7 Zeitraum von Starttag 12:00 bis Endtag 12:00"
+                : "Stunde im 24h-Zyklus (12 Vortag \u2192 12 Tag)"
             : "Stunde",
           plot.left +
             plot.width / 2 -
-            (viewMode === "cycle" ? (isPartialCycle ? 52 : 82) : 18),
-          plot.top + plot.height + 38,
+            (viewMode === "cycle"
+              ? rangeModeActive
+                ? 180
+                : isPartialCycle
+                  ? 52
+                  : 82
+              : 18),
+          plot.top + plot.height + 50,
         );
 
-        const points = stats.map((d, index) => {
-          const adjusted = adjustedHourlyRow(d);
+        const points = chartEntries.map((entry, index) => {
+          const adjusted = adjustedHourlyRow(entry.bucket);
           const nextX =
-            index === stats.length - 1
+            index === chartEntries.length - 1
               ? plot.left + plot.width
-              : plot.left + ((index + 1) * plot.width) / stats.length;
+              : plot.left + ((index + 1) * plot.width) / chartEntries.length;
           return {
-            bucket: d,
+            bucket: entry.bucket,
             adjusted,
-            x: plot.left + ((index + 0.5) * plot.width) / stats.length,
-            leftX: plot.left + (index * plot.width) / stats.length,
+            x: plot.left + ((index + 0.5) * plot.width) / chartEntries.length,
+            leftX: plot.left + (index * plot.width) / chartEntries.length,
             rightX: nextX,
             y: yScale(domain, plot, adjusted.median),
           };
@@ -1010,7 +1251,7 @@
           return;
         }
 
-        brandTitleEl.textContent = `12:00-Referenzpreis nach Marke Â· ${fuelDisplayName(state.fuel)}`;
+        brandTitleEl.textContent = `12:00-Referenzpreis nach Marke \u00b7 ${fuelDisplayName(state.fuel)}`;
 
         brandCanvas.style.height = `${Math.max(280, rows.length * 42 + 90)}px`;
         resizeCanvas(brandCanvas, brandCtx);
@@ -1141,7 +1382,7 @@
         }
 
         const rows = histogramSeries();
-        histogramTitleEl.textContent = `Zeitpunkt der 12:00-Referenz Â· ${fuelDisplayName(state.fuel)}`;
+        histogramTitleEl.textContent = `Zeitpunkt der 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}`;
         resizeCanvas(histogramCanvas, histogramCtx);
         const w = histogramCanvas.getBoundingClientRect().width;
         const h = histogramCanvas.getBoundingClientRect().height;
@@ -1259,8 +1500,8 @@
 
         if (hasBreakdown) {
           const legendItems = [
-            { label: "ErhÃ¶hung 12:00-12:15", color: `${fuelColor}cc` },
-            { label: "Fallback â‰¤ 12:00", color: "rgba(107, 114, 128, 0.72)" },
+            { label: "Erh\u00f6hung 12:00-12:15", color: `${fuelColor}cc` },
+            { label: "Fallback \u2264 12:00", color: "rgba(107, 114, 128, 0.72)" },
           ];
           let legendX = plot.left + plot.width - 180;
           if (legendX < plot.left) legendX = plot.left;
@@ -1282,7 +1523,7 @@
         const rect = canvas.getBoundingClientRect();
         const x = clientX - rect.left;
         if (x < plot.left || x > plot.left + plot.width) return null;
-        const stats = state.summary?.fuels?.[state.fuel] || [];
+        const stats = state.layout?.chartEntries || [];
         const bucket = Math.floor(
           ((x - plot.left) / plot.width) * stats.length,
         );
@@ -1316,8 +1557,9 @@
         if (!state.summary) return;
         const bucketIndex = pickHour(e.clientX);
         if (bucketIndex == null) return;
-        const stats = state.summary.fuels[state.fuel] || [];
-        const d = stats[bucketIndex];
+        const chartEntries = state.layout?.chartEntries || [];
+        const selectedEntry = chartEntries[bucketIndex];
+        const d = selectedEntry?.bucket;
         if (!d) return;
         const viewMode = viewModeForFuel();
         const displayedBucket = displayedHourlyBucket(d, viewMode) || d;
@@ -1328,7 +1570,7 @@
             ? `Zyklus ${bucketLabel(d)}:00`
             : `Stunde ${d.hour}`;
         setStatus(
-          `${state.fuel.toUpperCase()} ${label}: Median ${formatRelativeText(adjusted.median, referenceMeta.referenceLabel)}, mittlere 50 % ${formatRelativeRangeText(adjusted.q1, adjusted.q3, referenceMeta.referenceLabel)}, Spannweite ${formatRelativeRangeText(adjusted.min, adjusted.max, referenceMeta.referenceLabel)} Â· Zeitraum ${referenceMeta.label} Â· Referenz: ${referenceMeta.referenceLabel} (n=${displayedBucket.count ?? d.count})`,
+          `${state.fuel.toUpperCase()} ${label}${selectedEntry?.summaryDate ? ` am ${formatISODate(selectedEntry.summaryDate)}` : ""}: Median ${formatRelativeText(adjusted.median, referenceMeta.referenceLabel)}, mittlere 50 % ${formatRelativeRangeText(adjusted.q1, adjusted.q3, referenceMeta.referenceLabel)}, Spannweite ${formatRelativeRangeText(adjusted.min, adjusted.max, referenceMeta.referenceLabel)} \u00b7 Zeitraum ${referenceMeta.label} \u00b7 Referenz: ${referenceMeta.referenceLabel} (n=${displayedBucket.count ?? d.count})`,
         );
       });
 
@@ -1339,7 +1581,7 @@
         const row = rows[index];
         if (!row) return;
         setStatus(
-          `${state.fuel.toUpperCase()} ${row.brand}: Median ${formatBrandStatusValue(row.median)} â‚¬/l, q1 ${formatBrandStatusValue(row.q1)}, q3 ${formatBrandStatusValue(row.q3)}, min ${formatBrandStatusValue(row.min)}, max ${formatBrandStatusValue(row.max)} â‚¬/l (n=${row.count})`,
+          `${state.fuel.toUpperCase()} ${row.brand}: Median ${formatBrandStatusValue(row.median)} \u20ac/l, q1 ${formatBrandStatusValue(row.q1)}, q3 ${formatBrandStatusValue(row.q3)}, min ${formatBrandStatusValue(row.min)}, max ${formatBrandStatusValue(row.max)} \u20ac/l (n=${row.count})`,
         );
       });
 
@@ -1351,17 +1593,17 @@
         const details = [];
         if (row.increase_count > 0) {
           details.push(
-            `${formatCount(row.increase_count)} ErhÃ¶hungen 12:00-12:15`,
+            `${formatCount(row.increase_count)} Erh\u00f6hungen 12:00-12:15`,
           );
         }
         if (row.fallback_count > 0) {
-          details.push(`${formatCount(row.fallback_count)} Fallbacks â‰¤ 12:00`);
+          details.push(`${formatCount(row.fallback_count)} Fallbacks \u2264 12:00`);
         }
         if (row.other_count > 0) {
           details.push(`${formatCount(row.other_count)} ohne Detailtyp`);
         }
         setStatus(
-          `${state.fuel.toUpperCase()} Referenzzeit ${histogramBucketRangeLabel(row, state.histogramLayout.bucketMinutes)}: ${formatCount(row.stations)} Stationen (${formatPercent(row.share)} %)${details.length ? ` Â· ${details.join(", ")}` : ""}`,
+          `${state.fuel.toUpperCase()} Referenzzeit ${histogramBucketRangeLabel(row, state.histogramLayout.bucketMinutes)}: ${formatCount(row.stations)} Stationen (${formatPercent(row.share)} %)${details.length ? ` \u00b7 ${details.join(", ")}` : ""}`,
         );
       });
 
@@ -1382,101 +1624,120 @@
         });
       });
 
-      function setArrowVisibility() {
-        prevBtn.style.display = state.nav.prev ? "" : "none";
-        nextBtn.style.display = state.nav.next ? "" : "none";
-      }
+      rangeToggleBtn.addEventListener("click", () => {
+        setRangePanelOpen(!state.rangePanelOpen);
+      });
 
-      async function updateNav() {
+      rangeApplyBtn.addEventListener("click", () => {
+        if (!rangeStartPicker.value || !rangeEndPicker.value) return;
+        loadForRange(
+          parseISODate(rangeStartPicker.value),
+          parseISODate(rangeEndPicker.value),
+        );
+      });
+
+      async function loadForRange(startDate, endDate, options = {}) {
         const minDate = parseISODate(MIN_DATE_STR);
         const maxDate = addDays(berlinToday(), -1);
-
-        const prevDate = addDays(state.date, -1);
-        const nextDate = addDays(state.date, 1);
-
-        const prevInRange = prevDate >= minDate;
-        const nextInRange = nextDate <= maxDate;
-
-        const [prevOk, nextOk] = await Promise.all([
-          prevInRange ? exists(urlForDate(prevDate)) : Promise.resolve(false),
-          nextInRange ? exists(urlForDate(nextDate)) : Promise.resolve(false),
-        ]);
-
-        state.nav.prev = prevOk;
-        state.nav.next = nextOk;
-        setArrowVisibility();
-      }
-
-      async function loadForDate(d, options = {}) {
-        const minDate = parseISODate(MIN_DATE_STR);
         const fallbackEnabled = options.fallback !== false;
-        let targetDate = d;
+        const postLoadStatusMessage = options.postLoadStatusMessage || "";
+        const normalizedRange = normalizeDateRange(
+          startDate,
+          endDate,
+          minDate,
+          maxDate,
+        );
+        const requestedStart = normalizedRange.startDate;
+        const requestedEnd = normalizedRange.endDate;
 
-        if (fallbackEnabled) {
-          const nearestAvailableDate = await findNearestAvailableDate(d, minDate);
-          if (!nearestAvailableDate) {
-            setStatus("Management-Daten konnten nicht geladen werden.", "error");
-            state.summary = null;
-            state.noonDeltaSummary = null;
-            state.brandLayout = null;
-            state.histogramLayout = null;
-            brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
-            histogramCtx.clearRect(
-              0,
-              0,
-              histogramCanvas.width,
-              histogramCanvas.height,
-            );
-            return;
-          }
-          targetDate = nearestAvailableDate;
-        }
-
-        state.date = targetDate;
-        datePicker.value = formatISODate(targetDate);
+        state.startDate = requestedStart;
+        state.endDate = requestedEnd;
+        state.date = requestedEnd;
+        syncRangeInputs();
+        updateRangeToggleLabel();
+        setRangePanelOpen(state.rangePanelOpen);
         clearStatus();
+        syncRangeUrl(requestedStart, requestedEnd);
 
-        if (formatISODate(targetDate) !== formatISODate(d)) {
-          setStatus(
-            `FÃ¼r ${formatISODate(d)} liegen noch keine Management-Daten vor. Es werden stattdessen die zuletzt verfÃ¼gbaren Daten vom ${formatISODate(targetDate)} angezeigt.`,
-          );
-        }
-
-        const url = urlForDate(targetDate);
-        const noonUrl = urlForNoonDate(targetDate);
-        const previousNoonUrl = urlForNoonDate(addDays(targetDate, -1));
         try {
-          const [summary, noonDeltaSummary] = await Promise.all([
-            fetch(url, { cache: "no-store" }).then((response) => {
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              return response.json();
+          const requestedDates = datesInRange(requestedStart, requestedEnd);
+          const loadResults = await Promise.all(
+            requestedDates.map(async (candidateDate) => {
+              if (fallbackEnabled && !(await exists(urlForDate(candidateDate)))) {
+                return null;
+              }
+              return fetchManagementDay(candidateDate).catch(() => null);
             }),
-            Promise.all([fetchCsv(noonUrl), fetchCsv(previousNoonUrl)])
-              .then(([currentRows, previousRows]) =>
-                buildNoonDeltaSummary(currentRows, previousRows),
-              )
-              .catch(() => null),
-          ]);
-          state.summary = summary;
-          state.noonDeltaSummary = noonDeltaSummary;
+          );
+          const availableDays = loadResults.filter(Boolean);
+
+          if (!availableDays.length) {
+            if (fallbackEnabled) {
+              const nearestAvailableDate = await findNearestAvailableDate(
+                requestedEnd,
+                minDate,
+              );
+              if (nearestAvailableDate) {
+                if (
+                  !sameISODate(nearestAvailableDate, requestedStart) ||
+                  !sameISODate(nearestAvailableDate, requestedEnd)
+                ) {
+                  const fallbackMessage =
+                    `F\u00fcr ${formatISODate(requestedEnd)} liegen noch keine Management-Daten vor. Es werden stattdessen die zuletzt verf\u00fcgbaren Daten vom ${formatISODate(nearestAvailableDate)} angezeigt.`;
+                  return loadForRange(nearestAvailableDate, nearestAvailableDate, {
+                    ...options,
+                    fallback: false,
+                    postLoadStatusMessage: fallbackMessage,
+                  });
+                }
+                return loadForRange(nearestAvailableDate, nearestAvailableDate, {
+                  ...options,
+                  fallback: false,
+                });
+              }
+            }
+            throw new Error("No management data available in requested range");
+          }
+
+          const latestAvailableDay = availableDays[availableDays.length - 1];
+          state.summary = latestAvailableDay.summary;
+          state.noonDeltaSummary = latestAvailableDay.noonDeltaSummary;
+          state.rangeSummaries = availableDays.map((day) => ({
+            date: day.date,
+            summary: day.summary,
+          }));
+          state.rangeNoonDeltaSummaries = availableDays.map((day) => ({
+            date: day.date,
+            noonDeltaSummary: day.noonDeltaSummary,
+          }));
+          state.rangeDates = availableDays.map((day) => day.date);
+          state.date = latestAvailableDay.date;
+          syncRangeInputs();
+          updateRangeToggleLabel();
+
+          const missingDates = requestedDates.filter(
+            (candidateDate) =>
+              !availableDays.some((day) => sameISODate(day.date, candidateDate)),
+          );
+          if (missingDates.length) {
+            setStatus(
+              `${availableDays.length} von ${requestedDates.length} Tagen geladen. Fehlend: ${missingDates.map((candidateDate) => formatISODate(candidateDate)).join(", ")}`,
+            );
+          } else if (postLoadStatusMessage) {
+            setStatus(postLoadStatusMessage);
+          } else if (!sameISODate(requestedStart, requestedEnd)) {
+            setStatus(
+              `Zeitraum geladen: ${formatISODate(requestedStart)} bis ${formatISODate(requestedEnd)} (${availableDays.length} Tage).`,
+            );
+          }
+
           draw();
           drawBrandChart();
           drawHistogramChart();
         } catch (e) {
           setStatus("Management-Daten konnten nicht geladen werden.", "error");
-          state.summary = null;
-          state.noonDeltaSummary = null;
-          state.brandLayout = null;
-          state.histogramLayout = null;
-          brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
-          histogramCtx.clearRect(
-            0,
-            0,
-            histogramCanvas.width,
-            histogramCanvas.height,
-          );
+          clearManagementCharts();
         }
-        await updateNav();
       }
 
       window.addEventListener("resize", () => {
@@ -1494,48 +1755,42 @@
         drawHistogramChart();
       });
 
-      prevBtn.addEventListener("click", () => {
-        if (!state.nav.prev) return;
-        loadForDate(addDays(state.date, -1));
-      });
-
-      nextBtn.addEventListener("click", () => {
-        if (!state.nav.next) return;
-        loadForDate(addDays(state.date, 1));
-      });
-
-      datePicker.addEventListener("change", () => {
-        if (!datePicker.value) return;
-        loadForDate(parseISODate(datePicker.value));
-      });
-
-      window.addEventListener("keydown", (e) => {
-        const active = document.activeElement;
-        if (active && active.tagName === "INPUT") return;
-        if (e.key === "ArrowLeft") {
-          if (state.nav.prev) loadForDate(addDays(state.date, -1));
-        }
-        if (e.key === "ArrowRight") {
-          if (state.nav.next) loadForDate(addDays(state.date, 1));
-        }
-      });
-
-      // Init date picker bounds and initial date
+      // Init range picker bounds and initial range.
       (() => {
         const minDate = parseISODate(MIN_DATE_STR);
         const maxDate = addDays(berlinToday(), -1);
-        datePicker.min = MIN_DATE_STR;
-        datePicker.max = formatISODate(maxDate);
+        rangeStartPicker.min = MIN_DATE_STR;
+        rangeStartPicker.max = formatISODate(maxDate);
+        rangeEndPicker.min = MIN_DATE_STR;
+        rangeEndPicker.max = formatISODate(maxDate);
 
         const urlParams = new URLSearchParams(window.location.search);
-        const qs = urlParams.get("date");
-        let initial = maxDate;
-        if (qs && /^\d{4}-\d{2}-\d{2}$/.test(qs)) {
-          initial = parseISODate(qs);
+        const startParam = urlParams.get("start");
+        const endParam = urlParams.get("end");
+        const legacyDateParam = urlParams.get("date");
+        let initialStart = maxDate;
+        let initialEnd = maxDate;
+
+        if (
+          startParam &&
+          endParam &&
+          /^\d{4}-\d{2}-\d{2}$/.test(startParam) &&
+          /^\d{4}-\d{2}-\d{2}$/.test(endParam)
+        ) {
+          initialStart = parseISODate(startParam);
+          initialEnd = parseISODate(endParam);
+        } else if (legacyDateParam && /^\d{4}-\d{2}-\d{2}$/.test(legacyDateParam)) {
+          initialStart = parseISODate(legacyDateParam);
+          initialEnd = initialStart;
         }
-        if (initial < minDate) initial = minDate;
-        if (initial > maxDate) initial = maxDate;
-        loadForDate(initial);
+
+        const normalizedRange = normalizeDateRange(
+          initialStart,
+          initialEnd,
+          minDate,
+          maxDate,
+        );
+        loadForRange(normalizedRange.startDate, normalizedRange.endDate);
       })();
     </script>
     <script src="app-install-promo.js?v=20260409-app-promo-v12"></script>
