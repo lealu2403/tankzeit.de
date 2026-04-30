@@ -976,7 +976,7 @@
         const h = canvas.getBoundingClientRect().height;
 
         const plot = { left: 54, right: 18, top: 18, bottom: 62 };
-        plot.left = 118;
+        plot.left = 88;
         plot.width = w - plot.left - plot.right;
         plot.height = h - plot.top - plot.bottom;
         state.layout = { plot, w, h, chartEntries };
@@ -994,6 +994,8 @@
         ctx.fillStyle = theme.axisText;
         ctx.lineWidth = 1;
         ctx.font = "12px Manrope, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
 
         const tickCount = 5;
         for (let i = 0; i < tickCount; i++) {
@@ -1004,8 +1006,10 @@
           ctx.moveTo(plot.left, y);
           ctx.lineTo(plot.left + plot.width, y);
           ctx.stroke();
-          ctx.fillText(formatValue(v), 12, y + 4);
+          ctx.fillText(formatValue(v), plot.left - 10, y);
         }
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
 
         const zeroInDomain = domain.min <= 0 && domain.max >= 0;
         const y0 = yScale(domain, plot, 0);
