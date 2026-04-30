@@ -497,7 +497,7 @@ p {
 }
 
 .price-link::after {
-  content: "â†—";
+  content: "↗";
   font-size: 0.9em;
   opacity: 0.55;
   transition: transform 0.2s ease, opacity 0.2s ease;
@@ -853,6 +853,10 @@ canvas {
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.14);
   box-shadow: var(--shadow-sm);
+}
+
+.range-panel[hidden] {
+  display: none;
 }
 
 .range-inputs {
