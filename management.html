@@ -68,34 +68,10 @@
       <section class="card management-controls">
         <div class="toolbar">
           <div class="left">
-            <h2>Datum & Kraftstoff</h2>
+            <h2>Zeitraum & Kraftstoff</h2>
           </div>
           <div class="control-grid">
-            <div class="control-group">
-              <div class="control-label">Datum</div>
-              <div class="date-nav" aria-label="Datum wechseln">
-                <button
-                  class="btn"
-                  id="prev-day"
-                  type="button"
-                  title="Vorheriger Tag"
-                  aria-label="Vorheriger Tag"
-                >
-                  &larr;
-                </button>
-                <input id="date-picker" type="date" />
-                <button
-                  class="btn"
-                  id="next-day"
-                  type="button"
-                  title="N&auml;chster Tag"
-                  aria-label="N&auml;chster Tag"
-                >
-                  &rarr;
-                </button>
-              </div>
-            </div>
-            <div class="control-group">
+            <div class="control-group range-control-group">
               <div class="control-label">Zeitraum w&auml;hlen</div>
               <div class="range-picker" aria-label="Zeitraum w&auml;hlen">
                 <button
@@ -278,14 +254,11 @@
       const histogramTitleEl = document.getElementById("histogram-title");
       const histogramCanvas = document.getElementById("histogram-plot");
       const histogramCtx = histogramCanvas.getContext("2d");
-      const datePicker = document.getElementById("date-picker");
       const rangeToggleBtn = document.getElementById("range-toggle");
       const rangePanel = document.getElementById("range-panel");
       const rangeStartPicker = document.getElementById("range-start-picker");
       const rangeEndPicker = document.getElementById("range-end-picker");
       const rangeApplyBtn = document.getElementById("range-apply");
-      const prevBtn = document.getElementById("prev-day");
-      const nextBtn = document.getElementById("next-day");
       const FUEL_COLORS = {
         diesel: "#0f766e",
         e10: "#ea580c",
@@ -349,7 +322,6 @@
         rangeDates: [],
         chartEntries: [],
         rangePanelOpen: false,
-        nav: { prev: false, next: false },
       };
 
       function setStatus(message, type = "info") {
@@ -1612,33 +1584,6 @@
         );
       });
 
-      function setArrowVisibility() {
-        prevBtn.style.display = state.nav.prev ? "" : "none";
-        nextBtn.style.display = state.nav.next ? "" : "none";
-      }
-
-      async function updateNav() {
-        const minDate = parseISODate(MIN_DATE_STR);
-        const maxDate = addDays(berlinToday(), -1);
-
-        const activeStartDate = state.startDate || state.date;
-        const activeEndDate = state.endDate || state.date;
-        const prevDate = addDays(activeStartDate, -1);
-        const nextDate = addDays(activeEndDate, 1);
-
-        const prevInRange = prevDate >= minDate;
-        const nextInRange = nextDate <= maxDate;
-
-        const [prevOk, nextOk] = await Promise.all([
-          prevInRange ? exists(urlForDate(prevDate)) : Promise.resolve(false),
-          nextInRange ? exists(urlForDate(nextDate)) : Promise.resolve(false),
-        ]);
-
-        state.nav.prev = prevOk;
-        state.nav.next = nextOk;
-        setArrowVisibility();
-      }
-
       async function loadForRange(startDate, endDate, options = {}) {
         const minDate = parseISODate(MIN_DATE_STR);
         const maxDate = addDays(berlinToday(), -1);
@@ -1656,7 +1601,6 @@
         state.startDate = requestedStart;
         state.endDate = requestedEnd;
         state.date = requestedEnd;
-        datePicker.value = formatISODate(requestedEnd);
         syncRangeInputs();
         updateRangeToggleLabel();
         setRangePanelOpen(state.rangePanelOpen);
@@ -1716,7 +1660,6 @@
           }));
           state.rangeDates = availableDays.map((day) => day.date);
           state.date = latestAvailableDay.date;
-          datePicker.value = formatISODate(latestAvailableDay.date);
           syncRangeInputs();
           updateRangeToggleLabel();
 
@@ -1743,11 +1686,6 @@
           setStatus("Management-Daten konnten nicht geladen werden.", "error");
           clearManagementCharts();
         }
-        await updateNav();
-      }
-
-      async function loadForDate(d, options = {}) {
-        return loadForRange(d, d, options);
       }
 
       window.addEventListener("resize", () => {
@@ -1765,50 +1703,10 @@
         drawHistogramChart();
       });
 
-      prevBtn.addEventListener("click", () => {
-        if (!state.nav.prev) return;
-        const activeStartDate = state.startDate || state.date;
-        const activeEndDate = state.endDate || state.date;
-        loadForRange(addDays(activeStartDate, -1), addDays(activeEndDate, -1));
-      });
-
-      nextBtn.addEventListener("click", () => {
-        if (!state.nav.next) return;
-        const activeStartDate = state.startDate || state.date;
-        const activeEndDate = state.endDate || state.date;
-        loadForRange(addDays(activeStartDate, 1), addDays(activeEndDate, 1));
-      });
-
-      datePicker.addEventListener("change", () => {
-        if (!datePicker.value) return;
-        loadForDate(parseISODate(datePicker.value));
-      });
-
-      window.addEventListener("keydown", (e) => {
-        const active = document.activeElement;
-        if (active && active.tagName === "INPUT") return;
-        if (e.key === "ArrowLeft") {
-          if (state.nav.prev) {
-            const activeStartDate = state.startDate || state.date;
-            const activeEndDate = state.endDate || state.date;
-            loadForRange(addDays(activeStartDate, -1), addDays(activeEndDate, -1));
-          }
-        }
-        if (e.key === "ArrowRight") {
-          if (state.nav.next) {
-            const activeStartDate = state.startDate || state.date;
-            const activeEndDate = state.endDate || state.date;
-            loadForRange(addDays(activeStartDate, 1), addDays(activeEndDate, 1));
-          }
-        }
-      });
-
-      // Init date picker bounds and initial date
+      // Init range picker bounds and initial range.
       (() => {
         const minDate = parseISODate(MIN_DATE_STR);
         const maxDate = addDays(berlinToday(), -1);
-        datePicker.min = MIN_DATE_STR;
-        datePicker.max = formatISODate(maxDate);
         rangeStartPicker.min = MIN_DATE_STR;
         rangeStartPicker.max = formatISODate(maxDate);
         rangeEndPicker.min = MIN_DATE_STR;
