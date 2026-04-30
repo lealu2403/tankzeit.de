@@ -975,8 +975,8 @@
         const w = canvas.getBoundingClientRect().width;
         const h = canvas.getBoundingClientRect().height;
 
-        const plot = { left: 54, right: 18, top: 18, bottom: 42 };
-        plot.left = 72;
+        const plot = { left: 54, right: 18, top: 18, bottom: 62 };
+        plot.left = 92;
         plot.width = w - plot.left - plot.right;
         plot.height = h - plot.top - plot.bottom;
         state.layout = { plot, w, h, chartEntries };
@@ -1004,7 +1004,7 @@
           ctx.moveTo(plot.left, y);
           ctx.lineTo(plot.left + plot.width, y);
           ctx.stroke();
-          ctx.fillText(formatValue(v), 8, y + 4);
+          ctx.fillText(formatValue(v), 12, y + 4);
         }
 
         const zeroInDomain = domain.min <= 0 && domain.max >= 0;
@@ -1019,7 +1019,7 @@
         }
 
         ctx.save();
-        ctx.translate(18, plot.top + plot.height / 2);
+        ctx.translate(20, plot.top + plot.height / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.textAlign = "center";
         ctx.fillStyle = theme.axisTitle;
@@ -1179,7 +1179,7 @@
                   ? 52
                   : 82
               : 18),
-          plot.top + plot.height + 38,
+          plot.top + plot.height + 50,
         );
 
         const points = chartEntries.map((entry, index) => {
