@@ -32,34 +32,53 @@ jobs:
           git remote add upstream https://github.com/volzinnovation/tankzeit.de.git
           git fetch --depth=1 --filter=blob:none upstream master
 
-      - name: Plan generated data sync
+      - name: Plan recent management data sync
         run: |
-          git diff -z --name-only --diff-filter=ACMRT \
-            HEAD upstream/master -- data data2 station sitemap.xml robots.txt \
-            > /tmp/upstream-generated-checkout.z
-          git diff -z --name-only --diff-filter=D \
-            HEAD upstream/master -- data data2 station sitemap.xml robots.txt \
-            > /tmp/upstream-generated-delete.z
           python - <<'PY'
+          from datetime import datetime, timedelta
           from pathlib import Path
+          from zoneinfo import ZoneInfo
 
-          for name in ("checkout", "delete"):
-              payload = Path(f"/tmp/upstream-generated-{name}.z").read_bytes()
-              count = len([part for part in payload.split(b"\0") if part])
-              print(f"{name}: {count} generated path(s)")
+          today = datetime.now(ZoneInfo("Europe/Berlin")).date()
+          start = today - timedelta(days=14)
+          end = today - timedelta(days=1)
+          paths = [
+              "data/noon.csv",
+              "data/stations.json",
+              "data/brent.json",
+              "sitemap.xml",
+              "robots.txt",
+          ]
+          current = start
+          while current <= end:
+              paths.extend(
+                  [
+                      f"data2/{current:%Y}/{current:%m}/{current:%d}/management_boxplots.json",
+                      f"data2/{current:%Y}/{current:%m}/{current:%d}/noon.csv",
+                  ]
+              )
+              current += timedelta(days=1)
+
+          Path("/tmp/upstream-candidate-paths.txt").write_text(
+              "\n".join(paths) + "\n",
+              encoding="utf-8",
+          )
+          print(f"Planned {len(paths)} recent generated path candidate(s)")
+          print(f"Date window: {start:%Y-%m-%d} to {end:%Y-%m-%d}")
           PY
+          while IFS= read -r path; do
+            if git cat-file -e "upstream/master:$path" 2>/dev/null; then
+              printf '%s\n' "$path"
+            fi
+          done < /tmp/upstream-candidate-paths.txt \
+            > /tmp/upstream-generated-checkout.txt
+          wc -l /tmp/upstream-generated-checkout.txt
 
-      - name: Copy changed generated data into this site
+      - name: Copy recent management data into this site
         run: |
-          if [ -s /tmp/upstream-generated-checkout.z ]; then
+          if [ -s /tmp/upstream-generated-checkout.txt ]; then
             git checkout upstream/master \
-              --pathspec-from-file=/tmp/upstream-generated-checkout.z \
-              --pathspec-file-nul
-          fi
-          if [ -s /tmp/upstream-generated-delete.z ]; then
-            git rm -q --ignore-unmatch \
-              --pathspec-from-file=/tmp/upstream-generated-delete.z \
-              --pathspec-file-nul
+              --pathspec-from-file=/tmp/upstream-generated-checkout.txt
           fi
 
       - name: Configure git
