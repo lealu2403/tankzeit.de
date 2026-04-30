@@ -20,6 +20,7 @@ concurrency:
 jobs:
   sync-upstream-data:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout this site
         uses: actions/checkout@v4
@@ -31,9 +32,35 @@ jobs:
           git remote add upstream https://github.com/volzinnovation/tankzeit.de.git
           git fetch --depth=1 --filter=blob:none upstream master
 
-      - name: Copy generated data into this site
+      - name: Plan generated data sync
         run: |
-          git checkout upstream/master -- data data2 station sitemap.xml robots.txt
+          git diff -z --name-only --diff-filter=ACMRT \
+            HEAD upstream/master -- data data2 station sitemap.xml robots.txt \
+            > /tmp/upstream-generated-checkout.z
+          git diff -z --name-only --diff-filter=D \
+            HEAD upstream/master -- data data2 station sitemap.xml robots.txt \
+            > /tmp/upstream-generated-delete.z
+          python - <<'PY'
+          from pathlib import Path
+
+          for name in ("checkout", "delete"):
+              payload = Path(f"/tmp/upstream-generated-{name}.z").read_bytes()
+              count = len([part for part in payload.split(b"\0") if part])
+              print(f"{name}: {count} generated path(s)")
+          PY
+
+      - name: Copy changed generated data into this site
+        run: |
+          if [ -s /tmp/upstream-generated-checkout.z ]; then
+            git checkout upstream/master \
+              --pathspec-from-file=/tmp/upstream-generated-checkout.z \
+              --pathspec-file-nul
+          fi
+          if [ -s /tmp/upstream-generated-delete.z ]; then
+            git rm -q --ignore-unmatch \
+              --pathspec-from-file=/tmp/upstream-generated-delete.z \
+              --pathspec-file-nul
+          fi
 
       - name: Configure git
         run: |
@@ -42,7 +69,6 @@ jobs:
 
       - name: Commit synced data
         run: |
-          git add data data2 station sitemap.xml robots.txt
           if git diff --cached --quiet; then
             echo "No upstream data changes to sync."
             exit 0
