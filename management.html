@@ -319,7 +319,10 @@
         endDate: null,
         rangeSummaries: [],
         rangeNoonDeltaSummaries: [],
+        rangeNoonRows: [],
         rangeDates: [],
+        stationBrandById: null,
+        rangeBrandCache: null,
         chartEntries: [],
         rangePanelOpen: false,
       };
@@ -494,8 +497,111 @@
         return String(bucket.hour);
       }
 
+      function buildBrandDistributionRow(label, values) {
+        const sorted = values
+          .filter((value) => Number.isFinite(value))
+          .sort((left, right) => left - right);
+        if (!sorted.length) return null;
+        const sum = sorted.reduce((total, value) => total + value, 0);
+        const roundPrice = (value) => Math.round(value * 1000) / 1000;
+        return {
+          brand: label,
+          count: sorted.length,
+          min: roundPrice(sorted[0]),
+          q1: roundPrice(quantile(sorted, 0.25)),
+          median: roundPrice(quantile(sorted, 0.5)),
+          avg: roundPrice(sum / sorted.length),
+          q3: roundPrice(quantile(sorted, 0.75)),
+          max: roundPrice(sorted[sorted.length - 1]),
+        };
+      }
+
+      function rangeBrandRows() {
+        if (
+          !isRangeModeActive() ||
+          !state.stationBrandById ||
+          !state.rangeNoonRows.length
+        ) {
+          return null;
+        }
+
+        const cacheKey = [
+          state.fuel,
+          state.rangeNoonRows
+            .map((day) => `${formatISODate(day.date)}:${day.rows.length}`)
+            .join("|"),
+        ].join("::");
+        if (state.rangeBrandCache?.key === cacheKey) {
+          return state.rangeBrandCache.rows;
+        }
+
+        const byBrand = new Map();
+        const allValues = [];
+        state.rangeNoonRows.forEach((day) => {
+          day.rows.forEach((row) => {
+            const price = csvFuelNumber(row, state.fuel);
+            if (!Number.isFinite(price) || price <= 0) return;
+            const stationId = String(row.station_uuid || "").trim();
+            const brand =
+              state.stationBrandById.get(stationId) || "UNBEKANNT";
+            if (!byBrand.has(brand)) byBrand.set(brand, []);
+            byBrand.get(brand).push(price);
+            allValues.push(price);
+          });
+        });
+
+        if (!allValues.length) {
+          state.rangeBrandCache = { key: cacheKey, rows: [] };
+          return [];
+        }
+
+        const focusBrands = [...byBrand.entries()]
+          .sort((left, right) => {
+            const countDiff = right[1].length - left[1].length;
+            return countDiff || left[0].localeCompare(right[0], "de");
+          })
+          .slice(0, 9)
+          .map(([brand]) => brand);
+        const focusBrandSet = new Set(focusBrands);
+        const miscValues = [];
+        byBrand.forEach((values, brand) => {
+          if (!focusBrandSet.has(brand)) miscValues.push(...values);
+        });
+
+        const rows = [buildBrandDistributionRow("Gesamtmarkt", allValues)];
+        focusBrands.forEach((brand) => {
+          rows.push(buildBrandDistributionRow(brand, byBrand.get(brand) || []));
+        });
+        if (miscValues.length) {
+          rows.push(buildBrandDistributionRow("MISC", miscValues));
+        }
+
+        state.rangeBrandCache = {
+          key: cacheKey,
+          rows: rows.filter(Boolean),
+        };
+        return state.rangeBrandCache.rows;
+      }
+
       function brandRows() {
+        const rangeRows = rangeBrandRows();
+        if (rangeRows) return rangeRows;
         return state.summary?.brand_distributions?.[state.fuel] || [];
+      }
+
+      function brandChartPeriodLabel() {
+        const rangeRows = rangeBrandRows();
+        if (
+          rangeRows &&
+          state.startDate instanceof Date &&
+          state.endDate instanceof Date
+        ) {
+          return `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`;
+        }
+        const snapshotDate = state.summary?.brand_snapshot_date
+          ? parseISODate(state.summary.brand_snapshot_date)
+          : state.date;
+        return snapshotDate instanceof Date ? formatLongDate(snapshotDate) : "";
       }
 
       function histogramRows() {
@@ -619,6 +725,13 @@
         const m = String(d.getUTCMonth() + 1).padStart(2, "0");
         const day = String(d.getUTCDate()).padStart(2, "0");
         return `${y}-${m}-${day}`;
+      }
+
+      function formatLongDate(d) {
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const y = d.getUTCFullYear();
+        return `${day}.${m}.${y}`;
       }
 
       function formatShortDate(d) {
@@ -783,6 +896,28 @@
         );
       }
 
+      function normalizeBrandName(value) {
+        const brand = String(value || "").trim().toUpperCase();
+        return brand || "UNBEKANNT";
+      }
+
+      async function loadStationBrands() {
+        if (state.stationBrandById) return state.stationBrandById;
+        const response = await fetch("data/stations.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const stations = await response.json();
+        const stationBrandById = new Map();
+        stations.forEach((station) => {
+          const stationId = String(
+            station?.uuid || station?.station_uuid || "",
+          ).trim();
+          if (!stationId) return;
+          stationBrandById.set(stationId, normalizeBrandName(station.brand));
+        });
+        state.stationBrandById = stationBrandById;
+        return stationBrandById;
+      }
+
       async function exists(url) {
         try {
           const head = await fetch(url, { method: "HEAD", cache: "no-store" });
@@ -814,21 +949,29 @@
         const url = urlForDate(date);
         const noonUrl = urlForNoonDate(date);
         const previousNoonUrl = urlForNoonDate(addDays(date, -1));
-        const [summary, noonDeltaSummary] = await Promise.all([
+        const [summary, noonResult] = await Promise.all([
           fetch(url, { cache: "no-store" }).then((response) => {
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             return response.json();
           }),
           Promise.all([fetchCsv(noonUrl), fetchCsv(previousNoonUrl)])
-            .then(([currentRows, previousRows]) =>
-              buildNoonDeltaSummary(currentRows, previousRows),
-            )
-            .catch(() => null),
+            .then(([currentRows, previousRows]) => ({
+              noonRows: currentRows,
+              noonDeltaSummary: buildNoonDeltaSummary(
+                currentRows,
+                previousRows,
+              ),
+            }))
+            .catch(() => ({
+              noonRows: [],
+              noonDeltaSummary: null,
+            })),
         ]);
         return {
           date,
           summary,
-          noonDeltaSummary,
+          noonRows: noonResult.noonRows,
+          noonDeltaSummary: noonResult.noonDeltaSummary,
         };
       }
 
@@ -837,7 +980,9 @@
         state.noonDeltaSummary = null;
         state.rangeSummaries = [];
         state.rangeNoonDeltaSummaries = [];
+        state.rangeNoonRows = [];
         state.rangeDates = [];
+        state.rangeBrandCache = null;
         state.brandLayout = null;
         state.histogramLayout = null;
         brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
@@ -1255,7 +1400,10 @@
           return;
         }
 
-        brandTitleEl.textContent = `12:00-Referenzpreis nach Marke \u00b7 ${fuelDisplayName(state.fuel)}`;
+        const periodLabel = brandChartPeriodLabel();
+        brandTitleEl.textContent =
+          `12:00-Referenzpreis nach Marke \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (periodLabel ? ` \u00b7 ${periodLabel}` : "");
 
         brandCanvas.style.height = `${Math.max(280, rows.length * 42 + 90)}px`;
         resizeCanvas(brandCanvas, brandCtx);
@@ -1584,8 +1732,9 @@
         const rows = brandRows();
         const row = rows[index];
         if (!row) return;
+        const periodLabel = brandChartPeriodLabel();
         setStatus(
-          `${state.fuel.toUpperCase()} ${row.brand}: Median ${formatBrandStatusValue(row.median)} \u20ac/l, q1 ${formatBrandStatusValue(row.q1)}, q3 ${formatBrandStatusValue(row.q3)}, min ${formatBrandStatusValue(row.min)}, max ${formatBrandStatusValue(row.max)} \u20ac/l (n=${row.count})`,
+          `${state.fuel.toUpperCase()} ${row.brand}${periodLabel ? ` (${periodLabel})` : ""}: Median ${formatBrandStatusValue(row.median)} \u20ac/l, q1 ${formatBrandStatusValue(row.q1)}, q3 ${formatBrandStatusValue(row.q3)}, min ${formatBrandStatusValue(row.min)}, max ${formatBrandStatusValue(row.max)} \u20ac/l (n=${row.count})`,
         );
       });
 
@@ -1621,6 +1770,7 @@
           });
           btn.classList.add("primary");
           btn.setAttribute("aria-selected", "true");
+          state.rangeBrandCache = null;
           clearStatus();
           draw();
           drawBrandChart();
@@ -1714,7 +1864,12 @@
             date: day.date,
             noonDeltaSummary: day.noonDeltaSummary,
           }));
+          state.rangeNoonRows = availableDays.map((day) => ({
+            date: day.date,
+            rows: day.noonRows || [],
+          }));
           state.rangeDates = availableDays.map((day) => day.date);
+          state.rangeBrandCache = null;
           state.date = latestAvailableDay.date;
           syncRangeInputs();
           updateRangeToggleLabel();
@@ -1733,6 +1888,10 @@
             setStatus(
               `Zeitraum geladen: ${formatISODate(requestedStart)} bis ${formatISODate(requestedEnd)} (${availableDays.length} Tage).`,
             );
+          }
+
+          if (!sameISODate(requestedStart, requestedEnd)) {
+            await loadStationBrands().catch(() => null);
           }
 
           draw();
