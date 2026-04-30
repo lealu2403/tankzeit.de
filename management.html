@@ -621,6 +621,12 @@
         return `${y}-${m}-${day}`;
       }
 
+      function formatShortDate(d) {
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        return `${day}.${m}.`;
+      }
+
       function sameISODate(left, right) {
         if (!(left instanceof Date) || !(right instanceof Date)) return false;
         return formatISODate(left) === formatISODate(right);
@@ -931,6 +937,26 @@
         return plot.left + t * plot.width;
       }
 
+      function rangeHourTicks(dayCount) {
+        if (dayCount <= 3) return [12, 16, 20, 0, 4, 8, 12];
+        if (dayCount <= 7) return [12, 18, 0, 6, 12];
+        return [12, 0, 12];
+      }
+
+      function rangeDayStartIndex(dayIndex) {
+        return dayIndex === 0 ? 0 : 25 + (dayIndex - 1) * 24;
+      }
+
+      function rangeDayEntryCount(dayIndex, dayCount) {
+        if (dayCount <= 1) return 25;
+        return dayIndex === 0 ? 25 : 24;
+      }
+
+      function rangeHourTickOffset(hour, tickIndex) {
+        if (tickIndex === 0) return 0;
+        return hour >= 12 ? hour - 12 : hour + 12;
+      }
+
       function clamp(value, min, max) {
         return Math.min(max, Math.max(min, value));
       }
@@ -1081,21 +1107,13 @@
         }
 
         // X labels
-        const step = rangeModeActive ? (w < 720 ? 4 : 2) : w < 600 ? 2 : 1;
         ctx.fillStyle = theme.tickText;
-        for (let index = 0; index < stats.length; index += step) {
-          const x = plot.left + ((index + 0.5) * plot.width) / stats.length;
-          ctx.fillText(
-            bucketLabel(stats[index]),
-            x - 6,
-            plot.top + plot.height + 26,
-          );
-        }
         if (rangeModeActive) {
-          ctx.font = "11px Manrope, sans-serif";
-          ctx.fillStyle = theme.axisText;
+          const dayCount = state.rangeSummaries.length;
+          const hourTicks = rangeHourTicks(dayCount);
           state.rangeSummaries.forEach((rangeDay, dayIndex) => {
-            const startIndex = dayIndex === 0 ? 0 : 25 + (dayIndex - 1) * 24;
+            const startIndex = rangeDayStartIndex(dayIndex);
+            const entryCount = rangeDayEntryCount(dayIndex, dayCount);
             const boundaryX =
               plot.left + (startIndex * plot.width) / stats.length;
             ctx.beginPath();
@@ -1103,12 +1121,46 @@
             ctx.lineTo(boundaryX, plot.top + plot.height);
             ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
             ctx.stroke();
+
+            const dayCenterX =
+              plot.left +
+              ((startIndex + entryCount / 2) * plot.width) / stats.length;
+            ctx.font = "600 11px Manrope, sans-serif";
+            ctx.fillStyle = theme.axisText;
+            ctx.textAlign = "center";
             ctx.fillText(
-              formatISODate(rangeDay.date),
-              Math.min(boundaryX + 6, plot.left + plot.width - 64),
+              formatShortDate(rangeDay.date),
+              dayCenterX,
               plot.top + plot.height + 12,
             );
+
+            ctx.font = "11px Manrope, sans-serif";
+            ctx.fillStyle = theme.tickText;
+            hourTicks.forEach((hour, tickIndex) => {
+              const offset = rangeHourTickOffset(hour, tickIndex);
+              if (offset > entryCount) return;
+              const x =
+                plot.left +
+                ((startIndex + offset) * plot.width) / stats.length;
+              if (x < plot.left - 1 || x > plot.left + plot.width + 1) return;
+              ctx.fillText(
+                String(hour).padStart(2, "0"),
+                x,
+                plot.top + plot.height + 28,
+              );
+            });
           });
+          ctx.textAlign = "left";
+        } else {
+          const step = w < 600 ? 2 : 1;
+          for (let index = 0; index < stats.length; index += step) {
+            const x = plot.left + ((index + 0.5) * plot.width) / stats.length;
+            ctx.fillText(
+              bucketLabel(stats[index]),
+              x - 6,
+              plot.top + plot.height + 26,
+            );
+          }
         }
         ctx.fillText(
           viewMode === "cycle"
