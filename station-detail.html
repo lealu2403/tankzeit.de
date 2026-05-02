@@ -298,6 +298,29 @@
         return response.json();
       }
 
+      async function fetchText(url) {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        return response.text();
+      }
+
+      function parseCsv(text) {
+        const lines = text
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (!lines.length) return [];
+        const headers = lines[0].split(",").map((header) => header.trim());
+        return lines.slice(1).map((line) => {
+          const values = line.split(",");
+          const row = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] ?? "";
+          });
+          return row;
+        });
+      }
+
       function waitForChartJs() {
         return new Promise((resolve) => {
           if (typeof Chart !== "undefined") {
@@ -354,6 +377,94 @@
           .sort((left, right) => left.cycleHour - right.cycleHour);
       }
 
+      function normalizeHistoryRows(rows) {
+        return rows
+          .map((row) => {
+            const price = Number(row?.price);
+            const date = String(row?.date || "");
+            if (!date || !Number.isFinite(price)) return null;
+            return { date, price };
+          })
+          .filter((row) => row !== null)
+          .sort((left, right) => left.date.localeCompare(right.date));
+      }
+
+      function findHistoryPrice(historyRows, day) {
+        const match = historyRows.find((row) => row.date === day);
+        return match ? match.price : null;
+      }
+
+      function previousDay(day) {
+        const parsed = new Date(`${day}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) return "";
+        parsed.setDate(parsed.getDate() - 1);
+        return parsed.toISOString().slice(0, 10);
+      }
+
+      function averageHistoryPrice(historyRows, fromDay, toDay) {
+        const selectedRows = historyRows.filter(
+          (row) => row.date >= fromDay && row.date <= toDay,
+        );
+        if (!selectedRows.length) return null;
+        const sum = selectedRows.reduce((total, row) => total + row.price, 0);
+        return sum / selectedRows.length;
+      }
+
+      function normalizeFallbackPriceRows(stats, historyRows, selectedRange) {
+        const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
+        if (!hourlyRows.length || !historyRows.length) return { rows: [], summary: null };
+
+        const firstHistoryDay = historyRows[0]?.date || "";
+        const lastHistoryDay = historyRows[historyRows.length - 1]?.date || "";
+        const fromDay = selectedRange?.from || firstHistoryDay;
+        const toDay = selectedRange?.to || lastHistoryDay;
+        const priorFromDay = previousDay(fromDay);
+        const priorToDay = previousDay(toDay);
+        const sameDayReference = averageHistoryPrice(historyRows, fromDay, toDay);
+        const priorDayReference = averageHistoryPrice(
+          historyRows,
+          priorFromDay,
+          priorToDay,
+        );
+        if (!Number.isFinite(sameDayReference) || !Number.isFinite(priorDayReference)) {
+          return { rows: [], summary: null };
+        }
+
+        const byHour = new Map();
+        hourlyRows.forEach((row) => {
+          const hour = Number(row?.hour);
+          const delta = Number(row?.price);
+          if (Number.isFinite(hour) && Number.isFinite(delta)) {
+            byHour.set(Math.round(hour), delta);
+          }
+        });
+
+        const rows = [];
+        for (let cycleHour = 0; cycleHour <= 24; cycleHour += 1) {
+          const clockHour = (12 + cycleHour) % 24;
+          const sourceHour = cycleHour === 24 ? 12 : clockHour;
+          const reference = clockHour < 12 ? priorDayReference : sameDayReference;
+          const delta = byHour.get(sourceHour);
+          if (!Number.isFinite(delta)) continue;
+          rows.push({
+            cycleHour,
+            clockHour,
+            label: String(clockHour).padStart(2, "0"),
+            price: Number((reference + delta).toFixed(3)),
+            count: 1,
+          });
+        }
+
+        return {
+          rows,
+          summary: {
+            cycle_start: firstHistoryDay,
+            cycle_end: lastHistoryDay,
+            fallback: true,
+          },
+        };
+      }
+
       function updateRangeControls(summary) {
         const fromInput = document.getElementById("cycle-from");
         const toInput = document.getElementById("cycle-to");
@@ -369,8 +480,19 @@
         fromInput.max = cycleEnd;
         toInput.min = cycleStart;
         toInput.max = cycleEnd;
-        fromInput.value = params.get("from") || cycleStart;
-        toInput.value = params.get("to") || cycleEnd;
+        const requestedFrom = params.get("from") || cycleStart;
+        const requestedTo = params.get("to") || cycleEnd;
+        fromInput.value =
+          requestedFrom >= cycleStart && requestedFrom <= cycleEnd
+            ? requestedFrom
+            : cycleStart;
+        toInput.value =
+          requestedTo >= cycleStart && requestedTo <= cycleEnd
+            ? requestedTo
+            : cycleEnd;
+        if (fromInput.value > toInput.value) {
+          fromInput.value = toInput.value;
+        }
         fromInput.disabled = false;
         toInput.disabled = false;
         return { from: fromInput.value, to: toInput.value };
@@ -502,19 +624,50 @@
         try {
           await waitForChartJs();
           const stats = await fetchJson(`${DATA_BASE}${stationPath(stationId)}/${fuel}.json`);
-          const rows = normalizePriceRows(stats);
-          const selectedRange = updateRangeControls(stats?.cycle_summary);
+          let rows = normalizePriceRows(stats);
+          let summary = stats?.cycle_summary || {};
+          let isFallback = false;
+          if (!rows.length) {
+            const historyText = await fetchText(
+              `${DATA_BASE}${stationPath(stationId)}/${fuel}/history.csv`,
+            );
+            const historyRows = normalizeHistoryRows(parseCsv(historyText));
+            const historySummary = {
+              cycle_start: historyRows[0]?.date || "",
+              cycle_end: historyRows[historyRows.length - 1]?.date || "",
+            };
+            const fallbackRange = updateRangeControls(historySummary);
+            const fallback = normalizeFallbackPriceRows(
+              stats,
+              historyRows,
+              fallbackRange,
+            );
+            rows = fallback.rows;
+            summary = fallback.summary || summary;
+            isFallback = rows.length > 0;
+          }
+          const selectedRange = isFallback
+            ? {
+                from: document.getElementById("cycle-from").value,
+                to: document.getElementById("cycle-to").value,
+              }
+            : updateRangeControls(summary);
           if (!rows.length) {
             note.textContent = "Fuer diese Station liegt noch kein 12:00-bis-12:00-Preisniveau vor.";
             return;
           }
           renderPriceLevelChart(rows);
-          const summary = stats?.cycle_summary || {};
-          const availableStart = summary.cycle_start || selectedRange.from;
-          const availableEnd = summary.cycle_end || selectedRange.to;
+          const availableStart = isFallback
+            ? selectedRange.from
+            : summary.cycle_start || selectedRange.from;
+          const availableEnd = isFallback
+            ? selectedRange.to
+            : summary.cycle_end || selectedRange.to;
           note.textContent = `${fuelLabels[fuel] || fuel.toUpperCase()} - 12:00 bis 12:00 - ${formatDate(
             availableStart,
-          )} bis ${formatDate(availableEnd)}`;
+          )} bis ${formatDate(availableEnd)}${
+            isFallback ? " - aus Tagesprofil und Mittagspreisen abgeleitet" : ""
+          }`;
         } catch (err) {
           note.textContent = "Preisniveau konnte lokal nicht geladen werden.";
         }
