@@ -394,26 +394,37 @@
         return match ? match.price : null;
       }
 
+      function shiftIsoDay(day, offsetDays) {
+        const [year, month, date] = String(day || "")
+          .split("-")
+          .map((part) => Number(part));
+        if (
+          !Number.isInteger(year) ||
+          !Number.isInteger(month) ||
+          !Number.isInteger(date)
+        ) {
+          return "";
+        }
+        const shifted = new Date(Date.UTC(year, month - 1, date + offsetDays));
+        return shifted.toISOString().slice(0, 10);
+      }
+
       function previousDay(day) {
-        const parsed = new Date(`${day}T00:00:00`);
-        if (Number.isNaN(parsed.getTime())) return "";
-        parsed.setDate(parsed.getDate() - 1);
-        return parsed.toISOString().slice(0, 10);
+        return shiftIsoDay(day, -1);
       }
 
       function nextDay(day) {
-        const parsed = new Date(`${day}T00:00:00`);
-        if (Number.isNaN(parsed.getTime())) return "";
-        parsed.setDate(parsed.getDate() + 1);
-        return parsed.toISOString().slice(0, 10);
+        return shiftIsoDay(day, 1);
       }
 
       function eachCycleStartDay(fromDay, toDay) {
         const days = [];
         let currentDay = fromDay;
-        while (currentDay && currentDay < toDay) {
+        let guard = 0;
+        while (currentDay && currentDay < toDay && guard < 370) {
           days.push(currentDay);
           currentDay = nextDay(currentDay);
+          guard += 1;
         }
         return days;
       }
