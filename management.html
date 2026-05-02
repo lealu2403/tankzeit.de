@@ -1543,16 +1543,23 @@
         });
       }
 
-      function priceLevelRows() {
+      function priceLevelSeries() {
         const sourceDays =
           (state.rangeSummaries || []).length > 0
             ? state.rangeSummaries
             : [{ date: state.date, summary: state.summary }];
-        const hasExactRows =
+        const hasExactAverageRows =
           sourceDays.length > 0 &&
           sourceDays.every((rangeDay) =>
             (rangeDay.summary?.fuels?.[state.fuel] || []).some(
               (row) => Number(row.price_count) > 0 && Number.isFinite(Number(row.price_sum)),
+            ),
+          );
+        const hasExactMedianRows =
+          sourceDays.length > 0 &&
+          sourceDays.every((rangeDay) =>
+            (rangeDay.summary?.fuels?.[state.fuel] || []).some((row) =>
+              Number.isFinite(Number(row.price_median)),
             ),
           );
         const byHour = new Map();
@@ -1563,14 +1570,17 @@
             (row) => row?.brand === "Gesamtmarkt",
           );
           const baseAvg = Number(overall?.avg);
+          const baseMedian = Number(overall?.median);
           rows.forEach((row) => {
             const rawHour =
               row.cycle_hour !== undefined ? row.cycle_hour : row.hour;
             const hour = Number(rawHour);
             const exactPriceSum = Number(row.price_sum);
             const exactPriceCount = Number(row.price_count);
+            const exactPriceMedian = Number(row.price_median);
             const deltaMedian = adjustedHourlyRow(row).median;
             const estimatedAvg = baseAvg + deltaMedian;
+            const estimatedMedian = baseMedian + deltaMedian;
             const estimateWeight = Number(row.count) > 0 ? Number(row.count) : 1;
             if (
               !Number.isFinite(hour) ||
@@ -1580,17 +1590,25 @@
               return;
             }
             const useExact =
-              hasExactRows &&
+              hasExactAverageRows &&
               Number.isFinite(exactPriceSum) &&
               Number.isFinite(exactPriceCount) &&
               exactPriceCount > 0;
             const useEstimate =
-              !hasExactRows &&
+              !hasExactAverageRows &&
               Number.isFinite(baseAvg) &&
               Number.isFinite(deltaMedian) &&
               Number.isFinite(estimateWeight) &&
               estimateWeight > 0;
-            if (!useExact && !useEstimate) return;
+            const useExactMedian =
+              hasExactMedianRows && Number.isFinite(exactPriceMedian);
+            const useEstimateMedian =
+              !hasExactMedianRows &&
+              Number.isFinite(baseMedian) &&
+              Number.isFinite(deltaMedian) &&
+              Number.isFinite(estimateWeight) &&
+              estimateWeight > 0;
+            if (!useExact && !useEstimate && !useExactMedian && !useEstimateMedian) return;
 
             const bucket = byHour.get(hour) || {
               hour,
@@ -1599,7 +1617,10 @@
                 : (12 + hour) % 24,
               priceSum: 0,
               priceCount: 0,
-              estimated: !hasExactRows,
+              medianSum: 0,
+              medianCount: 0,
+              estimatedAverage: !hasExactAverageRows,
+              estimatedMedian: !hasExactMedianRows,
             };
             if (useExact) {
               bucket.priceSum += exactPriceSum;
@@ -1607,6 +1628,13 @@
             } else {
               bucket.priceSum += estimatedAvg * estimateWeight;
               bucket.priceCount += estimateWeight;
+            }
+            if (useExactMedian) {
+              bucket.medianSum += exactPriceMedian;
+              bucket.medianCount += 1;
+            } else if (useEstimateMedian) {
+              bucket.medianSum += estimatedMedian * estimateWeight;
+              bucket.medianCount += estimateWeight;
             }
             byHour.set(hour, bucket);
           });
@@ -1616,15 +1644,19 @@
           .sort((left, right) => left.hour - right.hour)
           .map((row) => ({
             ...row,
-            avg: row.priceSum / row.priceCount,
+            avg: row.priceCount > 0 ? row.priceSum / row.priceCount : null,
+            median: row.medianCount > 0 ? row.medianSum / row.medianCount : null,
           }));
-        rows.mode = hasExactRows ? "exact" : "estimated";
-        return rows;
+        return {
+          rows,
+          averageMode: hasExactAverageRows ? "exact" : "estimated",
+          medianMode: hasExactMedianRows ? "exact" : "estimated",
+        };
       }
 
       function computePriceLevelDomain(rows) {
         const values = rows
-          .map((row) => row.avg)
+          .flatMap((row) => [row.avg, row.median])
           .filter((value) => Number.isFinite(value));
         if (!values.length) return BRAND_PRICE_DOMAIN;
 
@@ -1666,11 +1698,13 @@
         const w = priceLevelCanvas.getBoundingClientRect().width;
         const h = priceLevelCanvas.getBoundingClientRect().height;
         const theme = currentChartTheme();
-        const rows = priceLevelRows();
-        const isEstimatedPriceLevel = rows.mode === "estimated";
+        const series = priceLevelSeries();
+        const rows = series.rows;
+        const isEstimatedPriceLevel =
+          series.averageMode === "estimated" || series.medianMode === "estimated";
         priceLevelNoteEl.textContent = isEstimatedPriceLevel
-          ? "Modellierter Marktpreis: Die Kurve basiert auf dem 12:00-Gesamtmarktdurchschnitt und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum. Sobald vollst\u00e4ndige Preisaggregate vorliegen, wird automatisch der exakte Durchschnitt verwendet."
-          : "Exakter Durchschnittspreis auf Basis aggregierter Preis-Summen und Stationsz\u00e4hlungen im gew\u00e4hlten Zeitraum.";
+          ? "Modelliertes Preisniveau: Durchschnitt und Median werden aus dem 12:00-Gesamtmarktwert und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Werte."
+          : "Exakte Durchschnitts- und Medianpreise auf Basis aggregierter Preiswerte im gew\u00e4hlten Zeitraum.";
         const domain = computePriceLevelDomain(rows);
         const plot = { left: 88, right: 24, top: 24, bottom: 56 };
         plot.width = w - plot.left - plot.right;
@@ -1748,42 +1782,68 @@
         );
 
         const avgColor = FUEL_COLORS[state.fuel] || "#0f766e";
-        if (rows.length > 0) {
+        const medianColor = theme.overallStroke;
+        const drawLineSeries = (valueKey, color, dashed = false) => {
+          const points = rows
+            .map((row) => ({
+              x: plot.left + (row.hour * plot.width) / 24,
+              y: Number.isFinite(row[valueKey])
+                ? yScale(domain, plot, row[valueKey])
+                : null,
+            }))
+            .filter((point) => point.y !== null);
+          if (!points.length) return;
+
           priceLevelCtx.save();
-          priceLevelCtx.strokeStyle = avgColor;
+          priceLevelCtx.strokeStyle = color;
           priceLevelCtx.lineWidth = 2.6;
           priceLevelCtx.lineJoin = "round";
           priceLevelCtx.lineCap = "round";
+          if (dashed) priceLevelCtx.setLineDash([7, 5]);
           priceLevelCtx.beginPath();
-          rows.forEach((row, index) => {
-            const x = plot.left + (row.hour * plot.width) / 24;
-            const y = yScale(domain, plot, row.avg);
+          points.forEach((point, index) => {
             if (index === 0) {
-              priceLevelCtx.moveTo(x, y);
+              priceLevelCtx.moveTo(point.x, point.y);
             } else {
-              priceLevelCtx.lineTo(x, y);
+              priceLevelCtx.lineTo(point.x, point.y);
             }
           });
           priceLevelCtx.stroke();
+          priceLevelCtx.setLineDash([]);
 
-          priceLevelCtx.fillStyle = avgColor;
-          rows.forEach((row) => {
-            const x = plot.left + (row.hour * plot.width) / 24;
-            const y = yScale(domain, plot, row.avg);
+          priceLevelCtx.fillStyle = color;
+          points.forEach((point) => {
             priceLevelCtx.beginPath();
-            priceLevelCtx.arc(x, y, 3, 0, Math.PI * 2);
+            priceLevelCtx.arc(point.x, point.y, 3, 0, Math.PI * 2);
             priceLevelCtx.fill();
           });
           priceLevelCtx.restore();
+        };
+
+        if (rows.length > 0) {
+          drawLineSeries("avg", avgColor);
+          drawLineSeries("median", medianColor, true);
         }
 
         const legendItems = [
           {
-            label: isEstimatedPriceLevel ? "Sch\u00e4tzwert" : "Durchschnitt",
+            label:
+              series.averageMode === "estimated"
+                ? "Durchschnitt gesch\u00e4tzt"
+                : "Durchschnitt",
             color: avgColor,
+            dashed: false,
+          },
+          {
+            label:
+              series.medianMode === "estimated"
+                ? "Median gesch\u00e4tzt"
+                : "Median",
+            color: medianColor,
+            dashed: true,
           },
         ];
-        let legendX = plot.left + plot.width - (isEstimatedPriceLevel ? 130 : 140);
+        let legendX = plot.left + plot.width - 190;
         if (legendX < plot.left) legendX = plot.left;
         let legendY = plot.top + 8;
         priceLevelCtx.font = "11px Manrope, sans-serif";
@@ -1791,10 +1851,12 @@
         legendItems.forEach((item) => {
           priceLevelCtx.strokeStyle = item.color;
           priceLevelCtx.lineWidth = 3;
+          if (item.dashed) priceLevelCtx.setLineDash([7, 5]);
           priceLevelCtx.beginPath();
           priceLevelCtx.moveTo(legendX, legendY);
           priceLevelCtx.lineTo(legendX + 22, legendY);
           priceLevelCtx.stroke();
+          priceLevelCtx.setLineDash([]);
           priceLevelCtx.fillStyle = theme.legendText;
           priceLevelCtx.fillText(item.label, legendX + 30, legendY + 4);
           legendY += 18;
