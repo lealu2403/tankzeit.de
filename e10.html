@@ -263,12 +263,8 @@
         return String(url).replaceAll("&", "&amp;");
       }
 
-      function mapsUrl(lat, lng) {
-        return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      }
-
-      function chartUrl(stationId, stationName, lat, lng) {
-        return `chart.html?id=${stationId}&fuel=${FUEL}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}`;
+      function stationDetailUrl(stationId, stationName, lat, lng) {
+        return `station-detail.html?id=${stationId}&fuel=${FUEL}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}`;
       }
 
       function setStatus(message, type = "info") {
@@ -467,13 +463,12 @@
         stationsEl.innerHTML = limited
           .map((s) => {
             const isSaved = ids.includes(s.id);
-            const mapsHref = hrefForHtml(mapsUrl(s.lat, s.lng));
             const detailsHref = hrefForHtml(
-              chartUrl(s.id, s.name, s.lat, s.lng),
+              stationDetailUrl(s.id, s.name, s.lat, s.lng),
             );
             return `
-            <tr id="${s.id}">
-              <td data-label="Name"><a href="${mapsHref}" target="_blank" rel="noopener">${formatStationName(s)}</a></td>
+            <tr id="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">
+              <td data-label="Name"><a href="${detailsHref}">${formatStationName(s)}</a></td>
               <td data-label="Preis">${livePricesAvailable ? `${s[FUEL]} €/l` : NO_LIVE_PRICE_TEXT}</td>
               <td data-label="Mittagspreis/Vortag" id="${s.id}-profile"><a href="${detailsHref}">Details</a></td>
               <td data-label="Tankzeit" id="${s.id}-minimum">-</td>
@@ -502,7 +497,7 @@
             const statsUrl = `${DATA_BASE}${s.id.split("-").join("/")}/${FUEL}.json`;
             const stats = await fetchJson(statsUrl);
             const detailsHref = hrefForHtml(
-              chartUrl(s.id, s.name, s.lat, s.lng),
+              stationDetailUrl(s.id, s.name, s.lat, s.lng),
             );
             document.getElementById(`${s.id}-profile`).innerHTML =
               `<a href="${detailsHref}">${escapeHtml(TankzeitStats.profileText(stats, "Details"))}</a>`;

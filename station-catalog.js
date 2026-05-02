@@ -80,6 +80,12 @@
   }
 
   function stationCoordinatesFromRow(row) {
+    const rowLat = toFiniteNumber(row?.dataset?.lat);
+    const rowLng = toFiniteNumber(row?.dataset?.lng);
+    if (Number.isFinite(rowLat) && Number.isFinite(rowLng)) {
+      return { lat: rowLat, lng: rowLng };
+    }
+
     const link = row.querySelector('td[data-label="Name"] a[href*="query="]');
     if (!link) return null;
 

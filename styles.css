@@ -1138,6 +1138,102 @@ canvas {
   gap: 12px;
 }
 
+.station-detail-shell {
+  padding-bottom: 96px;
+}
+
+.station-detail-card {
+  margin-bottom: 22px;
+}
+
+.station-detail-card-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.station-detail-card-heading h2 {
+  margin-top: 0;
+}
+
+.station-detail-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.station-detail-range label {
+  display: grid;
+  gap: 6px;
+}
+
+.station-detail-range input,
+.station-detail-range select {
+  min-height: 38px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--muted);
+  padding: 8px 10px;
+  font: inherit;
+}
+
+.station-detail-chart-placeholder {
+  position: relative;
+  min-height: 280px;
+  border: 1px dashed rgba(15, 118, 110, 0.35);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px),
+    rgba(15, 118, 110, 0.04);
+  background-size: 68px 100%, 100% 56px, auto;
+  overflow: hidden;
+}
+
+.station-detail-chart-placeholder p {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: center;
+}
+
+.station-detail-axis {
+  position: absolute;
+  background: rgba(15, 118, 110, 0.38);
+}
+
+.station-detail-axis-y {
+  left: 44px;
+  top: 24px;
+  bottom: 42px;
+  width: 1px;
+}
+
+.station-detail-axis-x {
+  left: 44px;
+  right: 24px;
+  bottom: 42px;
+  height: 1px;
+}
+
+.forecast-placeholder {
+  background:
+    linear-gradient(90deg, rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(37, 99, 235, 0.08) 1px, transparent 1px),
+    rgba(37, 99, 235, 0.04);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
 .station-fuel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
