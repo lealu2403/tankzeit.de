@@ -98,6 +98,7 @@ jobs:
           python scripts/enrich_management_price_levels.py
           --days 14
           --changed-paths-file /tmp/enriched-management-paths.txt
+          --skip-on-load-error
 
       - name: Configure git
         run: |

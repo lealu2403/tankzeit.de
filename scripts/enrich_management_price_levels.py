@@ -11,19 +11,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Iterable
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 
-try:
-    from .generate_data import DateRange, TZ, _load_prices, _local_dt
-except ImportError:  # pragma: no cover
-    from generate_data import DateRange, TZ, _load_prices, _local_dt
-
 
 FUELS: tuple[str, ...] = ("diesel", "e10", "e5")
+TZ = ZoneInfo("Europe/Berlin")
 
 
 def _parse_date(raw: str) -> date:
@@ -43,6 +41,13 @@ def _management_path(root: Path, day: date) -> Path:
 
 def _noon_path(root: Path, day: date) -> Path:
     return root / "data2" / f"{day:%Y}" / f"{day:%m}" / f"{day:%d}" / "noon.csv"
+
+
+def _local_dt(day: date, hour: int = 0, minute: int = 0) -> datetime:
+    return datetime.combine(day, datetime.min.time(), tzinfo=TZ) + timedelta(
+        hours=hour,
+        minutes=minute,
+    )
 
 
 def _noon_aggregate(root: Path, day: date, fuel: str) -> tuple[float, int] | None:
@@ -157,8 +162,35 @@ def _add_price_fields(summary: dict[str, object], aggregates_by_fuel: dict[str, 
     return changed
 
 
-def enrich_range(root: Path, start: date, end: date, changed_paths_file: Path | None = None) -> list[Path]:
-    prices = _load_prices(DateRange(start - timedelta(days=1), end))
+def enrich_range(
+    root: Path,
+    start: date,
+    end: date,
+    changed_paths_file: Path | None = None,
+    skip_on_load_error: bool = False,
+) -> list[Path]:
+    if skip_on_load_error and (not os.environ.get("TK_USER") or not os.environ.get("TK_PASS")):
+        if changed_paths_file is not None:
+            changed_paths_file.parent.mkdir(parents=True, exist_ok=True)
+            changed_paths_file.write_text("", encoding="utf-8")
+        print("Skipping management price-level enrichment: TK_USER/TK_PASS are not configured.")
+        return []
+
+    try:
+        from .generate_data import DateRange, _load_prices
+    except ImportError:  # pragma: no cover
+        from generate_data import DateRange, _load_prices
+
+    try:
+        prices = _load_prices(DateRange(start - timedelta(days=1), end))
+    except RuntimeError as exc:
+        if not skip_on_load_error:
+            raise
+        if changed_paths_file is not None:
+            changed_paths_file.parent.mkdir(parents=True, exist_ok=True)
+            changed_paths_file.write_text("", encoding="utf-8")
+        print(f"Skipping management price-level enrichment: {exc}")
+        return []
     changed_paths: list[Path] = []
 
     for target_day in _date_range(start, end):
@@ -197,6 +229,11 @@ def parse_args() -> argparse.Namespace:
         default=Path(__file__).resolve().parents[1],
     )
     parser.add_argument("--changed-paths-file", type=Path)
+    parser.add_argument(
+        "--skip-on-load-error",
+        action="store_true",
+        help="Exit successfully when raw price CSVs cannot be loaded.",
+    )
     return parser.parse_args()
 
 
@@ -207,7 +244,13 @@ def main() -> None:
     start = args.start_date or end - timedelta(days=args.days - 1)
     if start > end:
         raise SystemExit("--start-date must be on or before --end-date")
-    enrich_range(args.output_root, start, end, args.changed_paths_file)
+    enrich_range(
+        args.output_root,
+        start,
+        end,
+        args.changed_paths_file,
+        skip_on_load_error=args.skip_on_load_error,
+    )
 
 
 if __name__ == "__main__":
