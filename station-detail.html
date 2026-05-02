@@ -401,13 +401,21 @@
         return parsed.toISOString().slice(0, 10);
       }
 
-      function averageHistoryPrice(historyRows, fromDay, toDay) {
-        const selectedRows = historyRows.filter(
-          (row) => row.date >= fromDay && row.date <= toDay,
-        );
-        if (!selectedRows.length) return null;
-        const sum = selectedRows.reduce((total, row) => total + row.price, 0);
-        return sum / selectedRows.length;
+      function nextDay(day) {
+        const parsed = new Date(`${day}T00:00:00`);
+        if (Number.isNaN(parsed.getTime())) return "";
+        parsed.setDate(parsed.getDate() + 1);
+        return parsed.toISOString().slice(0, 10);
+      }
+
+      function eachCycleStartDay(fromDay, toDay) {
+        const days = [];
+        let currentDay = fromDay;
+        while (currentDay && currentDay < toDay) {
+          days.push(currentDay);
+          currentDay = nextDay(currentDay);
+        }
+        return days;
       }
 
       function normalizeFallbackPriceRows(stats, historyRows, selectedRange) {
@@ -418,17 +426,8 @@
         const lastHistoryDay = historyRows[historyRows.length - 1]?.date || "";
         const fromDay = selectedRange?.from || firstHistoryDay;
         const toDay = selectedRange?.to || lastHistoryDay;
-        const priorFromDay = previousDay(fromDay);
-        const priorToDay = previousDay(toDay);
-        const sameDayReference = averageHistoryPrice(historyRows, fromDay, toDay);
-        const priorDayReference = averageHistoryPrice(
-          historyRows,
-          priorFromDay,
-          priorToDay,
-        );
-        if (!Number.isFinite(sameDayReference) || !Number.isFinite(priorDayReference)) {
-          return { rows: [], summary: null };
-        }
+        const cycleStartDays = eachCycleStartDay(fromDay, toDay);
+        if (!cycleStartDays.length) return { rows: [], summary: null };
 
         const byHour = new Map();
         hourlyRows.forEach((row) => {
@@ -440,20 +439,39 @@
         });
 
         const rows = [];
-        for (let cycleHour = 0; cycleHour <= 24; cycleHour += 1) {
-          const clockHour = (12 + cycleHour) % 24;
-          const sourceHour = cycleHour === 24 ? 12 : clockHour;
-          const reference = clockHour < 12 ? priorDayReference : sameDayReference;
-          const delta = byHour.get(sourceHour);
-          if (!Number.isFinite(delta)) continue;
-          rows.push({
-            cycleHour,
-            clockHour,
-            label: String(clockHour).padStart(2, "0"),
-            price: Number((reference + delta).toFixed(3)),
-            count: 1,
-          });
-        }
+        cycleStartDays.forEach((day, dayIndex) => {
+          const referencePrice = findHistoryPrice(historyRows, day);
+          const closingPrice = findHistoryPrice(historyRows, nextDay(day));
+          if (!Number.isFinite(referencePrice) || !Number.isFinite(closingPrice)) {
+            return;
+          }
+
+          for (let cycleHour = 0; cycleHour <= 24; cycleHour += 1) {
+            if (dayIndex > 0 && cycleHour === 0) continue;
+            const clockHour = (12 + cycleHour) % 24;
+            const sourceHour = cycleHour === 24 ? 12 : clockHour;
+            const delta = byHour.get(sourceHour);
+            if (!Number.isFinite(delta)) continue;
+            const price =
+              cycleHour === 0
+                ? referencePrice
+                : cycleHour === 24
+                  ? closingPrice
+                  : referencePrice + delta;
+            const date = cycleHour < 12 ? day : nextDay(day);
+            rows.push({
+              cycleHour: rows.length,
+              clockHour,
+              date,
+              label:
+                clockHour === 12
+                  ? `${formatDate(date).slice(0, 5)} 12:00`
+                  : `${String(clockHour).padStart(2, "0")}:00`,
+              price: Number(price.toFixed(3)),
+              count: 1,
+            });
+          }
+        });
 
         return {
           rows,
@@ -511,10 +529,12 @@
       }
 
       function renderPriceLevelChart(rows) {
-        const labels = rows.map((row) => `${row.label}:00`);
+        const labels = rows.map((row) => row.label);
         const values = rows.map((row) => row.price);
         const domain = priceLevelDomain(values);
-        const midnightIndex = rows.findIndex((row) => row.clockHour === 0);
+        const midnightIndexes = rows
+          .map((row, index) => (row.clockHour === 0 ? index : -1))
+          .filter((index) => index >= 0);
         const ctx = document.getElementById("price-level-chart").getContext("2d");
         if (priceLevelChart) priceLevelChart.destroy();
         priceLevelChart = new Chart(ctx, {
@@ -547,7 +567,12 @@
               x: {
                 title: {
                   display: true,
-                  text: "Stunde im 24h-Zyklus",
+                  text: "Zeitachse 12:00 bis 12:00",
+                },
+                ticks: {
+                  autoSkip: true,
+                  maxRotation: 0,
+                  minRotation: 0,
                 },
               },
               y: {
@@ -578,7 +603,11 @@
                   afterBody(context) {
                     const row = rows[context[0]?.dataIndex];
                     if (!row) return [];
-                    const lines = [`Uhrzeit: ${row.label}:00`];
+                    const lines = [
+                      row.date
+                        ? `Zeit: ${formatDate(row.date)} ${String(row.clockHour).padStart(2, "0")}:00`
+                        : `Uhrzeit: ${row.label}`,
+                    ];
                     if (row.count) lines.push(`Zyklen: ${row.count}`);
                     return lines;
                   },
@@ -590,24 +619,23 @@
             {
               id: "stationDetailMidnightDivider",
               afterDraw(chart) {
-                if (midnightIndex < 0) return;
+                if (!midnightIndexes.length) return;
                 const xScale = chart.scales.x;
                 const chartArea = chart.chartArea;
                 if (!xScale || !chartArea) return;
-                const dividerX = xScale.getPixelForValue(midnightIndex);
                 const { ctx } = chart;
                 ctx.save();
-                ctx.setLineDash([6, 4]);
-                ctx.strokeStyle = "rgba(37, 99, 235, 0.38)";
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(dividerX, chartArea.top);
-                ctx.lineTo(dividerX, chartArea.bottom);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.fillStyle = currentChartTheme().axisLabel;
-                ctx.font = "12px Manrope, sans-serif";
-                ctx.fillText("00:00", dividerX + 6, chartArea.top + 14);
+                midnightIndexes.forEach((midnightIndex) => {
+                  const dividerX = xScale.getPixelForValue(midnightIndex);
+                  ctx.setLineDash([6, 4]);
+                  ctx.strokeStyle = "rgba(37, 99, 235, 0.34)";
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath();
+                  ctx.moveTo(dividerX, chartArea.top);
+                  ctx.lineTo(dividerX, chartArea.bottom);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                });
                 ctx.restore();
               },
             },
