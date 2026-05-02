@@ -21,11 +21,23 @@ jobs:
   sync-upstream-data:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      TZ: Europe/Berlin
+      TK_USER: ${{ secrets.TK_USER }}
+      TK_PASS: ${{ secrets.TK_PASS }}
     steps:
       - name: Checkout this site
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install -r requirements.txt
 
       - name: Fetch upstream repository
         run: |
@@ -81,6 +93,12 @@ jobs:
               --pathspec-from-file=/tmp/upstream-generated-checkout.txt
           fi
 
+      - name: Enrich management price levels
+        run: >-
+          python scripts/enrich_management_price_levels.py
+          --days 14
+          --changed-paths-file /tmp/enriched-management-paths.txt
+
       - name: Configure git
         run: |
           git config user.name "GitHub Actions Bot"
@@ -88,6 +106,12 @@ jobs:
 
       - name: Commit synced data
         run: |
+          if [ -s /tmp/upstream-generated-checkout.txt ]; then
+            git add --pathspec-from-file=/tmp/upstream-generated-checkout.txt
+          fi
+          if [ -s /tmp/enriched-management-paths.txt ]; then
+            git add --pathspec-from-file=/tmp/enriched-management-paths.txt
+          fi
           if git diff --cached --quiet; then
             echo "No upstream data changes to sync."
             exit 0
