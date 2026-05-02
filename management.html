@@ -152,6 +152,7 @@
         <div class="chart-wrap">
           <canvas id="price-level-plot"></canvas>
         </div>
+        <p class="chart-note" id="price-level-note"></p>
       </section>
 
       <section class="card management-chart-card">
@@ -264,6 +265,7 @@
       const brandCanvas = document.getElementById("brand-plot");
       const brandCtx = brandCanvas.getContext("2d");
       const priceLevelTitleEl = document.getElementById("price-level-title");
+      const priceLevelNoteEl = document.getElementById("price-level-note");
       const priceLevelCanvas = document.getElementById("price-level-plot");
       const priceLevelCtx = priceLevelCanvas.getContext("2d");
       const histogramTitleEl = document.getElementById("histogram-title");
@@ -1546,26 +1548,49 @@
           (state.rangeSummaries || []).length > 0
             ? state.rangeSummaries
             : [{ date: state.date, summary: state.summary }];
+        const hasExactRows =
+          sourceDays.length > 0 &&
+          sourceDays.every((rangeDay) =>
+            (rangeDay.summary?.fuels?.[state.fuel] || []).some(
+              (row) => Number(row.price_count) > 0 && Number.isFinite(Number(row.price_sum)),
+            ),
+          );
         const byHour = new Map();
 
         sourceDays.forEach((rangeDay) => {
           const rows = rangeDay.summary?.fuels?.[state.fuel] || [];
+          const overall = (rangeDay.summary?.brand_distributions?.[state.fuel] || []).find(
+            (row) => row?.brand === "Gesamtmarkt",
+          );
+          const baseAvg = Number(overall?.avg);
           rows.forEach((row) => {
             const rawHour =
               row.cycle_hour !== undefined ? row.cycle_hour : row.hour;
             const hour = Number(rawHour);
-            const priceSum = Number(row.price_sum);
-            const priceCount = Number(row.price_count);
+            const exactPriceSum = Number(row.price_sum);
+            const exactPriceCount = Number(row.price_count);
+            const deltaMedian = adjustedHourlyRow(row).median;
+            const estimatedAvg = baseAvg + deltaMedian;
+            const estimateWeight = Number(row.count) > 0 ? Number(row.count) : 1;
             if (
               !Number.isFinite(hour) ||
               hour < 0 ||
-              hour > 24 ||
-              !Number.isFinite(priceSum) ||
-              !Number.isFinite(priceCount) ||
-              priceCount <= 0
+              hour > 24
             ) {
               return;
             }
+            const useExact =
+              hasExactRows &&
+              Number.isFinite(exactPriceSum) &&
+              Number.isFinite(exactPriceCount) &&
+              exactPriceCount > 0;
+            const useEstimate =
+              !hasExactRows &&
+              Number.isFinite(baseAvg) &&
+              Number.isFinite(deltaMedian) &&
+              Number.isFinite(estimateWeight) &&
+              estimateWeight > 0;
+            if (!useExact && !useEstimate) return;
 
             const bucket = byHour.get(hour) || {
               hour,
@@ -1574,19 +1599,27 @@
                 : (12 + hour) % 24,
               priceSum: 0,
               priceCount: 0,
+              estimated: !hasExactRows,
             };
-            bucket.priceSum += priceSum;
-            bucket.priceCount += priceCount;
+            if (useExact) {
+              bucket.priceSum += exactPriceSum;
+              bucket.priceCount += exactPriceCount;
+            } else {
+              bucket.priceSum += estimatedAvg * estimateWeight;
+              bucket.priceCount += estimateWeight;
+            }
             byHour.set(hour, bucket);
           });
         });
 
-        return Array.from(byHour.values())
+        const rows = Array.from(byHour.values())
           .sort((left, right) => left.hour - right.hour)
           .map((row) => ({
             ...row,
             avg: row.priceSum / row.priceCount,
           }));
+        rows.mode = hasExactRows ? "exact" : "estimated";
+        return rows;
       }
 
       function computePriceLevelDomain(rows) {
@@ -1609,6 +1642,7 @@
       function drawPriceLevelChart() {
         if (!state.summary) {
           priceLevelTitleEl.textContent = "Durchschnittspreis";
+          priceLevelNoteEl.textContent = "";
           priceLevelCtx.clearRect(
             0,
             0,
@@ -1633,6 +1667,10 @@
         const h = priceLevelCanvas.getBoundingClientRect().height;
         const theme = currentChartTheme();
         const rows = priceLevelRows();
+        const isEstimatedPriceLevel = rows.mode === "estimated";
+        priceLevelNoteEl.textContent = isEstimatedPriceLevel
+          ? "Modellierter Marktpreis: Die Kurve basiert auf dem 12:00-Gesamtmarktdurchschnitt und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum. Sobald vollst\u00e4ndige Preisaggregate vorliegen, wird automatisch der exakte Durchschnitt verwendet."
+          : "Exakter Durchschnittspreis auf Basis aggregierter Preis-Summen und Stationsz\u00e4hlungen im gew\u00e4hlten Zeitraum.";
         const domain = computePriceLevelDomain(rows);
         const plot = { left: 88, right: 24, top: 24, bottom: 56 };
         plot.width = w - plot.left - plot.right;
@@ -1739,8 +1777,13 @@
           priceLevelCtx.restore();
         }
 
-        const legendItems = [{ label: "Durchschnitt", color: avgColor }];
-        let legendX = plot.left + plot.width - 140;
+        const legendItems = [
+          {
+            label: isEstimatedPriceLevel ? "Sch\u00e4tzwert" : "Durchschnitt",
+            color: avgColor,
+          },
+        ];
+        let legendX = plot.left + plot.width - (isEstimatedPriceLevel ? 130 : 140);
         if (legendX < plot.left) legendX = plot.left;
         let legendY = plot.top + 8;
         priceLevelCtx.font = "11px Manrope, sans-serif";
