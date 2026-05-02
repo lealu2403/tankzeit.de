@@ -1541,9 +1541,74 @@
         });
       }
 
+      function priceLevelRows() {
+        const sourceDays =
+          (state.rangeSummaries || []).length > 0
+            ? state.rangeSummaries
+            : [{ date: state.date, summary: state.summary }];
+        const byHour = new Map();
+
+        sourceDays.forEach((rangeDay) => {
+          const rows = rangeDay.summary?.fuels?.[state.fuel] || [];
+          rows.forEach((row) => {
+            const rawHour =
+              row.cycle_hour !== undefined ? row.cycle_hour : row.hour;
+            const hour = Number(rawHour);
+            const priceSum = Number(row.price_sum);
+            const priceCount = Number(row.price_count);
+            if (
+              !Number.isFinite(hour) ||
+              hour < 0 ||
+              hour > 24 ||
+              !Number.isFinite(priceSum) ||
+              !Number.isFinite(priceCount) ||
+              priceCount <= 0
+            ) {
+              return;
+            }
+
+            const bucket = byHour.get(hour) || {
+              hour,
+              clockHour: Number.isFinite(Number(row.clock_hour))
+                ? Number(row.clock_hour)
+                : (12 + hour) % 24,
+              priceSum: 0,
+              priceCount: 0,
+            };
+            bucket.priceSum += priceSum;
+            bucket.priceCount += priceCount;
+            byHour.set(hour, bucket);
+          });
+        });
+
+        return Array.from(byHour.values())
+          .sort((left, right) => left.hour - right.hour)
+          .map((row) => ({
+            ...row,
+            avg: row.priceSum / row.priceCount,
+          }));
+      }
+
+      function computePriceLevelDomain(rows) {
+        const values = rows
+          .map((row) => row.avg)
+          .filter((value) => Number.isFinite(value));
+        if (!values.length) return BRAND_PRICE_DOMAIN;
+
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const center = (min + max) / 2;
+        const span = Math.max(max - min, 0.08);
+        const padding = Math.max(span * 0.18, 0.02);
+        return {
+          min: Math.max(0, center - span / 2 - padding),
+          max: center + span / 2 + padding,
+        };
+      }
+
       function drawPriceLevelChart() {
         if (!state.summary) {
-          priceLevelTitleEl.textContent = "Durchschnitts- und Medianpreis";
+          priceLevelTitleEl.textContent = "Durchschnittspreis";
           priceLevelCtx.clearRect(
             0,
             0,
@@ -1560,21 +1625,22 @@
             ? formatLongDate(state.date)
             : "";
         priceLevelTitleEl.textContent =
-          `Durchschnitts- und Medianpreis \u00b7 ${fuelDisplayName(state.fuel)}` +
+          `Durchschnittspreis \u00b7 ${fuelDisplayName(state.fuel)}` +
           (periodLabel ? ` \u00b7 ${periodLabel}` : "");
 
         resizeCanvas(priceLevelCanvas, priceLevelCtx);
         const w = priceLevelCanvas.getBoundingClientRect().width;
         const h = priceLevelCanvas.getBoundingClientRect().height;
         const theme = currentChartTheme();
+        const rows = priceLevelRows();
+        const domain = computePriceLevelDomain(rows);
         const plot = { left: 88, right: 24, top: 24, bottom: 56 };
         plot.width = w - plot.left - plot.right;
         plot.height = h - plot.top - plot.bottom;
-        state.priceLevelLayout = { plot, w, h };
+        state.priceLevelLayout = { plot, w, h, domain };
 
         priceLevelCtx.clearRect(0, 0, w, h);
 
-        const domain = BRAND_PRICE_DOMAIN;
         priceLevelCtx.strokeStyle = theme.grid;
         priceLevelCtx.fillStyle = theme.axisText;
         priceLevelCtx.lineWidth = 1;
@@ -1591,7 +1657,7 @@
           priceLevelCtx.moveTo(plot.left, y);
           priceLevelCtx.lineTo(plot.left + plot.width, y);
           priceLevelCtx.stroke();
-          priceLevelCtx.fillText(formatBrandAxisValue(value), plot.left - 10, y);
+          priceLevelCtx.fillText(formatValue(value), plot.left - 10, y);
         }
 
         priceLevelCtx.save();
@@ -1643,11 +1709,38 @@
           plot.top + plot.height + 42,
         );
 
-        const legendItems = [
-          { label: "Durchschnitt", color: FUEL_COLORS[state.fuel] || "#0f766e" },
-          { label: "Median", color: theme.overallStroke },
-        ];
-        let legendX = plot.left + plot.width - 190;
+        const avgColor = FUEL_COLORS[state.fuel] || "#0f766e";
+        if (rows.length > 0) {
+          priceLevelCtx.save();
+          priceLevelCtx.strokeStyle = avgColor;
+          priceLevelCtx.lineWidth = 2.6;
+          priceLevelCtx.lineJoin = "round";
+          priceLevelCtx.lineCap = "round";
+          priceLevelCtx.beginPath();
+          rows.forEach((row, index) => {
+            const x = plot.left + (row.hour * plot.width) / 24;
+            const y = yScale(domain, plot, row.avg);
+            if (index === 0) {
+              priceLevelCtx.moveTo(x, y);
+            } else {
+              priceLevelCtx.lineTo(x, y);
+            }
+          });
+          priceLevelCtx.stroke();
+
+          priceLevelCtx.fillStyle = avgColor;
+          rows.forEach((row) => {
+            const x = plot.left + (row.hour * plot.width) / 24;
+            const y = yScale(domain, plot, row.avg);
+            priceLevelCtx.beginPath();
+            priceLevelCtx.arc(x, y, 3, 0, Math.PI * 2);
+            priceLevelCtx.fill();
+          });
+          priceLevelCtx.restore();
+        }
+
+        const legendItems = [{ label: "Durchschnitt", color: avgColor }];
+        let legendX = plot.left + plot.width - 140;
         if (legendX < plot.left) legendX = plot.left;
         let legendY = plot.top + 8;
         priceLevelCtx.font = "11px Manrope, sans-serif";

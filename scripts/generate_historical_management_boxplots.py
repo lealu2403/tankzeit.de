@@ -114,6 +114,8 @@ def generate_historical_management_boxplots(
     management_cycle_days = _latest_noon_cycle_days(analysis_end)
     mgmt_hourly_values: Dict[str, Dict[int, List[float]]] = {fuel: {} for fuel in FUELS}
     mgmt_cycle_values: Dict[str, Dict[int, List[float]]] = {fuel: {} for fuel in FUELS}
+    mgmt_cycle_price_sums: Dict[str, Dict[int, float]] = {fuel: {} for fuel in FUELS}
+    mgmt_cycle_price_counts: Dict[str, Dict[int, int]] = {fuel: {} for fuel in FUELS}
     mgmt_hourly_station_counts: Dict[str, int] = {fuel: 0 for fuel in FUELS}
     mgmt_cycle_station_counts: Dict[str, int] = {fuel: 0 for fuel in FUELS}
 
@@ -168,8 +170,21 @@ def generate_historical_management_boxplots(
                     delta_value = row.get("delta_median")
                     if delta_value is None or pd.isna(delta_value):
                         continue
-                    mgmt_cycle_values[fuel].setdefault(int(row["cycle_hour"]), []).append(
-                        float(delta_value)
+                    cycle_hour = int(row["cycle_hour"])
+                    mgmt_cycle_values[fuel].setdefault(cycle_hour, []).append(float(delta_value))
+                    price_avg = row.get("price_avg")
+                    price_count = int(row.get("count") or 0)
+                    if price_avg is None or pd.isna(price_avg) or price_count <= 0:
+                        continue
+                    price_sum = row.get("price_sum")
+                    if price_sum is None or pd.isna(price_sum):
+                        price_sum = float(price_avg) * price_count
+                    mgmt_cycle_price_sums[fuel][cycle_hour] = (
+                        mgmt_cycle_price_sums[fuel].get(cycle_hour, 0.0)
+                        + float(price_sum)
+                    )
+                    mgmt_cycle_price_counts[fuel][cycle_hour] = (
+                        mgmt_cycle_price_counts[fuel].get(cycle_hour, 0) + price_count
                     )
 
     station_brands = _station_brand_table(stations_frame)
@@ -247,6 +262,16 @@ def generate_historical_management_boxplots(
                     "label": f"{clock_hour:02d}",
                     **base_row,
                 }
+                price_count = mgmt_cycle_price_counts[fuel].get(hour, 0)
+                if price_count > 0:
+                    price_sum = mgmt_cycle_price_sums[fuel].get(hour, 0.0)
+                    row.update(
+                        {
+                            "price_count": int(price_count),
+                            "price_sum": round(float(price_sum), 6),
+                            "price_avg": round(float(price_sum / price_count), 6),
+                        }
+                    )
             else:
                 row = {
                     "hour": hour,

@@ -664,6 +664,7 @@ def _noon_to_noon_markdown_profile(
                 "clock_hour": clock_hour,
                 "label": f"{clock_hour:02d}",
                 "count": int(price_values.count()),
+                "price_sum": round(float(price_values.sum()), 6),
                 "price_min": round(float(price_values.min()), 3),
                 "price_avg": round(float(price_values.mean()), 3),
                 "price_median": round(float(price_values.median()), 3),
@@ -1186,6 +1187,8 @@ def generate(
     # Collect fast-loading management summaries from the latest completed noon cycle.
     mgmt_hourly_values: Dict[str, Dict[int, List[float]]] = {fuel: {} for fuel in fuels}
     mgmt_cycle_values: Dict[str, Dict[int, List[float]]] = {fuel: {} for fuel in fuels}
+    mgmt_cycle_price_sums: Dict[str, Dict[int, float]] = {fuel: {} for fuel in fuels}
+    mgmt_cycle_price_counts: Dict[str, Dict[int, int]] = {fuel: {} for fuel in fuels}
     mgmt_hourly_station_counts: Dict[str, int] = {fuel: 0 for fuel in fuels}
     mgmt_cycle_station_counts: Dict[str, int] = {fuel: 0 for fuel in fuels}
     management_cycle_days = _latest_noon_cycle_days(analysis_end)
@@ -1247,6 +1250,20 @@ def generate(
                         continue
                     cycle_hour = int(row["cycle_hour"])
                     mgmt_cycle_values[fuel].setdefault(cycle_hour, []).append(float(delta_value))
+                    price_avg = row.get("price_avg")
+                    price_count = int(row.get("count") or 0)
+                    if price_avg is None or pd.isna(price_avg) or price_count <= 0:
+                        continue
+                    price_sum = row.get("price_sum")
+                    if price_sum is None or pd.isna(price_sum):
+                        price_sum = float(price_avg) * price_count
+                    mgmt_cycle_price_sums[fuel][cycle_hour] = (
+                        mgmt_cycle_price_sums[fuel].get(cycle_hour, 0.0)
+                        + float(price_sum)
+                    )
+                    mgmt_cycle_price_counts[fuel][cycle_hour] = (
+                        mgmt_cycle_price_counts[fuel].get(cycle_hour, 0) + price_count
+                    )
 
             _write_station_output(
                 out_dir,
@@ -1344,6 +1361,16 @@ def generate(
                     "label": f"{clock_hour:02d}",
                     **base_row,
                 }
+                price_count = mgmt_cycle_price_counts[fuel].get(hour, 0)
+                if price_count > 0:
+                    price_sum = mgmt_cycle_price_sums[fuel].get(hour, 0.0)
+                    row.update(
+                        {
+                            "price_count": int(price_count),
+                            "price_sum": round(float(price_sum), 6),
+                            "price_avg": round(float(price_sum / price_count), 6),
+                        }
+                    )
             else:
                 row = {
                     "hour": hour,
