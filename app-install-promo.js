@@ -17,6 +17,38 @@
     return document.querySelector("main.app, .station-shell, .legal-shell");
   }
 
+  function tankplanIcon() {
+    return `
+      <svg viewBox="0 0 24 24">
+        <path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16" />
+        <path d="M5 21h11" />
+        <path d="M9 7h3" />
+        <path d="M15 8h2.5a2 2 0 0 1 2 2v2.4" />
+        <circle cx="18" cy="17" r="3" />
+        <path d="M18 15.4V17l1.1.8" />
+      </svg>
+    `;
+  }
+
+  function syncTankplanNav() {
+    const nav = document.querySelector(".nav-bar");
+    if (!nav || document.getElementById("tankplan-nav-link")) return;
+
+    const statisticsLink = Array.from(nav.querySelectorAll(".nav-item")).find(
+      (item) => item.textContent.trim() === "Statistik",
+    );
+    if (!statisticsLink) return;
+
+    const link = document.createElement("a");
+    const isTankplan = location.pathname.endsWith("/tankplan.html");
+    link.id = "tankplan-nav-link";
+    link.href = `tankplan.html${window.location.search || ""}`;
+    link.className = `nav-item${isTankplan ? " active tankplan" : ""}`;
+    if (isTankplan) link.setAttribute("aria-current", "page");
+    link.innerHTML = `${tankplanIcon()}<span>Tankplan</span>`;
+    statisticsLink.insertAdjacentElement("afterend", link);
+  }
+
   function promoMarkup() {
     return `
       <div class="app-install-head">
@@ -78,6 +110,7 @@
   }
 
   function buildPromo() {
+    syncTankplanNav();
     if (document.getElementById(PROMO_ID)) return;
 
     const container = rootContainer();
