@@ -421,7 +421,8 @@
         const days = [];
         let currentDay = fromDay;
         let guard = 0;
-        while (currentDay && currentDay < toDay && guard < 370) {
+        const endDay = fromDay === toDay ? nextDay(toDay) : toDay;
+        while (currentDay && currentDay < endDay && guard < 370) {
           days.push(currentDay);
           currentDay = nextDay(currentDay);
           guard += 1;
@@ -452,8 +453,9 @@
         const rows = [];
         cycleStartDays.forEach((day, dayIndex) => {
           const referencePrice = findHistoryPrice(historyRows, day);
-          const closingPrice = findHistoryPrice(historyRows, nextDay(day));
-          if (!Number.isFinite(referencePrice) || !Number.isFinite(closingPrice)) {
+          const closingPrice =
+            findHistoryPrice(historyRows, nextDay(day)) ?? referencePrice;
+          if (!Number.isFinite(referencePrice)) {
             return;
           }
 
@@ -539,10 +541,33 @@
         );
       }
 
+      function clearPriceLevelChart() {
+        if (priceLevelChart) {
+          priceLevelChart.destroy();
+          priceLevelChart = null;
+        }
+      }
+
       function renderPriceLevelChart(rows) {
         const labels = rows.map((row) => row.label);
         const values = rows.map((row) => row.price);
         const domain = priceLevelDomain(values);
+        const visibleTickIndexes = new Set();
+        const shortRange = rows.length <= 30;
+        const mediumRange = rows.length <= 96;
+        rows.forEach((row, index) => {
+          if (shortRange && index % 3 === 0) {
+            visibleTickIndexes.add(index);
+            return;
+          }
+          if (row.clockHour === 12) {
+            visibleTickIndexes.add(index);
+            return;
+          }
+          if (mediumRange && row.clockHour === 0) {
+            visibleTickIndexes.add(index);
+          }
+        });
         const midnightIndexes = rows
           .map((row, index) => (row.clockHour === 0 ? index : -1))
           .filter((index) => index >= 0);
@@ -559,7 +584,9 @@
                 borderColor: "#0f766e",
                 backgroundColor: "rgba(15, 118, 110, 0.14)",
                 borderWidth: 2.4,
-                pointRadius: 2,
+                borderJoinStyle: "round",
+                borderCapStyle: "round",
+                pointRadius: rows.length > 96 ? 0 : 2,
                 pointHoverRadius: 4,
                 stepped: "before",
                 tension: 0,
@@ -570,26 +597,53 @@
           options: applyChartTheme({
             responsive: true,
             maintainAspectRatio: false,
+            animation: false,
+            devicePixelRatio: Math.max(1, window.devicePixelRatio || 1),
             interaction: {
               mode: "index",
               intersect: false,
             },
             scales: {
               x: {
+                alignToPixels: true,
                 title: {
                   display: true,
                   text: "Zeitachse 12:00 bis 12:00",
+                  font: {
+                    size: 12,
+                    weight: "700",
+                  },
                 },
                 ticks: {
-                  autoSkip: true,
+                  autoSkip: false,
                   maxRotation: 0,
                   minRotation: 0,
+                  padding: 8,
+                  font: {
+                    size: 11,
+                    weight: "700",
+                  },
+                  callback(value, index) {
+                    if (!visibleTickIndexes.has(index)) return "";
+                    const row = rows[index];
+                    if (!row) return "";
+                    if (row.clockHour === 12 && row.date) {
+                      return `${formatDate(row.date).slice(0, 5)} 12`;
+                    }
+                    return row.label.replace(":00", "");
+                  },
                 },
               },
               y: {
+                alignToPixels: true,
                 min: domain.min,
                 max: domain.max,
                 ticks: {
+                  padding: 8,
+                  font: {
+                    size: 11,
+                    weight: "700",
+                  },
                   callback(value) {
                     return formatEuroTick(value);
                   },
@@ -597,6 +651,10 @@
                 title: {
                   display: true,
                   text: "Preis (EUR/l)",
+                  font: {
+                    size: 12,
+                    weight: "700",
+                  },
                 },
               },
             },
@@ -692,6 +750,7 @@
               }
             : updateRangeControls(summary);
           if (!rows.length) {
+            clearPriceLevelChart();
             note.textContent = "Fuer diese Station liegt noch kein 12:00-bis-12:00-Preisniveau vor.";
             return;
           }
