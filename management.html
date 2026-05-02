@@ -145,6 +145,18 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
+            <h2 id="price-level-title">Durchschnitts- und Medianpreis</h2>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="price-level-plot"></canvas>
+        </div>
+      </section>
+
+      <section class="card management-chart-card">
+        <div class="toolbar">
+          <div class="left">
             <h2 id="title">Untert&auml;gige Preissenkungen</h2>
           </div>
         </div>
@@ -251,6 +263,9 @@
       const brandTitleEl = document.getElementById("brand-title");
       const brandCanvas = document.getElementById("brand-plot");
       const brandCtx = brandCanvas.getContext("2d");
+      const priceLevelTitleEl = document.getElementById("price-level-title");
+      const priceLevelCanvas = document.getElementById("price-level-plot");
+      const priceLevelCtx = priceLevelCanvas.getContext("2d");
       const histogramTitleEl = document.getElementById("histogram-title");
       const histogramCanvas = document.getElementById("histogram-plot");
       const histogramCtx = histogramCanvas.getContext("2d");
@@ -313,6 +328,7 @@
         fuel: "diesel",
         layout: null,
         brandLayout: null,
+        priceLevelLayout: null,
         histogramLayout: null,
         date: null,
         startDate: null,
@@ -984,8 +1000,15 @@
         state.rangeDates = [];
         state.rangeBrandCache = null;
         state.brandLayout = null;
+        state.priceLevelLayout = null;
         state.histogramLayout = null;
         brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
+        priceLevelCtx.clearRect(
+          0,
+          0,
+          priceLevelCanvas.width,
+          priceLevelCanvas.height,
+        );
         histogramCtx.clearRect(
           0,
           0,
@@ -1518,6 +1541,130 @@
         });
       }
 
+      function drawPriceLevelChart() {
+        if (!state.summary) {
+          priceLevelTitleEl.textContent = "Durchschnitts- und Medianpreis";
+          priceLevelCtx.clearRect(
+            0,
+            0,
+            priceLevelCanvas.width,
+            priceLevelCanvas.height,
+          );
+          state.priceLevelLayout = null;
+          return;
+        }
+
+        const periodLabel = isRangeModeActive()
+          ? `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`
+          : state.date instanceof Date
+            ? formatLongDate(state.date)
+            : "";
+        priceLevelTitleEl.textContent =
+          `Durchschnitts- und Medianpreis \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (periodLabel ? ` \u00b7 ${periodLabel}` : "");
+
+        resizeCanvas(priceLevelCanvas, priceLevelCtx);
+        const w = priceLevelCanvas.getBoundingClientRect().width;
+        const h = priceLevelCanvas.getBoundingClientRect().height;
+        const theme = currentChartTheme();
+        const plot = { left: 88, right: 24, top: 24, bottom: 56 };
+        plot.width = w - plot.left - plot.right;
+        plot.height = h - plot.top - plot.bottom;
+        state.priceLevelLayout = { plot, w, h };
+
+        priceLevelCtx.clearRect(0, 0, w, h);
+
+        const domain = BRAND_PRICE_DOMAIN;
+        priceLevelCtx.strokeStyle = theme.grid;
+        priceLevelCtx.fillStyle = theme.axisText;
+        priceLevelCtx.lineWidth = 1;
+        priceLevelCtx.font = "12px Manrope, sans-serif";
+        priceLevelCtx.textAlign = "right";
+        priceLevelCtx.textBaseline = "middle";
+
+        const yTickCount = 4;
+        for (let i = 0; i < yTickCount; i++) {
+          const value =
+            domain.min + (i * (domain.max - domain.min)) / (yTickCount - 1);
+          const y = yScale(domain, plot, value);
+          priceLevelCtx.beginPath();
+          priceLevelCtx.moveTo(plot.left, y);
+          priceLevelCtx.lineTo(plot.left + plot.width, y);
+          priceLevelCtx.stroke();
+          priceLevelCtx.fillText(formatBrandAxisValue(value), plot.left - 10, y);
+        }
+
+        priceLevelCtx.save();
+        priceLevelCtx.translate(24, plot.top + plot.height / 2);
+        priceLevelCtx.rotate(-Math.PI / 2);
+        priceLevelCtx.textAlign = "center";
+        priceLevelCtx.fillStyle = theme.axisTitle;
+        priceLevelCtx.fillText(`Preis ${fuelDisplayName(state.fuel)} (EUR/l)`, 0, 0);
+        priceLevelCtx.restore();
+
+        const xTicks = [
+          { offset: 0, label: "12" },
+          { offset: 4, label: "16" },
+          { offset: 8, label: "20" },
+          { offset: 12, label: "00" },
+          { offset: 16, label: "04" },
+          { offset: 20, label: "08" },
+          { offset: 24, label: "12" },
+        ];
+        priceLevelCtx.textAlign = "center";
+        priceLevelCtx.textBaseline = "alphabetic";
+        priceLevelCtx.fillStyle = theme.tickText;
+        xTicks.forEach((tick) => {
+          const x = plot.left + (tick.offset * plot.width) / 24;
+          priceLevelCtx.beginPath();
+          priceLevelCtx.moveTo(x, plot.top);
+          priceLevelCtx.lineTo(x, plot.top + plot.height);
+          priceLevelCtx.stroke();
+          priceLevelCtx.fillText(tick.label, x, plot.top + plot.height + 24);
+        });
+
+        const midnightX = plot.left + (12 * plot.width) / 24;
+        priceLevelCtx.save();
+        priceLevelCtx.setLineDash([6, 4]);
+        priceLevelCtx.strokeStyle = "rgba(37,99,235,0.35)";
+        priceLevelCtx.beginPath();
+        priceLevelCtx.moveTo(midnightX, plot.top);
+        priceLevelCtx.lineTo(midnightX, plot.top + plot.height);
+        priceLevelCtx.stroke();
+        priceLevelCtx.setLineDash([]);
+        priceLevelCtx.fillStyle = "rgba(37,99,235,0.78)";
+        priceLevelCtx.fillText("00:00", midnightX + 22, plot.top + 16);
+        priceLevelCtx.restore();
+
+        priceLevelCtx.fillStyle = theme.axisTitle;
+        priceLevelCtx.fillText(
+          "Stunde im 12:00\u219212:00-Zyklus",
+          plot.left + plot.width / 2,
+          plot.top + plot.height + 42,
+        );
+
+        const legendItems = [
+          { label: "Durchschnitt", color: FUEL_COLORS[state.fuel] || "#0f766e" },
+          { label: "Median", color: theme.overallStroke },
+        ];
+        let legendX = plot.left + plot.width - 190;
+        if (legendX < plot.left) legendX = plot.left;
+        let legendY = plot.top + 8;
+        priceLevelCtx.font = "11px Manrope, sans-serif";
+        priceLevelCtx.textAlign = "left";
+        legendItems.forEach((item) => {
+          priceLevelCtx.strokeStyle = item.color;
+          priceLevelCtx.lineWidth = 3;
+          priceLevelCtx.beginPath();
+          priceLevelCtx.moveTo(legendX, legendY);
+          priceLevelCtx.lineTo(legendX + 22, legendY);
+          priceLevelCtx.stroke();
+          priceLevelCtx.fillStyle = theme.legendText;
+          priceLevelCtx.fillText(item.label, legendX + 30, legendY + 4);
+          legendY += 18;
+        });
+      }
+
       function drawHistogramChart() {
         const rawRows = histogramRows();
         const summary = histogramSummary();
@@ -1774,6 +1921,7 @@
           clearStatus();
           draw();
           drawBrandChart();
+          drawPriceLevelChart();
           drawHistogramChart();
         });
       });
@@ -1896,6 +2044,7 @@
 
           draw();
           drawBrandChart();
+          drawPriceLevelChart();
           drawHistogramChart();
         } catch (e) {
           setStatus("Management-Daten konnten nicht geladen werden.", "error");
@@ -1907,6 +2056,7 @@
         if (state.summary) {
           draw();
           drawBrandChart();
+          drawPriceLevelChart();
           drawHistogramChart();
         }
       });
@@ -1915,6 +2065,7 @@
         if (!state.summary) return;
         draw();
         drawBrandChart();
+        drawPriceLevelChart();
         drawHistogramChart();
       });
 
