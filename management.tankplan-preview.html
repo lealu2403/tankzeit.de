@@ -1,0 +1,2325 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f766e" />
+    <meta name="apple-itunes-app" content="app-id=6759522835" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta
+      name="description"
+      content="Management View: Mittagspreise nach Marke und untert&auml;gige Preissenkungen f&uuml;r Diesel, E10 und E5."
+    />
+    <link rel="canonical" href="https://tankzeit.de/management.html" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:site_name" content="tankzeit.de" />
+    <meta property="og:title" content="Tankzeit | Management-Ansicht" />
+    <meta
+      property="og:description"
+      content="Mittagspreise und untert&auml;gige Preissenkungen f&uuml;r Diesel, E10 und E5 im &Uuml;berblick."
+    />
+    <meta property="og:url" content="https://tankzeit.de/management.html" />
+    <meta property="og:image" content="https://tankzeit.de/img/social-card.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="Tankzeit Vorschaugrafik mit Logo und Hinweis auf beste Tankzeiten f&uuml;r Diesel, E10 und E5"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Tankzeit | Management-Ansicht" />
+    <meta
+      name="twitter:description"
+      content="Mittagspreise und untert&auml;gige Preissenkungen f&uuml;r Diesel, E10 und E5 im &Uuml;berblick."
+    />
+    <meta name="twitter:image" content="https://tankzeit.de/img/social-card.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Tankzeit Vorschaugrafik mit Logo und Hinweis auf beste Tankzeiten f&uuml;r Diesel, E10 und E5"
+    />
+    <title>Tankzeit | Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" href="styles.css?v=20260409-app-promo-v18" as="style" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=20260409-app-promo-v18" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <div class="brand">
+          <h1>Tankzeit</h1>
+          <p>Spritpreise im Vergleich: Preisunterschiede f&uuml;r Diesel, E10, E5 in Deutschland</p>
+        </div>
+      </header>
+
+      <div id="status" class="status"></div>
+
+      <section class="card management-controls">
+        <div class="toolbar">
+          <div class="left">
+            <h2>Zeitraum & Kraftstoff</h2>
+          </div>
+          <div class="control-grid">
+            <div class="control-group range-control-group">
+              <div class="control-label">Zeitraum w&auml;hlen</div>
+              <div class="range-picker" aria-label="Zeitraum w&auml;hlen">
+                <button
+                  class="btn"
+                  id="range-toggle"
+                  type="button"
+                  aria-expanded="false"
+                  aria-controls="range-panel"
+                >
+                  Zeitraum w&auml;hlen
+                </button>
+                <div class="range-panel" id="range-panel" hidden>
+                  <div class="range-inputs">
+                    <input id="range-start-picker" type="date" aria-label="Startdatum" />
+                    <span class="range-separator">bis</span>
+                    <input id="range-end-picker" type="date" aria-label="Enddatum" />
+                  </div>
+                  <button class="btn primary" id="range-apply" type="button">
+                    Anzeigen
+                  </button>
+                </div>
+              </div>
+              <div class="control-hint" id="range-hint">
+                Gilt aktuell nur f&uuml;r den Chart Preis&auml;nderung zur 12:00-Referenz im 12:00-&gt;12:00-Zyklus.
+              </div>
+            </div>
+            <div class="control-group">
+              <div class="control-label">Kraftstoff</div>
+              <div class="fuel-tabs" role="tablist" aria-label="Kraftstoff">
+                <button
+                  class="btn primary"
+                  data-fuel="diesel"
+                  role="tab"
+                  aria-selected="true"
+                >
+                  Diesel
+                </button>
+                <button
+                  class="btn"
+                  data-fuel="e10"
+                  role="tab"
+                  aria-selected="false"
+                >
+                  E10
+                </button>
+                <button
+                  class="btn"
+                  data-fuel="e5"
+                  role="tab"
+                  aria-selected="false"
+                >
+                  E5
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card management-chart-card">
+        <div class="toolbar">
+          <div class="left">
+            <h2 id="brand-title">12:00-Referenzpreis nach Marke</h2>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="brand-plot"></canvas>
+        </div>
+      </section>
+
+      <section class="card management-chart-card">
+        <div class="toolbar">
+          <div class="left">
+            <h2 id="price-level-title">Durchschnitts- und Medianpreis</h2>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="price-level-plot"></canvas>
+        </div>
+        <p class="chart-note" id="price-level-note"></p>
+      </section>
+
+      <section class="card management-chart-card">
+        <div class="toolbar">
+          <div class="left">
+            <h2 id="title">Untert&auml;gige Preissenkungen</h2>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="plot"></canvas>
+        </div>
+      </section>
+
+      <section class="card management-chart-card">
+        <div class="toolbar">
+          <div class="left">
+            <h2 id="histogram-title">Zeitpunkt der 12:00-Referenz</h2>
+          </div>
+        </div>
+
+        <div class="chart-wrap">
+          <canvas id="histogram-plot"></canvas>
+        </div>
+      </section>
+
+      <section class="card management-footer">
+        <div class="footer-notes">
+          <p class="footer-note">
+            <strong>12:00-Referenzpreis nach Marke:</strong> Zeigt je Marke den
+            ausgew&auml;hlten Referenzpreis. F&uuml;r jeden Kraftstoff gilt: Eine positive
+            Preis&auml;nderung zwischen <code>12:00</code> und
+            <code>12:15</code> z&auml;hlt noch als 12:00-Referenz. Ohne solche
+            Erh&ouml;hung bleibt der bis <code>12:00</code> etablierte Preis
+            ma&szlig;geblich.
+          </p>
+          <p class="footer-note">
+            <strong>Preis&auml;nderung zur 12:00-Referenz:</strong> Grau zeigt den
+            Zyklus von <code>12:00</code> Vortag bis <code>12:00</code> des
+            gew&auml;hlten Tags relativ zur ausgew&auml;hlten Noon-Referenz. Die
+            gestrichelte Linie markiert Mitternacht. Ein sichtbarer "Noon Dip"
+            kann entstehen, wenn viele Stationen ihre Referenzerh&ouml;hung erst kurz
+            nach Mittag melden. Sp&auml;ter als <code>12:15</code> gemeldete
+            Erh&ouml;hungen verschieben den Noon-Anker dagegen nicht mehr. Antippen
+            zeigt zus&auml;tzlich Quartilspanne und Spannweite.
+          </p>
+          <p class="footer-note">
+            <strong>Zeitpunkt der 12:00-Referenz:</strong> Das Histogramm zeigt
+            je Kraftstoff, wann der verwendete Referenzpreis pro Station
+            tats&auml;chlich feststeht. Balken nach <code>12:00</code> bedeuten
+            qualifizierte Verz&ouml;gerungen bis <code>12:15</code>. Balken bis
+            <code>12:00</code> zeigen Referenzen, die ohne passende
+            Mittagserh&ouml;hung auf dem letzten bekannten Preis bis Mittag beruhen
+            oder exakt um <code>12:00</code> gemeldet wurden.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <nav class="nav-bar" aria-label="Hauptnavigation">
+      <a href="index.html" class="nav-item diesel">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 22s8-4 8-10c0-4.42-3.58-8-8-8s-8 3.58-8 8c0 6 8 10 8 10z"
+          />
+        </svg>
+        <span>Diesel</span>
+      </a>
+      <a href="e10.html" class="nav-item e10">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 22s8-4 8-10c0-4.42-3.58-8-8-8s-8 3.58-8 8c0 6 8 10 8 10z"
+          />
+        </svg>
+        <span>E10</span>
+      </a>
+      <a href="favoriten.html" class="nav-item">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+          />
+        </svg>
+        <span>Favoriten</span>
+      </a>
+      <a href="management.html" class="nav-item active" aria-current="page">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="10" width="4" height="11" />
+          <rect x="10" y="5" width="4" height="16" />
+          <rect x="17" y="8" width="4" height="13" />
+        </svg>
+        <span>Statistik</span>
+      </a>
+      <a href="tankplan.html" class="nav-item" id="tankplan-nav-link">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16" />
+          <path d="M5 21h11" />
+          <path d="M9 7h3" />
+          <path d="M15 8h2.5a2 2 0 0 1 2 2v2.4" />
+          <circle cx="18" cy="17" r="3" />
+          <path d="M18 15.4V17l1.1.8" />
+        </svg>
+        <span>Tankplan</span>
+      </a>
+      <a href="info.html" class="nav-item">
+        <svg viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" />
+        </svg>
+        <span>Info</span>
+      </a>
+    </nav>
+
+    <script>
+      const MIN_DATE_STR = "2026-02-04";
+      const tankplanNavLink = document.getElementById("tankplan-nav-link");
+      if (tankplanNavLink) {
+        tankplanNavLink.href = `tankplan.html${window.location.search || ""}`;
+      }
+
+      const statusEl = document.getElementById("status");
+      const titleEl = document.getElementById("title");
+      const canvas = document.getElementById("plot");
+      const ctx = canvas.getContext("2d");
+      const brandTitleEl = document.getElementById("brand-title");
+      const brandCanvas = document.getElementById("brand-plot");
+      const brandCtx = brandCanvas.getContext("2d");
+      const priceLevelTitleEl = document.getElementById("price-level-title");
+      const priceLevelNoteEl = document.getElementById("price-level-note");
+      const priceLevelCanvas = document.getElementById("price-level-plot");
+      const priceLevelCtx = priceLevelCanvas.getContext("2d");
+      const histogramTitleEl = document.getElementById("histogram-title");
+      const histogramCanvas = document.getElementById("histogram-plot");
+      const histogramCtx = histogramCanvas.getContext("2d");
+      const rangeToggleBtn = document.getElementById("range-toggle");
+      const rangePanel = document.getElementById("range-panel");
+      const rangeStartPicker = document.getElementById("range-start-picker");
+      const rangeEndPicker = document.getElementById("range-end-picker");
+      const rangeApplyBtn = document.getElementById("range-apply");
+      const FUEL_COLORS = {
+        diesel: "#0f766e",
+        e10: "#ea580c",
+        e5: "#7c2d12",
+      };
+      const DARK_MODE_MEDIA_QUERY = window.matchMedia(
+        "(prefers-color-scheme: dark)",
+      );
+      const HOURLY_REFERENCE_COLORS = {
+        priorDay: {
+          fill: "rgba(107, 114, 128, 0.2)",
+          stroke: "#6b7280",
+        },
+        sameDay: {
+          fill: "rgba(37, 99, 235, 0.2)",
+          stroke: "#2563eb",
+        },
+      };
+      const BRAND_PRICE_DOMAIN = { min: 1.5, max: 3.0 };
+      const APP_TIME_ZONE = "Europe/Berlin";
+
+      function currentChartTheme() {
+        if (DARK_MODE_MEDIA_QUERY.matches) {
+          return {
+            grid: "rgba(148, 163, 184, 0.18)",
+            axisText: "rgba(237, 244, 243, 0.74)",
+            axisTitle: "rgba(237, 244, 243, 0.9)",
+            tickText: "rgba(237, 244, 243, 0.8)",
+            rowLabel: "rgba(237, 244, 243, 0.88)",
+            rowSeparator: "rgba(148, 163, 184, 0.12)",
+            overallStroke: "#e2e8f0",
+            overallFill: "rgba(226, 232, 240, 0.16)",
+            legendText: "rgba(237, 244, 243, 0.86)",
+          };
+        }
+        return {
+          grid: "rgba(0, 0, 0, 0.08)",
+          axisText: "rgba(0, 0, 0, 0.55)",
+          axisTitle: "rgba(0, 0, 0, 0.68)",
+          tickText: "rgba(0, 0, 0, 0.6)",
+          rowLabel: "rgba(0, 0, 0, 0.72)",
+          rowSeparator: "rgba(0, 0, 0, 0.06)",
+          overallStroke: "#111827",
+          overallFill: "rgba(17, 24, 39, 0.14)",
+          legendText: "rgba(0, 0, 0, 0.68)",
+        };
+      }
+
+      const state = {
+        summary: null,
+        noonDeltaSummary: null,
+        fuel: "diesel",
+        layout: null,
+        brandLayout: null,
+        priceLevelLayout: null,
+        histogramLayout: null,
+        date: null,
+        startDate: null,
+        endDate: null,
+        rangeSummaries: [],
+        rangeNoonDeltaSummaries: [],
+        rangeNoonRows: [],
+        rangeDates: [],
+        stationBrandById: null,
+        rangeBrandCache: null,
+        chartEntries: [],
+        rangePanelOpen: false,
+      };
+
+      function setStatus(message, type = "info") {
+        statusEl.textContent = message;
+        statusEl.className = `status ${type === "error" ? "error" : ""}`;
+        statusEl.style.display = "block";
+      }
+
+      function clearStatus() {
+        statusEl.style.display = "none";
+      }
+
+      function formatValue(v) {
+        if (typeof v !== "number" || Number.isNaN(v)) return "-";
+        return new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(v);
+      }
+
+      function formatBrandAxisValue(v) {
+        if (typeof v !== "number" || Number.isNaN(v)) return "-";
+        return new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(v);
+      }
+
+      function formatBrandStatusValue(v) {
+        if (typeof v !== "number" || Number.isNaN(v)) return "-";
+        return new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 3,
+          maximumFractionDigits: 3,
+        }).format(v);
+      }
+
+      function fuelDisplayName(fuel) {
+        return (
+          {
+            diesel: "Diesel",
+            e10: "E10",
+            e5: "E5",
+          }[fuel] || String(fuel || "").toUpperCase()
+        );
+      }
+
+      function sanitizeRelativeValue(valueInEuro) {
+        const numeric = Number(valueInEuro);
+        if (!Number.isFinite(numeric)) return 0;
+        return numeric;
+      }
+
+      function formatRelativeText(valueInEuro, referenceLabel = "Referenz") {
+        const displayValue = sanitizeRelativeValue(valueInEuro);
+        if (Math.abs(displayValue) < 0.0005)
+          return `auf ${referenceLabel}-Niveau`;
+        return `${(Math.abs(displayValue) * 100).toFixed(1)} ct/l ${
+          displayValue > 0 ? "teurer" : "g\u00fcnstiger"
+        }`;
+      }
+
+      function formatRelativeRangeText(
+        firstValueInEuro,
+        secondValueInEuro,
+        referenceLabel = "Referenz",
+      ) {
+        const clipped = [
+          sanitizeRelativeValue(firstValueInEuro),
+          sanitizeRelativeValue(secondValueInEuro),
+        ].sort((left, right) => left - right);
+        const low = clipped[0] * 100;
+        const high = clipped[1] * 100;
+        if (Math.abs(low) < 0.05 && Math.abs(high) < 0.05) {
+          return `nahe ${referenceLabel}-Niveau`;
+        }
+        const format = (value) =>
+          `${Math.abs(value).toFixed(1)} ct/l ${value > 0 ? "teurer" : "g\u00fcnstiger"}`;
+        if (Math.abs(low - high) < 0.05) {
+          return format(low);
+        }
+        return `${format(low)} bis ${format(high)}`;
+      }
+
+      function formatSignedRelativeLabel(valueInEuro) {
+        const cents = sanitizeRelativeValue(valueInEuro) * 100;
+        if (Math.abs(cents) < 0.05) return "0,0 ct/l";
+        return `${cents > 0 ? "+" : "-"}${new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(Math.abs(cents))} ct/l`;
+      }
+
+      function hourlyReferenceMeta(bucket, viewMode) {
+        if (viewMode === "cycle") {
+          return {
+            label: "12:00 Vortag \u2192 12:00 Tag",
+            referenceLabel: "Vortag 12:00",
+            colors: HOURLY_REFERENCE_COLORS.sameDay,
+          };
+        }
+        return Number(bucket?.hour) < 12
+          ? {
+              label: "00:00 - 11:59",
+              referenceLabel: "Vortag 12:00",
+              colors: HOURLY_REFERENCE_COLORS.priorDay,
+            }
+          : {
+              label: "12:00 - 23:59",
+              referenceLabel: "Tages-12:00",
+              colors: HOURLY_REFERENCE_COLORS.sameDay,
+            };
+      }
+
+      function displayedHourlyBucket(bucket, viewMode = viewModeForFuel()) {
+        if (
+          viewMode !== "cycle" &&
+          Number(bucket?.hour) === 12 &&
+          state.noonDeltaSummary?.[state.fuel]
+        ) {
+          return {
+            ...bucket,
+            ...state.noonDeltaSummary[state.fuel],
+          };
+        }
+        return bucket;
+      }
+
+      function adjustedHourlyRow(bucket, viewMode = viewModeForFuel()) {
+        const displayedBucket = displayedHourlyBucket(bucket, viewMode) || {};
+        return {
+          min: sanitizeRelativeValue(displayedBucket?.min),
+          q1: sanitizeRelativeValue(displayedBucket?.q1),
+          median: sanitizeRelativeValue(displayedBucket?.median),
+          q3: sanitizeRelativeValue(displayedBucket?.q3),
+          max: sanitizeRelativeValue(displayedBucket?.max),
+        };
+      }
+
+      function computeSeriesDomain(values, includeZero = false) {
+        const finiteValues = values.filter((value) => Number.isFinite(value));
+        if (!finiteValues.length) {
+          return { min: -0.05, max: 0.05 };
+        }
+        let min = Math.min(...finiteValues);
+        let max = Math.max(...finiteValues);
+        if (includeZero) {
+          min = Math.min(min, 0);
+          max = Math.max(max, 0);
+        }
+        if (Math.abs(max - min) < 0.0005) {
+          const pad = Math.max(0.01, Math.abs(max || 0.01) * 0.2);
+          return { min: min - pad, max: max + pad };
+        }
+        const pad = Math.max(0.01, (max - min) * 0.12);
+        return { min: min - pad, max: max + pad };
+      }
+
+      function viewModeForFuel() {
+        const modes = state.summary?.view_modes;
+        if (modes && typeof modes[state.fuel] === "string") {
+          return modes[state.fuel];
+        }
+        const first = state.summary?.fuels?.[state.fuel]?.[0];
+        return first && typeof first.label === "string" ? "cycle" : "hourly";
+      }
+
+      function bucketLabel(bucket) {
+        if (!bucket) return "";
+        if (typeof bucket.label === "string") return bucket.label;
+        return String(bucket.hour);
+      }
+
+      function buildBrandDistributionRow(label, values) {
+        const sorted = values
+          .filter((value) => Number.isFinite(value))
+          .sort((left, right) => left - right);
+        if (!sorted.length) return null;
+        const sum = sorted.reduce((total, value) => total + value, 0);
+        const roundPrice = (value) => Math.round(value * 1000) / 1000;
+        return {
+          brand: label,
+          count: sorted.length,
+          min: roundPrice(sorted[0]),
+          q1: roundPrice(quantile(sorted, 0.25)),
+          median: roundPrice(quantile(sorted, 0.5)),
+          avg: roundPrice(sum / sorted.length),
+          q3: roundPrice(quantile(sorted, 0.75)),
+          max: roundPrice(sorted[sorted.length - 1]),
+        };
+      }
+
+      function rangeBrandRows() {
+        if (
+          !isRangeModeActive() ||
+          !state.stationBrandById ||
+          !state.rangeNoonRows.length
+        ) {
+          return null;
+        }
+
+        const cacheKey = [
+          state.fuel,
+          state.rangeNoonRows
+            .map((day) => `${formatISODate(day.date)}:${day.rows.length}`)
+            .join("|"),
+        ].join("::");
+        if (state.rangeBrandCache?.key === cacheKey) {
+          return state.rangeBrandCache.rows;
+        }
+
+        const byBrand = new Map();
+        const allValues = [];
+        state.rangeNoonRows.forEach((day) => {
+          day.rows.forEach((row) => {
+            const price = csvFuelNumber(row, state.fuel);
+            if (!Number.isFinite(price) || price <= 0) return;
+            const stationId = String(row.station_uuid || "").trim();
+            const brand =
+              state.stationBrandById.get(stationId) || "UNBEKANNT";
+            if (!byBrand.has(brand)) byBrand.set(brand, []);
+            byBrand.get(brand).push(price);
+            allValues.push(price);
+          });
+        });
+
+        if (!allValues.length) {
+          state.rangeBrandCache = { key: cacheKey, rows: [] };
+          return [];
+        }
+
+        const focusBrands = [...byBrand.entries()]
+          .sort((left, right) => {
+            const countDiff = right[1].length - left[1].length;
+            return countDiff || left[0].localeCompare(right[0], "de");
+          })
+          .slice(0, 9)
+          .map(([brand]) => brand);
+        const focusBrandSet = new Set(focusBrands);
+        const miscValues = [];
+        byBrand.forEach((values, brand) => {
+          if (!focusBrandSet.has(brand)) miscValues.push(...values);
+        });
+
+        const rows = [buildBrandDistributionRow("Gesamtmarkt", allValues)];
+        focusBrands.forEach((brand) => {
+          rows.push(buildBrandDistributionRow(brand, byBrand.get(brand) || []));
+        });
+        if (miscValues.length) {
+          rows.push(buildBrandDistributionRow("MISC", miscValues));
+        }
+
+        state.rangeBrandCache = {
+          key: cacheKey,
+          rows: rows.filter(Boolean),
+        };
+        return state.rangeBrandCache.rows;
+      }
+
+      function brandRows() {
+        const rangeRows = rangeBrandRows();
+        if (rangeRows) return rangeRows;
+        return state.summary?.brand_distributions?.[state.fuel] || [];
+      }
+
+      function brandChartPeriodLabel() {
+        const rangeRows = rangeBrandRows();
+        if (
+          rangeRows &&
+          state.startDate instanceof Date &&
+          state.endDate instanceof Date
+        ) {
+          return `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`;
+        }
+        const snapshotDate = state.summary?.brand_snapshot_date
+          ? parseISODate(state.summary.brand_snapshot_date)
+          : state.date;
+        return snapshotDate instanceof Date ? formatLongDate(snapshotDate) : "";
+      }
+
+      function histogramRows() {
+        return state.summary?.noon_reference_histograms?.[state.fuel] || [];
+      }
+
+      function histogramSummary() {
+        return state.summary?.noon_reference_summaries?.[state.fuel] || null;
+      }
+
+      function histogramBucketMinutes() {
+        const raw = Number(state.summary?.noon_reference_bucket_minutes);
+        return Number.isFinite(raw) && raw > 0 ? raw : 15;
+      }
+
+      function formatCount(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return "-";
+        return new Intl.NumberFormat("de-DE", {
+          maximumFractionDigits: 0,
+        }).format(numeric);
+      }
+
+      function formatPercent(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return "-";
+        return new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(numeric * 100);
+      }
+
+      function formatTimeOfDay(totalMinutes) {
+        const normalized = Math.max(
+          0,
+          Math.min(24 * 60 - 1, Number(totalMinutes) || 0),
+        );
+        const hour = Math.floor(normalized / 60);
+        const minute = normalized % 60;
+        return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      }
+
+      function histogramBucketRangeLabel(
+        row,
+        bucketMinutes = histogramBucketMinutes(),
+      ) {
+        if (!row) return "";
+        const startMinute = Number(row.bucket_minute) || 0;
+        const endMinute = Math.min(
+          24 * 60 - 1,
+          startMinute + bucketMinutes - 1,
+        );
+        return `${formatTimeOfDay(startMinute)} - ${formatTimeOfDay(endMinute)}`;
+      }
+
+      function histogramSeries() {
+        const rows = histogramRows();
+        const summary = histogramSummary();
+        const bucketMinutes = histogramBucketMinutes();
+        const totalStations = Number(summary?.stations) || 0;
+        const totalBuckets = Math.max(1, Math.floor((24 * 60) / bucketMinutes));
+        const rowsByBucket = new Map(
+          rows.map((row) => [Number(row.bucket_minute), row]),
+        );
+
+        return Array.from({ length: totalBuckets }, (_value, index) => {
+          const bucketMinute = index * bucketMinutes;
+          const row = rowsByBucket.get(bucketMinute) || {};
+          const count = Math.max(0, Number(row.count) || 0);
+          const increaseCount = Math.max(0, Number(row.increase_count) || 0);
+          const fallbackCount = Math.max(0, Number(row.fallback_count) || 0);
+          const otherCount = Math.max(0, count - increaseCount - fallbackCount);
+          const share =
+            Number(row.share) ||
+            (totalStations > 0 ? count / totalStations : 0);
+          return {
+            bucket_minute: bucketMinute,
+            bucket_label: row.bucket_label || formatTimeOfDay(bucketMinute),
+            count,
+            stations: Math.max(0, Number(row.stations) || count),
+            increase_count: increaseCount,
+            fallback_count: fallbackCount,
+            other_count: otherCount,
+            share,
+          };
+        });
+      }
+
+      function berlinDateParts(now = new Date()) {
+        const formatter = new Intl.DateTimeFormat("en-CA", {
+          timeZone: APP_TIME_ZONE,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        const parts = Object.create(null);
+        formatter.formatToParts(now).forEach((part) => {
+          if (part.type !== "literal") {
+            parts[part.type] = part.value;
+          }
+        });
+        return {
+          y: parts.year,
+          m: parts.month,
+          d: parts.day,
+        };
+      }
+
+      function berlinToday() {
+        const parts = berlinDateParts();
+        return parseISODate(`${parts.y}-${parts.m}-${parts.d}`);
+      }
+
+      function parseISODate(value) {
+        const [y, m, d] = value.split("-").map((x) => parseInt(x, 10));
+        return new Date(Date.UTC(y, m - 1, d));
+      }
+
+      function formatISODate(d) {
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+
+      function formatLongDate(d) {
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        const y = d.getUTCFullYear();
+        return `${day}.${m}.${y}`;
+      }
+
+      function formatShortDate(d) {
+        const day = String(d.getUTCDate()).padStart(2, "0");
+        const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+        return `${day}.${m}.`;
+      }
+
+      function sameISODate(left, right) {
+        if (!(left instanceof Date) || !(right instanceof Date)) return false;
+        return formatISODate(left) === formatISODate(right);
+      }
+
+      function dateParts(d) {
+        return {
+          y: String(d.getUTCFullYear()),
+          m: String(d.getUTCMonth() + 1).padStart(2, "0"),
+          d: String(d.getUTCDate()).padStart(2, "0"),
+        };
+      }
+
+      function addDays(d, delta) {
+        const copy = new Date(d.getTime());
+        copy.setUTCDate(copy.getUTCDate() + delta);
+        return copy;
+      }
+
+      function datesInRange(startDate, endDate) {
+        const dates = [];
+        let current = startDate;
+        while (current <= endDate) {
+          dates.push(current);
+          current = addDays(current, 1);
+        }
+        return dates;
+      }
+
+      function normalizeDateRange(startDate, endDate, minDate, maxDate) {
+        let normalizedStart = startDate;
+        let normalizedEnd = endDate;
+        if (normalizedStart < minDate) normalizedStart = minDate;
+        if (normalizedStart > maxDate) normalizedStart = maxDate;
+        if (normalizedEnd < minDate) normalizedEnd = minDate;
+        if (normalizedEnd > maxDate) normalizedEnd = maxDate;
+        if (normalizedStart > normalizedEnd) {
+          normalizedEnd = normalizedStart;
+        }
+        return {
+          startDate: normalizedStart,
+          endDate: normalizedEnd,
+        };
+      }
+
+      function syncRangeUrl(startDate, endDate) {
+        const params = new URLSearchParams(window.location.search);
+        params.delete("date");
+        params.set("start", formatISODate(startDate));
+        params.set("end", formatISODate(endDate));
+        const nextSearch = params.toString();
+        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+        window.history.replaceState({}, "", nextUrl);
+      }
+
+      function parseCsv(text) {
+        const lines = text
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean);
+        if (!lines.length) return [];
+        const headers = lines[0].split(",").map((header) => header.trim());
+        return lines.slice(1).map((line) => {
+          const values = line.split(",");
+          const row = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] ?? "";
+          });
+          return row;
+        });
+      }
+
+      async function fetchCsv(url) {
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return parseCsv(await response.text());
+      }
+
+      function urlForDate(d) {
+        const p = dateParts(d);
+        return `data2/${p.y}/${p.m}/${p.d}/management_boxplots.json`;
+      }
+
+      function urlForNoonDate(d) {
+        const p = dateParts(d);
+        return `data2/${p.y}/${p.m}/${p.d}/noon.csv`;
+      }
+
+      function csvFuelNumber(row, fuel) {
+        const raw = String(row?.[fuel] ?? "").trim();
+        if (!raw) return null;
+        const numeric = Number(raw);
+        return Number.isFinite(numeric) ? numeric : null;
+      }
+
+      function quantile(sortedValues, p) {
+        if (!sortedValues.length) return null;
+        if (sortedValues.length === 1) return sortedValues[0];
+        const index = (sortedValues.length - 1) * p;
+        const lower = Math.floor(index);
+        const upper = Math.ceil(index);
+        if (lower === upper) return sortedValues[lower];
+        const weight = index - lower;
+        return (
+          sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight
+        );
+      }
+
+      function buildNoonDeltaSummary(currentRows, previousRows) {
+        const previousByStation = new Map(
+          previousRows.map((row) => [
+            String(row.station_uuid || "").trim(),
+            row,
+          ]),
+        );
+        const perFuel = {
+          diesel: [],
+          e5: [],
+          e10: [],
+        };
+        currentRows.forEach((row) => {
+          const stationId = String(row.station_uuid || "").trim();
+          if (!stationId) return;
+          const previousRow = previousByStation.get(stationId);
+          if (!previousRow) return;
+          Object.keys(perFuel).forEach((fuel) => {
+            const currentPrice = csvFuelNumber(row, fuel);
+            const previousPrice = csvFuelNumber(previousRow, fuel);
+            if (
+              Number.isFinite(currentPrice) &&
+              Number.isFinite(previousPrice)
+            ) {
+              perFuel[fuel].push(currentPrice - previousPrice);
+            }
+          });
+        });
+
+        return Object.fromEntries(
+          Object.entries(perFuel).map(([fuel, values]) => {
+            const sorted = [...values].sort((left, right) => left - right);
+            if (!sorted.length) return [fuel, null];
+            return [
+              fuel,
+              {
+                count: sorted.length,
+                min: sorted[0],
+                q1: quantile(sorted, 0.25),
+                median: quantile(sorted, 0.5),
+                q3: quantile(sorted, 0.75),
+                max: sorted[sorted.length - 1],
+              },
+            ];
+          }),
+        );
+      }
+
+      function normalizeBrandName(value) {
+        const brand = String(value || "").trim().toUpperCase();
+        return brand || "UNBEKANNT";
+      }
+
+      async function loadStationBrands() {
+        if (state.stationBrandById) return state.stationBrandById;
+        const response = await fetch("data/stations.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const stations = await response.json();
+        const stationBrandById = new Map();
+        stations.forEach((station) => {
+          const stationId = String(
+            station?.uuid || station?.station_uuid || "",
+          ).trim();
+          if (!stationId) return;
+          stationBrandById.set(stationId, normalizeBrandName(station.brand));
+        });
+        state.stationBrandById = stationBrandById;
+        return stationBrandById;
+      }
+
+      async function exists(url) {
+        try {
+          const head = await fetch(url, { method: "HEAD", cache: "no-store" });
+          if (head.ok) return true;
+          if (head.status !== 405) return false;
+        } catch {
+          // ignore and try GET
+        }
+        try {
+          const res = await fetch(url, { cache: "no-store" });
+          return res.ok;
+        } catch {
+          return false;
+        }
+      }
+
+      async function findNearestAvailableDate(startDate, minDate) {
+        let candidate = startDate;
+        while (candidate >= minDate) {
+          if (await exists(urlForDate(candidate))) {
+            return candidate;
+          }
+          candidate = addDays(candidate, -1);
+        }
+        return null;
+      }
+
+      async function fetchManagementDay(date) {
+        const url = urlForDate(date);
+        const noonUrl = urlForNoonDate(date);
+        const previousNoonUrl = urlForNoonDate(addDays(date, -1));
+        const [summary, noonResult] = await Promise.all([
+          fetch(url, { cache: "no-store" }).then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.json();
+          }),
+          Promise.all([fetchCsv(noonUrl), fetchCsv(previousNoonUrl)])
+            .then(([currentRows, previousRows]) => ({
+              noonRows: currentRows,
+              noonDeltaSummary: buildNoonDeltaSummary(
+                currentRows,
+                previousRows,
+              ),
+            }))
+            .catch(() => ({
+              noonRows: [],
+              noonDeltaSummary: null,
+            })),
+        ]);
+        return {
+          date,
+          summary,
+          noonRows: noonResult.noonRows,
+          noonDeltaSummary: noonResult.noonDeltaSummary,
+        };
+      }
+
+      function clearManagementCharts() {
+        state.summary = null;
+        state.noonDeltaSummary = null;
+        state.rangeSummaries = [];
+        state.rangeNoonDeltaSummaries = [];
+        state.rangeNoonRows = [];
+        state.rangeDates = [];
+        state.rangeBrandCache = null;
+        state.brandLayout = null;
+        state.priceLevelLayout = null;
+        state.histogramLayout = null;
+        brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
+        priceLevelCtx.clearRect(
+          0,
+          0,
+          priceLevelCanvas.width,
+          priceLevelCanvas.height,
+        );
+        histogramCtx.clearRect(
+          0,
+          0,
+          histogramCanvas.width,
+          histogramCanvas.height,
+        );
+      }
+
+      function isRangeModeActive() {
+        return (
+          state.startDate instanceof Date &&
+          state.endDate instanceof Date &&
+          !sameISODate(state.startDate, state.endDate)
+        );
+      }
+
+      function setRangePanelOpen(isOpen) {
+        state.rangePanelOpen = isOpen;
+        rangePanel.hidden = !isOpen;
+        rangeToggleBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        rangeToggleBtn.classList.toggle("primary", isOpen || isRangeModeActive());
+      }
+
+      function syncRangeInputs() {
+        if (state.startDate) {
+          rangeStartPicker.value = formatISODate(state.startDate);
+        }
+        if (state.endDate) {
+          rangeEndPicker.value = formatISODate(state.endDate);
+        }
+      }
+
+      function updateRangeToggleLabel() {
+        if (isRangeModeActive()) {
+          rangeToggleBtn.textContent =
+            `${formatISODate(state.startDate)} bis ${formatISODate(state.endDate)}`;
+          return;
+        }
+        rangeToggleBtn.textContent = "Zeitraum w\u00e4hlen";
+      }
+
+      function resizeCanvas(targetCanvas, targetCtx) {
+        const rect = targetCanvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        targetCanvas.width = Math.max(1, Math.floor(rect.width * dpr));
+        targetCanvas.height = Math.max(1, Math.floor(rect.height * dpr));
+        targetCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+
+      function computeDomain(stats) {
+        return computeSeriesDomain(
+          stats.map((bucket) => adjustedHourlyRow(bucket).median),
+          true,
+        );
+      }
+
+      function chartEntriesForCurrentSelection() {
+        const rangeSummaries = state.rangeSummaries || [];
+        if (rangeSummaries.length <= 1) {
+          const stats = state.summary?.fuels?.[state.fuel] || [];
+          return stats.map((bucket, index) => ({
+            bucket,
+            index,
+            dayIndex: 0,
+            date: state.date,
+            summaryDate: state.date,
+          }));
+        }
+
+        const entries = [];
+        rangeSummaries.forEach((rangeDay, dayIndex) => {
+          const dayBuckets = rangeDay.summary?.fuels?.[state.fuel] || [];
+          dayBuckets.forEach((bucket, bucketIndex) => {
+            if (dayIndex > 0 && bucketIndex === 0) return;
+            entries.push({
+              bucket,
+              index: entries.length,
+              dayIndex,
+              date: rangeDay.date,
+              summaryDate: rangeDay.date,
+            });
+          });
+        });
+        return entries;
+      }
+
+      function yScale(domain, plot, value) {
+        const t = (domain.max - value) / (domain.max - domain.min);
+        return plot.top + t * plot.height;
+      }
+
+      function xScale(domain, plot, value) {
+        const t = (value - domain.min) / (domain.max - domain.min);
+        return plot.left + t * plot.width;
+      }
+
+      function rangeHourTicks(dayCount) {
+        if (dayCount <= 3) return [12, 16, 20, 0, 4, 8, 12];
+        if (dayCount <= 7) return [12, 18, 0, 6, 12];
+        return [12, 0, 12];
+      }
+
+      function rangeDayStartIndex(dayIndex) {
+        return dayIndex === 0 ? 0 : 25 + (dayIndex - 1) * 24;
+      }
+
+      function rangeDayEntryCount(dayIndex, dayCount) {
+        if (dayCount <= 1) return 25;
+        return dayIndex === 0 ? 25 : 24;
+      }
+
+      function rangeHourTickOffset(hour, tickIndex) {
+        if (tickIndex === 0) return 0;
+        return hour >= 12 ? hour - 12 : hour + 12;
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function draw() {
+        if (!state.summary) return;
+        const chartEntries = chartEntriesForCurrentSelection();
+        const stats = chartEntries.map((entry) => entry.bucket);
+        if (!stats.length) return;
+        const viewMode = viewModeForFuel();
+        const isPartialCycle = viewMode === "cycle" && stats.length < 25;
+        const rangeModeActive = isRangeModeActive();
+        const theme = currentChartTheme();
+
+        resizeCanvas(canvas, ctx);
+        const w = canvas.getBoundingClientRect().width;
+        const h = canvas.getBoundingClientRect().height;
+
+        const plot = { left: 54, right: 18, top: 18, bottom: 62 };
+        plot.left = 88;
+        plot.width = w - plot.left - plot.right;
+        plot.height = h - plot.top - plot.bottom;
+        state.layout = { plot, w, h, chartEntries };
+        state.chartEntries = chartEntries;
+        titleEl.textContent = rangeModeActive
+          ? `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)} \u00b7 ${formatISODate(state.startDate)} bis ${formatISODate(state.endDate)}`
+          : `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}`;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const domain = computeDomain(stats);
+
+        // Grid + axis labels (Euro / Liter)
+        ctx.strokeStyle = theme.grid;
+        ctx.fillStyle = theme.axisText;
+        ctx.lineWidth = 1;
+        ctx.font = "12px Manrope, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+
+        const tickCount = 5;
+        for (let i = 0; i < tickCount; i++) {
+          const v =
+            domain.min + (i * (domain.max - domain.min)) / (tickCount - 1);
+          const y = yScale(domain, plot, v);
+          ctx.beginPath();
+          ctx.moveTo(plot.left, y);
+          ctx.lineTo(plot.left + plot.width, y);
+          ctx.stroke();
+          ctx.fillText(formatValue(v), plot.left - 10, y);
+        }
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+
+        const zeroInDomain = domain.min <= 0 && domain.max >= 0;
+        const y0 = yScale(domain, plot, 0);
+        if (zeroInDomain) {
+          ctx.strokeStyle = "rgba(15,118,110,0.35)";
+          ctx.beginPath();
+          ctx.moveTo(plot.left, y0);
+          ctx.lineTo(plot.left + plot.width, y0);
+          ctx.stroke();
+          ctx.strokeStyle = theme.grid;
+        }
+
+        ctx.save();
+        ctx.translate(22, plot.top + plot.height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = "center";
+        ctx.fillStyle = theme.axisTitle;
+        ctx.fillText(
+          `Preis\u00e4nderung ${fuelDisplayName(state.fuel)} (Euro / Liter)`,
+          0,
+          0,
+        );
+        ctx.restore();
+
+        if (viewMode === "cycle" && stats.length >= 13) {
+          const midnightIndexes = chartEntries
+            .map((entry, index) => ({ entry, index }))
+            .filter(({ entry }) => {
+              if (Number.isFinite(Number(entry.bucket?.clock_hour))) {
+                return Number(entry.bucket.clock_hour) === 0;
+              }
+              return bucketLabel(entry.bucket) === "00";
+            });
+          midnightIndexes.forEach(({ index }) => {
+            const midnightX =
+              plot.left + (index * plot.width) / stats.length;
+            ctx.save();
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = "rgba(37,99,235,0.35)";
+            ctx.beginPath();
+            ctx.moveTo(midnightX, plot.top);
+            ctx.lineTo(midnightX, plot.top + plot.height);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = "rgba(37,99,235,0.78)";
+            ctx.fillText("00:00", midnightX + 6, plot.top + 14);
+            ctx.restore();
+          });
+        } else if (viewMode !== "cycle" && stats.length >= 24) {
+          const noonX = plot.left + (12 * plot.width) / stats.length;
+          const noonBucket = stats.find(
+            (bucket) => Number(bucket?.hour) === 12,
+          );
+          const noonMedian = noonBucket
+            ? adjustedHourlyRow(noonBucket).median
+            : null;
+          ctx.save();
+          ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = "rgba(37,99,235,0.35)";
+          ctx.beginPath();
+          ctx.moveTo(noonX, plot.top);
+          ctx.lineTo(noonX, plot.top + plot.height);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "rgba(37,99,235,0.78)";
+          ctx.fillText("12:00", noonX + 6, plot.top + 14);
+          if (Number.isFinite(noonMedian)) {
+            const label = `${formatSignedRelativeLabel(noonMedian)} zum Tages-12:00`;
+            const noonY = yScale(domain, plot, noonMedian);
+            const labelMidValue = noonMedian / 2 + 0.005;
+            const labelY = clamp(
+              yScale(domain, plot, labelMidValue),
+              plot.top + 10,
+              plot.top + plot.height - 10,
+            );
+            const connectorX = noonX + 1.5;
+            ctx.strokeStyle = "rgba(37,99,235,0.74)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(connectorX, y0);
+            ctx.lineTo(connectorX, noonY);
+            ctx.stroke();
+            ctx.fillStyle = "rgba(37,99,235,0.88)";
+            ctx.beginPath();
+            ctx.arc(connectorX, y0, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(connectorX, noonY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.font = "600 12px Manrope, sans-serif";
+            ctx.textAlign = "right";
+            ctx.textBaseline = "middle";
+            ctx.strokeStyle = "rgba(255,255,255,0.96)";
+            ctx.lineWidth = 4;
+            ctx.strokeText(label, noonX - 8, labelY);
+            ctx.fillText(label, noonX - 8, labelY);
+          }
+          ctx.restore();
+        }
+
+        // X labels
+        ctx.fillStyle = theme.tickText;
+        if (rangeModeActive) {
+          const dayCount = state.rangeSummaries.length;
+          const hourTicks = rangeHourTicks(dayCount);
+          state.rangeSummaries.forEach((rangeDay, dayIndex) => {
+            const startIndex = rangeDayStartIndex(dayIndex);
+            const entryCount = rangeDayEntryCount(dayIndex, dayCount);
+            const boundaryX =
+              plot.left + (startIndex * plot.width) / stats.length;
+            ctx.beginPath();
+            ctx.moveTo(boundaryX, plot.top);
+            ctx.lineTo(boundaryX, plot.top + plot.height);
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+            ctx.stroke();
+
+            const dayCenterX =
+              plot.left +
+              ((startIndex + entryCount / 2) * plot.width) / stats.length;
+            ctx.font = "600 11px Manrope, sans-serif";
+            ctx.fillStyle = theme.axisText;
+            ctx.textAlign = "center";
+            ctx.fillText(
+              formatShortDate(rangeDay.date),
+              dayCenterX,
+              plot.top + plot.height + 12,
+            );
+
+            ctx.font = "11px Manrope, sans-serif";
+            ctx.fillStyle = theme.tickText;
+            hourTicks.forEach((hour, tickIndex) => {
+              const offset = rangeHourTickOffset(hour, tickIndex);
+              if (offset > entryCount) return;
+              const x =
+                plot.left +
+                ((startIndex + offset) * plot.width) / stats.length;
+              if (x < plot.left - 1 || x > plot.left + plot.width + 1) return;
+              ctx.fillText(
+                String(hour).padStart(2, "0"),
+                x,
+                plot.top + plot.height + 28,
+              );
+            });
+          });
+          ctx.textAlign = "left";
+        } else {
+          const step = w < 600 ? 2 : 1;
+          for (let index = 0; index < stats.length; index += step) {
+            const x = plot.left + ((index + 0.5) * plot.width) / stats.length;
+            ctx.fillText(
+              bucketLabel(stats[index]),
+              x - 6,
+              plot.top + plot.height + 26,
+            );
+          }
+        }
+        ctx.fillText(
+          viewMode === "cycle"
+            ? isPartialCycle
+              ? "Stunde seit 12:00"
+              : rangeModeActive
+                ? "Stunde im 12:00 \u2192 12:00-Zyklus \u00b7 Zeitraum von Starttag 12:00 bis Endtag 12:00"
+                : "Stunde im 24h-Zyklus (12 Vortag \u2192 12 Tag)"
+            : "Stunde",
+          plot.left +
+            plot.width / 2 -
+            (viewMode === "cycle"
+              ? rangeModeActive
+                ? 180
+                : isPartialCycle
+                  ? 52
+                  : 82
+              : 18),
+          plot.top + plot.height + 50,
+        );
+
+        const points = chartEntries.map((entry, index) => {
+          const adjusted = adjustedHourlyRow(entry.bucket);
+          const nextX =
+            index === chartEntries.length - 1
+              ? plot.left + plot.width
+              : plot.left + ((index + 1) * plot.width) / chartEntries.length;
+          return {
+            bucket: entry.bucket,
+            adjusted,
+            x: plot.left + ((index + 0.5) * plot.width) / chartEntries.length,
+            leftX: plot.left + (index * plot.width) / chartEntries.length,
+            rightX: nextX,
+            y: yScale(domain, plot, adjusted.median),
+          };
+        });
+        const segments =
+          viewMode === "cycle"
+            ? [[0, points.length - 1, HOURLY_REFERENCE_COLORS.sameDay]]
+            : [
+                [
+                  0,
+                  Math.min(11, points.length - 1),
+                  HOURLY_REFERENCE_COLORS.priorDay,
+                ],
+                [12, points.length - 1, HOURLY_REFERENCE_COLORS.sameDay],
+              ];
+
+        segments.forEach(([startIndex, endIndex, colors]) => {
+          if (startIndex > endIndex || startIndex >= points.length) return;
+
+          ctx.beginPath();
+          ctx.moveTo(points[startIndex].leftX, points[startIndex].y);
+          for (let i = startIndex; i <= endIndex; i++) {
+            const point = points[i];
+            ctx.lineTo(point.rightX, point.y);
+            if (i < endIndex) {
+              ctx.lineTo(point.rightX, points[i + 1].y);
+            }
+          }
+          ctx.strokeStyle = colors.stroke;
+          ctx.lineWidth = 2.4;
+          ctx.stroke();
+
+          ctx.fillStyle = colors.stroke;
+          for (let i = startIndex; i <= endIndex; i++) {
+            const point = points[i];
+            ctx.beginPath();
+            ctx.arc(point.leftX, point.y, 2.4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(point.rightX, point.y, 2.4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+      }
+
+      function computeBrandDomain(rows) {
+        return BRAND_PRICE_DOMAIN;
+      }
+
+      function drawBrandChart() {
+        const rows = brandRows();
+        if (!rows.length) {
+          brandTitleEl.textContent = "12:00-Referenzpreis nach Marke";
+          brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
+          state.brandLayout = null;
+          return;
+        }
+
+        const periodLabel = brandChartPeriodLabel();
+        brandTitleEl.textContent =
+          `12:00-Referenzpreis nach Marke \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (periodLabel ? ` \u00b7 ${periodLabel}` : "");
+
+        brandCanvas.style.height = `${Math.max(280, rows.length * 42 + 90)}px`;
+        resizeCanvas(brandCanvas, brandCtx);
+        const w = brandCanvas.getBoundingClientRect().width;
+        const h = brandCanvas.getBoundingClientRect().height;
+        const theme = currentChartTheme();
+        const plot = { left: 110, right: 18, top: 18, bottom: 38 };
+        plot.width = w - plot.left - plot.right;
+        plot.height = h - plot.top - plot.bottom;
+        state.brandLayout = { plot, w, h, rows };
+
+        brandCtx.clearRect(0, 0, w, h);
+        const domain = computeBrandDomain(rows);
+        brandCtx.strokeStyle = theme.grid;
+        brandCtx.fillStyle = theme.axisText;
+        brandCtx.lineWidth = 1;
+        brandCtx.font = "12px Manrope, sans-serif";
+
+        const tickCount = 4;
+        for (let i = 0; i < tickCount; i++) {
+          const value =
+            domain.min + (i * (domain.max - domain.min)) / (tickCount - 1);
+          const x = xScale(domain, plot, value);
+          brandCtx.beginPath();
+          brandCtx.moveTo(x, plot.top);
+          brandCtx.lineTo(x, plot.top + plot.height);
+          brandCtx.stroke();
+          brandCtx.fillText(
+            formatBrandAxisValue(value),
+            x - 12,
+            plot.top + plot.height + 24,
+          );
+        }
+
+        brandCtx.fillStyle = theme.axisTitle;
+        brandCtx.fillText(
+          "Preis (EUR/l)",
+          plot.left + plot.width / 2 - 28,
+          plot.top + plot.height + 36,
+        );
+
+        const rowHeight = plot.height / rows.length;
+        const fuelColor = FUEL_COLORS[state.fuel] || "#0f766e";
+
+        rows.forEach((row, index) => {
+          const y = plot.top + (index + 0.5) * rowHeight;
+          const rowTop = plot.top + index * rowHeight;
+          const isOverall = row.brand === "Gesamtmarkt";
+          brandCtx.strokeStyle = theme.rowSeparator;
+          brandCtx.beginPath();
+          brandCtx.moveTo(plot.left, rowTop);
+          brandCtx.lineTo(plot.left + plot.width, rowTop);
+          brandCtx.stroke();
+
+          brandCtx.fillStyle = theme.rowLabel;
+          brandCtx.fillText(row.brand, 12, y + 4);
+
+          const minX = xScale(
+            domain,
+            plot,
+            clamp(row.min, domain.min, domain.max),
+          );
+          const q1X = xScale(
+            domain,
+            plot,
+            clamp(row.q1, domain.min, domain.max),
+          );
+          const medianX = xScale(
+            domain,
+            plot,
+            clamp(row.median, domain.min, domain.max),
+          );
+          const q3X = xScale(
+            domain,
+            plot,
+            clamp(row.q3, domain.min, domain.max),
+          );
+          const maxX = xScale(
+            domain,
+            plot,
+            clamp(row.max, domain.min, domain.max),
+          );
+
+          brandCtx.strokeStyle = isOverall ? theme.overallStroke : fuelColor;
+          brandCtx.lineWidth = isOverall ? 2.4 : 2;
+          brandCtx.beginPath();
+          brandCtx.moveTo(minX, y);
+          brandCtx.lineTo(maxX, y);
+          brandCtx.stroke();
+
+          const boxHeight = Math.min(22, rowHeight * 0.52);
+          brandCtx.fillStyle = isOverall
+            ? theme.overallFill
+            : `${fuelColor}33`;
+          brandCtx.fillRect(
+            q1X,
+            y - boxHeight / 2,
+            Math.max(1, q3X - q1X),
+            boxHeight,
+          );
+          brandCtx.strokeRect(
+            q1X,
+            y - boxHeight / 2,
+            Math.max(1, q3X - q1X),
+            boxHeight,
+          );
+
+          brandCtx.beginPath();
+          brandCtx.moveTo(medianX, y - boxHeight / 2 - 3);
+          brandCtx.lineTo(medianX, y + boxHeight / 2 + 3);
+          brandCtx.stroke();
+        });
+      }
+
+      function priceLevelSeries() {
+        const sourceDays =
+          (state.rangeSummaries || []).length > 0
+            ? state.rangeSummaries
+            : [{ date: state.date, summary: state.summary }];
+        const hasExactAverageRows =
+          sourceDays.length > 0 &&
+          sourceDays.every((rangeDay) =>
+            (rangeDay.summary?.fuels?.[state.fuel] || []).some(
+              (row) => Number(row.price_count) > 0 && Number.isFinite(Number(row.price_sum)),
+            ),
+          );
+        const hasExactMedianRows =
+          sourceDays.length > 0 &&
+          sourceDays.every((rangeDay) =>
+            (rangeDay.summary?.fuels?.[state.fuel] || []).some((row) =>
+              Number.isFinite(Number(row.price_median)),
+            ),
+          );
+        const byHour = new Map();
+
+        sourceDays.forEach((rangeDay) => {
+          const rows = rangeDay.summary?.fuels?.[state.fuel] || [];
+          const overall = (rangeDay.summary?.brand_distributions?.[state.fuel] || []).find(
+            (row) => row?.brand === "Gesamtmarkt",
+          );
+          const baseAvg = Number(overall?.avg);
+          const baseMedian = Number(overall?.median);
+          rows.forEach((row) => {
+            const rawHour =
+              row.cycle_hour !== undefined ? row.cycle_hour : row.hour;
+            const hour = Number(rawHour);
+            const exactPriceSum = Number(row.price_sum);
+            const exactPriceCount = Number(row.price_count);
+            const exactPriceMedian = Number(row.price_median);
+            const deltaMedian = adjustedHourlyRow(row).median;
+            const estimatedAvg = baseAvg + deltaMedian;
+            const estimatedMedian = baseMedian + deltaMedian;
+            const estimateWeight = Number(row.count) > 0 ? Number(row.count) : 1;
+            if (
+              !Number.isFinite(hour) ||
+              hour < 0 ||
+              hour > 24
+            ) {
+              return;
+            }
+            const useExact =
+              hasExactAverageRows &&
+              Number.isFinite(exactPriceSum) &&
+              Number.isFinite(exactPriceCount) &&
+              exactPriceCount > 0;
+            const useEstimate =
+              !hasExactAverageRows &&
+              Number.isFinite(baseAvg) &&
+              Number.isFinite(deltaMedian) &&
+              Number.isFinite(estimateWeight) &&
+              estimateWeight > 0;
+            const useExactMedian =
+              hasExactMedianRows && Number.isFinite(exactPriceMedian);
+            const useEstimateMedian =
+              !hasExactMedianRows &&
+              Number.isFinite(baseMedian) &&
+              Number.isFinite(deltaMedian) &&
+              Number.isFinite(estimateWeight) &&
+              estimateWeight > 0;
+            if (!useExact && !useEstimate && !useExactMedian && !useEstimateMedian) return;
+
+            const bucket = byHour.get(hour) || {
+              hour,
+              clockHour: Number.isFinite(Number(row.clock_hour))
+                ? Number(row.clock_hour)
+                : (12 + hour) % 24,
+              priceSum: 0,
+              priceCount: 0,
+              medianSum: 0,
+              medianCount: 0,
+              estimatedAverage: !hasExactAverageRows,
+              estimatedMedian: !hasExactMedianRows,
+            };
+            if (useExact) {
+              bucket.priceSum += exactPriceSum;
+              bucket.priceCount += exactPriceCount;
+            } else {
+              bucket.priceSum += estimatedAvg * estimateWeight;
+              bucket.priceCount += estimateWeight;
+            }
+            if (useExactMedian) {
+              bucket.medianSum += exactPriceMedian;
+              bucket.medianCount += 1;
+            } else if (useEstimateMedian) {
+              bucket.medianSum += estimatedMedian * estimateWeight;
+              bucket.medianCount += estimateWeight;
+            }
+            byHour.set(hour, bucket);
+          });
+        });
+
+        const rows = Array.from(byHour.values())
+          .sort((left, right) => left.hour - right.hour)
+          .map((row) => ({
+            ...row,
+            avg: row.priceCount > 0 ? row.priceSum / row.priceCount : null,
+            median: row.medianCount > 0 ? row.medianSum / row.medianCount : null,
+          }));
+        return {
+          rows,
+          averageMode: hasExactAverageRows ? "exact" : "estimated",
+          medianMode: hasExactMedianRows ? "exact" : "estimated",
+        };
+      }
+
+      function computePriceLevelDomain(rows) {
+        const values = rows
+          .flatMap((row) => [row.avg, row.median])
+          .filter((value) => Number.isFinite(value));
+        if (!values.length) return BRAND_PRICE_DOMAIN;
+
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const center = (min + max) / 2;
+        const span = Math.max(max - min, 0.08);
+        const padding = Math.max(span * 0.18, 0.02);
+        return {
+          min: Math.max(0, center - span / 2 - padding),
+          max: center + span / 2 + padding,
+        };
+      }
+
+      function drawPriceLevelChart() {
+        if (!state.summary) {
+          priceLevelTitleEl.textContent = "Durchschnittspreis";
+          priceLevelNoteEl.textContent = "";
+          priceLevelCtx.clearRect(
+            0,
+            0,
+            priceLevelCanvas.width,
+            priceLevelCanvas.height,
+          );
+          state.priceLevelLayout = null;
+          return;
+        }
+
+        const periodLabel = isRangeModeActive()
+          ? `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`
+          : state.date instanceof Date
+            ? formatLongDate(state.date)
+            : "";
+        priceLevelTitleEl.textContent =
+          `Durchschnittspreis \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (periodLabel ? ` \u00b7 ${periodLabel}` : "");
+
+        resizeCanvas(priceLevelCanvas, priceLevelCtx);
+        const w = priceLevelCanvas.getBoundingClientRect().width;
+        const h = priceLevelCanvas.getBoundingClientRect().height;
+        const theme = currentChartTheme();
+        const series = priceLevelSeries();
+        const rows = series.rows;
+        const isEstimatedPriceLevel =
+          series.averageMode === "estimated" || series.medianMode === "estimated";
+        priceLevelNoteEl.textContent = isEstimatedPriceLevel
+          ? "Modelliertes Preisniveau: Durchschnitt und Median werden aus dem 12:00-Gesamtmarktwert und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Werte."
+          : "Exakte Durchschnitts- und Medianpreise auf Basis aggregierter Preiswerte im gew\u00e4hlten Zeitraum.";
+        const domain = computePriceLevelDomain(rows);
+        const plot = { left: 88, right: 24, top: 24, bottom: 56 };
+        plot.width = w - plot.left - plot.right;
+        plot.height = h - plot.top - plot.bottom;
+        state.priceLevelLayout = { plot, w, h, domain };
+
+        priceLevelCtx.clearRect(0, 0, w, h);
+
+        priceLevelCtx.strokeStyle = theme.grid;
+        priceLevelCtx.fillStyle = theme.axisText;
+        priceLevelCtx.lineWidth = 1;
+        priceLevelCtx.font = "12px Manrope, sans-serif";
+        priceLevelCtx.textAlign = "right";
+        priceLevelCtx.textBaseline = "middle";
+
+        const yTickCount = 4;
+        for (let i = 0; i < yTickCount; i++) {
+          const value =
+            domain.min + (i * (domain.max - domain.min)) / (yTickCount - 1);
+          const y = yScale(domain, plot, value);
+          priceLevelCtx.beginPath();
+          priceLevelCtx.moveTo(plot.left, y);
+          priceLevelCtx.lineTo(plot.left + plot.width, y);
+          priceLevelCtx.stroke();
+          priceLevelCtx.fillText(formatValue(value), plot.left - 10, y);
+        }
+
+        priceLevelCtx.save();
+        priceLevelCtx.translate(24, plot.top + plot.height / 2);
+        priceLevelCtx.rotate(-Math.PI / 2);
+        priceLevelCtx.textAlign = "center";
+        priceLevelCtx.fillStyle = theme.axisTitle;
+        priceLevelCtx.fillText(`Preis ${fuelDisplayName(state.fuel)} (EUR/l)`, 0, 0);
+        priceLevelCtx.restore();
+
+        const xTicks = [
+          { offset: 0, label: "12" },
+          { offset: 4, label: "16" },
+          { offset: 8, label: "20" },
+          { offset: 12, label: "00" },
+          { offset: 16, label: "04" },
+          { offset: 20, label: "08" },
+          { offset: 24, label: "12" },
+        ];
+        priceLevelCtx.textAlign = "center";
+        priceLevelCtx.textBaseline = "alphabetic";
+        priceLevelCtx.fillStyle = theme.tickText;
+        xTicks.forEach((tick) => {
+          const x = plot.left + (tick.offset * plot.width) / 24;
+          priceLevelCtx.beginPath();
+          priceLevelCtx.moveTo(x, plot.top);
+          priceLevelCtx.lineTo(x, plot.top + plot.height);
+          priceLevelCtx.stroke();
+          priceLevelCtx.fillText(tick.label, x, plot.top + plot.height + 24);
+        });
+
+        const midnightX = plot.left + (12 * plot.width) / 24;
+        priceLevelCtx.save();
+        priceLevelCtx.setLineDash([6, 4]);
+        priceLevelCtx.strokeStyle = "rgba(37,99,235,0.35)";
+        priceLevelCtx.beginPath();
+        priceLevelCtx.moveTo(midnightX, plot.top);
+        priceLevelCtx.lineTo(midnightX, plot.top + plot.height);
+        priceLevelCtx.stroke();
+        priceLevelCtx.setLineDash([]);
+        priceLevelCtx.fillStyle = "rgba(37,99,235,0.78)";
+        priceLevelCtx.fillText("00:00", midnightX + 22, plot.top + 16);
+        priceLevelCtx.restore();
+
+        priceLevelCtx.fillStyle = theme.axisTitle;
+        priceLevelCtx.fillText(
+          "Stunde im 12:00\u219212:00-Zyklus",
+          plot.left + plot.width / 2,
+          plot.top + plot.height + 42,
+        );
+
+        const avgColor = FUEL_COLORS[state.fuel] || "#0f766e";
+        const medianColor = theme.overallStroke;
+        const drawLineSeries = (valueKey, color, dashed = false) => {
+          const points = rows
+            .map((row) => ({
+              x: plot.left + (row.hour * plot.width) / 24,
+              y: Number.isFinite(row[valueKey])
+                ? yScale(domain, plot, row[valueKey])
+                : null,
+            }))
+            .filter((point) => point.y !== null);
+          if (!points.length) return;
+
+          priceLevelCtx.save();
+          priceLevelCtx.strokeStyle = color;
+          priceLevelCtx.lineWidth = 2.6;
+          priceLevelCtx.lineJoin = "round";
+          priceLevelCtx.lineCap = "round";
+          if (dashed) priceLevelCtx.setLineDash([7, 5]);
+          priceLevelCtx.beginPath();
+          points.forEach((point, index) => {
+            if (index === 0) {
+              priceLevelCtx.moveTo(point.x, point.y);
+            } else {
+              priceLevelCtx.lineTo(point.x, point.y);
+            }
+          });
+          priceLevelCtx.stroke();
+          priceLevelCtx.setLineDash([]);
+
+          priceLevelCtx.fillStyle = color;
+          points.forEach((point) => {
+            priceLevelCtx.beginPath();
+            priceLevelCtx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+            priceLevelCtx.fill();
+          });
+          priceLevelCtx.restore();
+        };
+
+        if (rows.length > 0) {
+          drawLineSeries("avg", avgColor);
+          drawLineSeries("median", medianColor, true);
+        }
+
+        const legendItems = [
+          {
+            label:
+              series.averageMode === "estimated"
+                ? "Durchschnitt gesch\u00e4tzt"
+                : "Durchschnitt",
+            color: avgColor,
+            dashed: false,
+          },
+          {
+            label:
+              series.medianMode === "estimated"
+                ? "Median gesch\u00e4tzt"
+                : "Median",
+            color: medianColor,
+            dashed: true,
+          },
+        ];
+        let legendX = plot.left + plot.width - 190;
+        if (legendX < plot.left) legendX = plot.left;
+        let legendY = plot.top + 8;
+        priceLevelCtx.font = "11px Manrope, sans-serif";
+        priceLevelCtx.textAlign = "left";
+        legendItems.forEach((item) => {
+          priceLevelCtx.strokeStyle = item.color;
+          priceLevelCtx.lineWidth = 3;
+          if (item.dashed) priceLevelCtx.setLineDash([7, 5]);
+          priceLevelCtx.beginPath();
+          priceLevelCtx.moveTo(legendX, legendY);
+          priceLevelCtx.lineTo(legendX + 22, legendY);
+          priceLevelCtx.stroke();
+          priceLevelCtx.setLineDash([]);
+          priceLevelCtx.fillStyle = theme.legendText;
+          priceLevelCtx.fillText(item.label, legendX + 30, legendY + 4);
+          legendY += 18;
+        });
+      }
+
+      function drawHistogramChart() {
+        const rawRows = histogramRows();
+        const summary = histogramSummary();
+        if (!rawRows.length && !(Number(summary?.stations) > 0)) {
+          histogramTitleEl.textContent = "Zeitpunkt der 12:00-Referenz";
+          histogramCtx.clearRect(
+            0,
+            0,
+            histogramCanvas.width,
+            histogramCanvas.height,
+          );
+          state.histogramLayout = null;
+          return;
+        }
+
+        const rows = histogramSeries();
+        histogramTitleEl.textContent = `Zeitpunkt der 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}`;
+        resizeCanvas(histogramCanvas, histogramCtx);
+        const w = histogramCanvas.getBoundingClientRect().width;
+        const h = histogramCanvas.getBoundingClientRect().height;
+        const theme = currentChartTheme();
+        const plot = { left: 62, right: 18, top: 24, bottom: 46 };
+        plot.width = w - plot.left - plot.right;
+        plot.height = h - plot.top - plot.bottom;
+        const bucketMinutes = histogramBucketMinutes();
+        state.histogramLayout = { plot, w, h, rows, bucketMinutes };
+
+        histogramCtx.clearRect(0, 0, w, h);
+
+        const maxCount = Math.max(
+          1,
+          ...rows.map((row) => Number(row.count) || 0),
+        );
+        const domain = { min: 0, max: maxCount };
+        histogramCtx.strokeStyle = theme.grid;
+        histogramCtx.fillStyle = theme.axisText;
+        histogramCtx.lineWidth = 1;
+        histogramCtx.font = "12px Manrope, sans-serif";
+
+        const tickCount = 5;
+        for (let index = 0; index < tickCount; index += 1) {
+          const value = (index * domain.max) / (tickCount - 1);
+          const roundedValue = Math.round(value);
+          const y = yScale(domain, plot, roundedValue);
+          histogramCtx.beginPath();
+          histogramCtx.moveTo(plot.left, y);
+          histogramCtx.lineTo(plot.left + plot.width, y);
+          histogramCtx.stroke();
+          histogramCtx.fillText(formatCount(roundedValue), 10, y + 4);
+        }
+
+        histogramCtx.save();
+        histogramCtx.translate(18, plot.top + plot.height / 2);
+        histogramCtx.rotate(-Math.PI / 2);
+        histogramCtx.textAlign = "center";
+        histogramCtx.fillStyle = theme.axisTitle;
+        histogramCtx.fillText("Stationen", 0, 0);
+        histogramCtx.restore();
+
+        const slotWidth = plot.width / rows.length;
+        const barWidth = Math.max(1, slotWidth - 1.5);
+        const fuelColor = FUEL_COLORS[state.fuel] || "#0f766e";
+        const hasBreakdown = rows.some(
+          (row) => row.increase_count > 0 || row.fallback_count > 0,
+        );
+
+        rows.forEach((row, index) => {
+          if (!(row.count > 0)) return;
+          const x =
+            plot.left +
+            index * slotWidth +
+            Math.max(0, (slotWidth - barWidth) / 2);
+          const segments = hasBreakdown
+            ? [
+                { value: row.other_count, color: "rgba(203, 213, 225, 0.7)" },
+                {
+                  value: row.fallback_count,
+                  color: "rgba(107, 114, 128, 0.72)",
+                },
+                { value: row.increase_count, color: `${fuelColor}cc` },
+              ]
+            : [{ value: row.count, color: `${fuelColor}cc` }];
+          let stackedValue = 0;
+          segments.forEach((segment) => {
+            if (!(segment.value > 0)) return;
+            const startValue = stackedValue;
+            stackedValue += segment.value;
+            const topY = yScale(domain, plot, stackedValue);
+            const bottomY = yScale(domain, plot, startValue);
+            histogramCtx.fillStyle = segment.color;
+            histogramCtx.fillRect(
+              x,
+              topY,
+              barWidth,
+              Math.max(1, bottomY - topY),
+            );
+          });
+        });
+
+        const noonIndex = Math.floor((12 * 60) / bucketMinutes);
+        const noonX = plot.left + noonIndex * slotWidth;
+        histogramCtx.save();
+        histogramCtx.setLineDash([6, 4]);
+        histogramCtx.strokeStyle = "rgba(37,99,235,0.35)";
+        histogramCtx.beginPath();
+        histogramCtx.moveTo(noonX, plot.top);
+        histogramCtx.lineTo(noonX, plot.top + plot.height);
+        histogramCtx.stroke();
+        histogramCtx.setLineDash([]);
+        histogramCtx.fillStyle = "rgba(37,99,235,0.78)";
+        histogramCtx.fillText("12:00", noonX + 6, plot.top + 14);
+        histogramCtx.restore();
+
+        const bucketsPerHour = Math.max(1, Math.round(60 / bucketMinutes));
+        const hourStep = plot.width < 540 ? 3 : 2;
+        const labelStep = bucketsPerHour * hourStep;
+        histogramCtx.fillStyle = theme.tickText;
+        rows.forEach((row, index) => {
+          if (index % labelStep !== 0) return;
+          const x = plot.left + (index + 0.5) * slotWidth;
+          histogramCtx.fillText(
+            formatTimeOfDay(row.bucket_minute),
+            x - 14,
+            plot.top + plot.height + 24,
+          );
+        });
+        histogramCtx.fillText(
+          "Lokale Zeit",
+          plot.left + plot.width / 2 - 24,
+          plot.top + plot.height + 38,
+        );
+
+        if (hasBreakdown) {
+          const legendItems = [
+            { label: "Erh\u00f6hung 12:00-12:15", color: `${fuelColor}cc` },
+            { label: "Fallback \u2264 12:00", color: "rgba(107, 114, 128, 0.72)" },
+          ];
+          let legendX = plot.left + plot.width - 180;
+          if (legendX < plot.left) legendX = plot.left;
+          let legendY = plot.top + 6;
+          histogramCtx.font = "11px Manrope, sans-serif";
+          legendItems.forEach((item) => {
+            histogramCtx.fillStyle = item.color;
+            histogramCtx.fillRect(legendX, legendY - 8, 10, 10);
+            histogramCtx.fillStyle = theme.legendText;
+            histogramCtx.fillText(item.label, legendX + 16, legendY);
+            legendY += 16;
+          });
+        }
+      }
+
+      function pickHour(clientX) {
+        if (!state.layout) return null;
+        const { plot } = state.layout;
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        if (x < plot.left || x > plot.left + plot.width) return null;
+        const stats = state.layout?.chartEntries || [];
+        const bucket = Math.floor(
+          ((x - plot.left) / plot.width) * stats.length,
+        );
+        if (bucket < 0 || bucket >= stats.length) return null;
+        return bucket;
+      }
+
+      function pickBrand(clientY) {
+        if (!state.brandLayout) return null;
+        const { plot, rows } = state.brandLayout;
+        const rect = brandCanvas.getBoundingClientRect();
+        const y = clientY - rect.top;
+        if (y < plot.top || y > plot.top + plot.height) return null;
+        const index = Math.floor(((y - plot.top) / plot.height) * rows.length);
+        if (index < 0 || index >= rows.length) return null;
+        return index;
+      }
+
+      function pickHistogram(clientX) {
+        if (!state.histogramLayout) return null;
+        const { plot, rows } = state.histogramLayout;
+        const rect = histogramCanvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        if (x < plot.left || x > plot.left + plot.width) return null;
+        const index = Math.floor(((x - plot.left) / plot.width) * rows.length);
+        if (index < 0 || index >= rows.length) return null;
+        return index;
+      }
+
+      canvas.addEventListener("click", (e) => {
+        if (!state.summary) return;
+        const bucketIndex = pickHour(e.clientX);
+        if (bucketIndex == null) return;
+        const chartEntries = state.layout?.chartEntries || [];
+        const selectedEntry = chartEntries[bucketIndex];
+        const d = selectedEntry?.bucket;
+        if (!d) return;
+        const viewMode = viewModeForFuel();
+        const displayedBucket = displayedHourlyBucket(d, viewMode) || d;
+        const adjusted = adjustedHourlyRow(d);
+        const referenceMeta = hourlyReferenceMeta(d, viewMode);
+        const label =
+          viewMode === "cycle"
+            ? `Zyklus ${bucketLabel(d)}:00`
+            : `Stunde ${d.hour}`;
+        setStatus(
+          `${state.fuel.toUpperCase()} ${label}${selectedEntry?.summaryDate ? ` am ${formatISODate(selectedEntry.summaryDate)}` : ""}: Median ${formatRelativeText(adjusted.median, referenceMeta.referenceLabel)}, mittlere 50 % ${formatRelativeRangeText(adjusted.q1, adjusted.q3, referenceMeta.referenceLabel)}, Spannweite ${formatRelativeRangeText(adjusted.min, adjusted.max, referenceMeta.referenceLabel)} \u00b7 Zeitraum ${referenceMeta.label} \u00b7 Referenz: ${referenceMeta.referenceLabel} (n=${displayedBucket.count ?? d.count})`,
+        );
+      });
+
+      brandCanvas.addEventListener("click", (e) => {
+        const index = pickBrand(e.clientY);
+        if (index == null) return;
+        const rows = brandRows();
+        const row = rows[index];
+        if (!row) return;
+        const periodLabel = brandChartPeriodLabel();
+        setStatus(
+          `${state.fuel.toUpperCase()} ${row.brand}${periodLabel ? ` (${periodLabel})` : ""}: Median ${formatBrandStatusValue(row.median)} \u20ac/l, q1 ${formatBrandStatusValue(row.q1)}, q3 ${formatBrandStatusValue(row.q3)}, min ${formatBrandStatusValue(row.min)}, max ${formatBrandStatusValue(row.max)} \u20ac/l (n=${row.count})`,
+        );
+      });
+
+      histogramCanvas.addEventListener("click", (e) => {
+        const index = pickHistogram(e.clientX);
+        if (index == null || !state.histogramLayout) return;
+        const row = state.histogramLayout.rows[index];
+        if (!row || !(row.count > 0)) return;
+        const details = [];
+        if (row.increase_count > 0) {
+          details.push(
+            `${formatCount(row.increase_count)} Erh\u00f6hungen 12:00-12:15`,
+          );
+        }
+        if (row.fallback_count > 0) {
+          details.push(`${formatCount(row.fallback_count)} Fallbacks \u2264 12:00`);
+        }
+        if (row.other_count > 0) {
+          details.push(`${formatCount(row.other_count)} ohne Detailtyp`);
+        }
+        setStatus(
+          `${state.fuel.toUpperCase()} Referenzzeit ${histogramBucketRangeLabel(row, state.histogramLayout.bucketMinutes)}: ${formatCount(row.stations)} Stationen (${formatPercent(row.share)} %)${details.length ? ` \u00b7 ${details.join(", ")}` : ""}`,
+        );
+      });
+
+      document.querySelectorAll("[data-fuel]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const fuel = btn.getAttribute("data-fuel");
+          state.fuel = fuel;
+          document.querySelectorAll("[data-fuel]").forEach((b) => {
+            b.classList.remove("primary");
+            b.setAttribute("aria-selected", "false");
+          });
+          btn.classList.add("primary");
+          btn.setAttribute("aria-selected", "true");
+          state.rangeBrandCache = null;
+          clearStatus();
+          draw();
+          drawBrandChart();
+          drawPriceLevelChart();
+          drawHistogramChart();
+        });
+      });
+
+      rangeToggleBtn.addEventListener("click", () => {
+        setRangePanelOpen(!state.rangePanelOpen);
+      });
+
+      rangeApplyBtn.addEventListener("click", () => {
+        if (!rangeStartPicker.value || !rangeEndPicker.value) return;
+        loadForRange(
+          parseISODate(rangeStartPicker.value),
+          parseISODate(rangeEndPicker.value),
+        );
+      });
+
+      async function loadForRange(startDate, endDate, options = {}) {
+        const minDate = parseISODate(MIN_DATE_STR);
+        const maxDate = addDays(berlinToday(), -1);
+        const fallbackEnabled = options.fallback !== false;
+        const postLoadStatusMessage = options.postLoadStatusMessage || "";
+        const normalizedRange = normalizeDateRange(
+          startDate,
+          endDate,
+          minDate,
+          maxDate,
+        );
+        const requestedStart = normalizedRange.startDate;
+        const requestedEnd = normalizedRange.endDate;
+
+        state.startDate = requestedStart;
+        state.endDate = requestedEnd;
+        state.date = requestedEnd;
+        syncRangeInputs();
+        updateRangeToggleLabel();
+        setRangePanelOpen(state.rangePanelOpen);
+        clearStatus();
+        syncRangeUrl(requestedStart, requestedEnd);
+
+        try {
+          const requestedDates = datesInRange(requestedStart, requestedEnd);
+          const loadResults = await Promise.all(
+            requestedDates.map(async (candidateDate) => {
+              if (fallbackEnabled && !(await exists(urlForDate(candidateDate)))) {
+                return null;
+              }
+              return fetchManagementDay(candidateDate).catch(() => null);
+            }),
+          );
+          const availableDays = loadResults.filter(Boolean);
+
+          if (!availableDays.length) {
+            if (fallbackEnabled) {
+              const nearestAvailableDate = await findNearestAvailableDate(
+                requestedEnd,
+                minDate,
+              );
+              if (nearestAvailableDate) {
+                if (
+                  !sameISODate(nearestAvailableDate, requestedStart) ||
+                  !sameISODate(nearestAvailableDate, requestedEnd)
+                ) {
+                  const fallbackMessage =
+                    `F\u00fcr ${formatISODate(requestedEnd)} liegen noch keine Management-Daten vor. Es werden stattdessen die zuletzt verf\u00fcgbaren Daten vom ${formatISODate(nearestAvailableDate)} angezeigt.`;
+                  return loadForRange(nearestAvailableDate, nearestAvailableDate, {
+                    ...options,
+                    fallback: false,
+                    postLoadStatusMessage: fallbackMessage,
+                  });
+                }
+                return loadForRange(nearestAvailableDate, nearestAvailableDate, {
+                  ...options,
+                  fallback: false,
+                });
+              }
+            }
+            throw new Error("No management data available in requested range");
+          }
+
+          const latestAvailableDay = availableDays[availableDays.length - 1];
+          state.summary = latestAvailableDay.summary;
+          state.noonDeltaSummary = latestAvailableDay.noonDeltaSummary;
+          state.rangeSummaries = availableDays.map((day) => ({
+            date: day.date,
+            summary: day.summary,
+          }));
+          state.rangeNoonDeltaSummaries = availableDays.map((day) => ({
+            date: day.date,
+            noonDeltaSummary: day.noonDeltaSummary,
+          }));
+          state.rangeNoonRows = availableDays.map((day) => ({
+            date: day.date,
+            rows: day.noonRows || [],
+          }));
+          state.rangeDates = availableDays.map((day) => day.date);
+          state.rangeBrandCache = null;
+          state.date = latestAvailableDay.date;
+          syncRangeInputs();
+          updateRangeToggleLabel();
+
+          const missingDates = requestedDates.filter(
+            (candidateDate) =>
+              !availableDays.some((day) => sameISODate(day.date, candidateDate)),
+          );
+          if (missingDates.length) {
+            setStatus(
+              `${availableDays.length} von ${requestedDates.length} Tagen geladen. Fehlend: ${missingDates.map((candidateDate) => formatISODate(candidateDate)).join(", ")}`,
+            );
+          } else if (postLoadStatusMessage) {
+            setStatus(postLoadStatusMessage);
+          } else if (!sameISODate(requestedStart, requestedEnd)) {
+            setStatus(
+              `Zeitraum geladen: ${formatISODate(requestedStart)} bis ${formatISODate(requestedEnd)} (${availableDays.length} Tage).`,
+            );
+          }
+
+          if (!sameISODate(requestedStart, requestedEnd)) {
+            await loadStationBrands().catch(() => null);
+          }
+
+          draw();
+          drawBrandChart();
+          drawPriceLevelChart();
+          drawHistogramChart();
+        } catch (e) {
+          setStatus("Management-Daten konnten nicht geladen werden.", "error");
+          clearManagementCharts();
+        }
+      }
+
+      window.addEventListener("resize", () => {
+        if (state.summary) {
+          draw();
+          drawBrandChart();
+          drawPriceLevelChart();
+          drawHistogramChart();
+        }
+      });
+
+      DARK_MODE_MEDIA_QUERY.addEventListener?.("change", () => {
+        if (!state.summary) return;
+        draw();
+        drawBrandChart();
+        drawPriceLevelChart();
+        drawHistogramChart();
+      });
+
+      // Init range picker bounds and initial range.
+      (() => {
+        const minDate = parseISODate(MIN_DATE_STR);
+        const maxDate = addDays(berlinToday(), -1);
+        rangeStartPicker.min = MIN_DATE_STR;
+        rangeStartPicker.max = formatISODate(maxDate);
+        rangeEndPicker.min = MIN_DATE_STR;
+        rangeEndPicker.max = formatISODate(maxDate);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const startParam = urlParams.get("start");
+        const endParam = urlParams.get("end");
+        const legacyDateParam = urlParams.get("date");
+        let initialStart = maxDate;
+        let initialEnd = maxDate;
+
+        if (
+          startParam &&
+          endParam &&
+          /^\d{4}-\d{2}-\d{2}$/.test(startParam) &&
+          /^\d{4}-\d{2}-\d{2}$/.test(endParam)
+        ) {
+          initialStart = parseISODate(startParam);
+          initialEnd = parseISODate(endParam);
+        } else if (legacyDateParam && /^\d{4}-\d{2}-\d{2}$/.test(legacyDateParam)) {
+          initialStart = parseISODate(legacyDateParam);
+          initialEnd = initialStart;
+        }
+
+        const normalizedRange = normalizeDateRange(
+          initialStart,
+          initialEnd,
+          minDate,
+          maxDate,
+        );
+        loadForRange(normalizedRange.startDate, normalizedRange.endDate);
+      })();
+    </script>
+    <script src="app-install-promo.js?v=20260409-app-promo-v12"></script>
+  </body>
+</html>
