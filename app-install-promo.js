@@ -30,9 +30,40 @@
     `;
   }
 
+  function fixTankplanCalculator() {
+    if (!location.pathname.endsWith("/tankplan.html")) return;
+
+    const parseOptionalNumber = function (value) {
+      const text = String(value ?? "").replace(",", ".").trim();
+      if (!text) return null;
+      const number = Number(text);
+      return Number.isFinite(number) ? number : null;
+    };
+
+    try {
+      num = parseOptionalNumber;
+    } catch (error) {
+      window.num = parseOptionalNumber;
+    }
+  }
+
   function syncTankplanNav() {
     const nav = document.querySelector(".nav-bar");
-    if (!nav || document.getElementById("tankplan-nav-link")) return;
+    if (!nav) return;
+
+    const isTankplan = location.pathname.endsWith("/tankplan.html");
+    const existingTankplanLink = Array.from(nav.querySelectorAll(".nav-item")).find(
+      (item) => item.textContent.trim() === "Tankplan",
+    );
+
+    if (existingTankplanLink) {
+      existingTankplanLink.id ||= "tankplan-nav-link";
+      if (isTankplan) {
+        existingTankplanLink.classList.add("active", "tankplan");
+        existingTankplanLink.setAttribute("aria-current", "page");
+      }
+      return;
+    }
 
     const statisticsLink = Array.from(nav.querySelectorAll(".nav-item")).find(
       (item) => item.textContent.trim() === "Statistik",
@@ -40,7 +71,6 @@
     if (!statisticsLink) return;
 
     const link = document.createElement("a");
-    const isTankplan = location.pathname.endsWith("/tankplan.html");
     link.id = "tankplan-nav-link";
     link.href = `tankplan.html${window.location.search || ""}`;
     link.className = `nav-item${isTankplan ? " active tankplan" : ""}`;
@@ -110,6 +140,7 @@
   }
 
   function buildPromo() {
+    fixTankplanCalculator();
     syncTankplanNav();
     if (document.getElementById(PROMO_ID)) return;
 
