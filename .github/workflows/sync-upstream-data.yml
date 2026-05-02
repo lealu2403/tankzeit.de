@@ -77,6 +77,10 @@ jobs:
           )
           print(f"Planned {len(paths)} recent generated path candidate(s)")
           print(f"Date window: {start:%Y-%m-%d} to {end:%Y-%m-%d}")
+          Path("/tmp/upstream-sync-window.env").write_text(
+              f"SYNC_START={start:%Y-%m-%d}\nSYNC_END={end:%Y-%m-%d}\n",
+              encoding="utf-8",
+          )
           PY
           while IFS= read -r path; do
             if git cat-file -e "upstream/master:$path" 2>/dev/null; then
@@ -100,6 +104,14 @@ jobs:
           --changed-paths-file /tmp/enriched-management-paths.txt
           --skip-on-load-error
 
+      - name: Update station histories from synced noon snapshots
+        run: |
+          . /tmp/upstream-sync-window.env
+          python scripts/update_station_histories_from_noon_snapshots.py \
+            --start-date "$SYNC_START" \
+            --end-date "$SYNC_END" \
+            --changed-paths-file /tmp/station-history-paths.txt
+
       - name: Configure git
         run: |
           git config user.name "GitHub Actions Bot"
@@ -112,6 +124,9 @@ jobs:
           fi
           if [ -s /tmp/enriched-management-paths.txt ]; then
             git add --pathspec-from-file=/tmp/enriched-management-paths.txt
+          fi
+          if [ -s /tmp/station-history-paths.txt ]; then
+            git add --pathspec-from-file=/tmp/station-history-paths.txt
           fi
           if git diff --cached --quiet; then
             echo "No upstream data changes to sync."
