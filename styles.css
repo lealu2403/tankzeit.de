@@ -1261,7 +1261,7 @@ canvas {
 
 .station-detail-card-heading h2 {
   margin: 0;
-  color: var(--accent);
+  color: var(--ink);
   font-size: clamp(1.05rem, 2vw, 1.35rem);
   line-height: 1.25;
 }

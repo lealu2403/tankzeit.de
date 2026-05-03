@@ -227,6 +227,57 @@
           `Prognose${suffix}`;
       }
 
+      function rangeHourTicks(dayCount) {
+        if (dayCount <= 3) return [12, 16, 20, 0, 4, 8, 12];
+        if (dayCount <= 7) return [12, 18, 0, 6, 12];
+        return [12, 0, 12];
+      }
+
+      function axisProfileForRows(rows) {
+        const noonIndexes = rows
+          .map((row, index) => (row.clockHour === 12 ? index : -1))
+          .filter((index) => index >= 0);
+        const dayCount = Math.max(1, noonIndexes.length - 1);
+        const condensedRangeAxis = dayCount > 20;
+        const visibleTickIndexes = new Set();
+        const labelTickIndexes = new Set();
+        const hourTicks = condensedRangeAxis ? [12] : rangeHourTicks(dayCount);
+
+        rows.forEach((row, index) => {
+          if (!hourTicks.includes(row.clockHour)) return;
+          visibleTickIndexes.add(index);
+          if (
+            !condensedRangeAxis ||
+            row.clockHour !== 12 ||
+            noonIndexes.indexOf(index) % 2 === 0 ||
+            index === noonIndexes[noonIndexes.length - 1]
+          ) {
+            labelTickIndexes.add(index);
+          }
+        });
+
+        const midnightIndexes = condensedRangeAxis
+          ? []
+          : rows
+              .map((row, index) => (row.clockHour === 0 ? index : -1))
+              .filter((index) => index >= 0);
+
+        return {
+          visibleTickIndexes,
+          labelTickIndexes,
+          midnightIndexes,
+        };
+      }
+
+      function formatAxisTickLabel(row) {
+        if (!row) return "";
+        const hourLabel = String(row.clockHour).padStart(2, "0");
+        if (row.clockHour === 12 && row.date) {
+          return [formatDate(row.date).slice(0, 5), hourLabel];
+        }
+        return ["", hourLabel];
+      }
+
       function formatFuelPrice(value) {
         const amount = Number(value);
         if (!Number.isFinite(amount)) return "-";
@@ -612,25 +663,11 @@
         const domain = priceLevelDomain(
           chartRows.map((row) => row.price).filter((value) => value != null),
         );
-        const visibleTickIndexes = new Set();
-        const shortRange = chartRows.length <= 30;
-        const mediumRange = chartRows.length <= 96;
-        chartRows.forEach((row, index) => {
-          if (shortRange && index % 3 === 0) {
-            visibleTickIndexes.add(index);
-            return;
-          }
-          if (row.clockHour === 12) {
-            visibleTickIndexes.add(index);
-            return;
-          }
-          if (mediumRange && row.clockHour === 0) {
-            visibleTickIndexes.add(index);
-          }
-        });
-        const midnightIndexes = chartRows
-          .map((row, index) => (row.clockHour === 0 ? index : -1))
-          .filter((index) => index >= 0);
+        const {
+          visibleTickIndexes,
+          labelTickIndexes,
+          midnightIndexes,
+        } = axisProfileForRows(chartRows);
         const ctx = document.getElementById("forecast-chart").getContext("2d");
         if (forecastChart) forecastChart.destroy();
         forecastChart = new Chart(ctx, {
@@ -686,13 +723,9 @@
                     weight: "700",
                   },
                   callback(value, index) {
-                    if (!visibleTickIndexes.has(index)) return "";
+                    if (!labelTickIndexes.has(index)) return "";
                     const row = chartRows[index];
-                    if (!row) return "";
-                    if (row.clockHour === 12 && row.date) {
-                      return `${formatDate(row.date).slice(0, 5)} 12`;
-                    }
-                    return row.label.replace(":00", "");
+                    return formatAxisTickLabel(row);
                   },
                 },
               },
@@ -764,25 +797,11 @@
         const labels = rows.map((row) => row.label);
         const values = rows.map((row) => row.price);
         const domain = priceLevelDomain(values);
-        const visibleTickIndexes = new Set();
-        const shortRange = rows.length <= 30;
-        const mediumRange = rows.length <= 96;
-        rows.forEach((row, index) => {
-          if (shortRange && index % 3 === 0) {
-            visibleTickIndexes.add(index);
-            return;
-          }
-          if (row.clockHour === 12) {
-            visibleTickIndexes.add(index);
-            return;
-          }
-          if (mediumRange && row.clockHour === 0) {
-            visibleTickIndexes.add(index);
-          }
-        });
-        const midnightIndexes = rows
-          .map((row, index) => (row.clockHour === 0 ? index : -1))
-          .filter((index) => index >= 0);
+        const {
+          visibleTickIndexes,
+          labelTickIndexes,
+          midnightIndexes,
+        } = axisProfileForRows(rows);
         const ctx = document.getElementById("price-level-chart").getContext("2d");
         if (priceLevelChart) priceLevelChart.destroy();
         priceLevelChart = new Chart(ctx, {
@@ -846,13 +865,9 @@
                     weight: "700",
                   },
                   callback(value, index) {
-                    if (!visibleTickIndexes.has(index)) return "";
+                    if (!labelTickIndexes.has(index)) return "";
                     const row = rows[index];
-                    if (!row) return "";
-                    if (row.clockHour === 12 && row.date) {
-                      return `${formatDate(row.date).slice(0, 5)} 12`;
-                    }
-                    return row.label.replace(":00", "");
+                    return formatAxisTickLabel(row);
                   },
                 },
               },
