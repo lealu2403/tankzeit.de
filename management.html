@@ -1198,16 +1198,18 @@
         state.layout = { plot, w, h, chartEntries };
         state.chartEntries = chartEntries;
         const latestDateLabel = latestSelectedDateLabel();
+        const selectedPeriodLabel = rangeModeActive
+          ? `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`
+          : latestDateLabel;
         titleEl.textContent =
           `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
-          (latestDateLabel ? ` \u00b7 ${latestDateLabel}` : "");
-        deltaNoteEl.textContent = latestDateLabel
-          ? `Diese Auswertung bezieht sich auf den aktuellsten geladenen Tag im gew\u00e4hlten Zeitraum: ${latestDateLabel}.`
-          : "";
+          (selectedPeriodLabel ? ` \u00b7 ${selectedPeriodLabel}` : "");
+        deltaNoteEl.textContent = "";
 
         ctx.clearRect(0, 0, w, h);
 
         const domain = computeDomain(stats);
+        state.layout.domain = domain;
 
         // Grid + axis labels (Euro / Liter)
         ctx.strokeStyle = theme.grid;
@@ -1334,7 +1336,8 @@
         ctx.fillStyle = theme.tickText;
         if (rangeModeActive) {
           const dayCount = state.rangeSummaries.length;
-          const hourTicks = rangeHourTicks(dayCount);
+          const condensedRangeAxis = dayCount > 20;
+          const hourTicks = condensedRangeAxis ? [12] : rangeHourTicks(dayCount);
           state.rangeSummaries.forEach((rangeDay, dayIndex) => {
             const startIndex = rangeDayStartIndex(dayIndex);
             const entryCount = rangeDayEntryCount(dayIndex, dayCount);
@@ -1352,11 +1355,13 @@
             ctx.font = "600 11px Manrope, sans-serif";
             ctx.fillStyle = theme.axisText;
             ctx.textAlign = "center";
-            ctx.fillText(
-              formatShortDate(rangeDay.date),
-              dayCenterX,
-              plot.top + plot.height + 12,
-            );
+            if (!condensedRangeAxis || dayIndex % 2 === 0 || dayIndex === dayCount - 1) {
+              ctx.fillText(
+                formatShortDate(rangeDay.date),
+                dayCenterX,
+                plot.top + plot.height + 12,
+              );
+            }
 
             ctx.font = "11px Manrope, sans-serif";
             ctx.fillStyle = theme.tickText;
@@ -1522,6 +1527,7 @@
 
         const rowHeight = plot.height / rows.length;
         const fuelColor = FUEL_COLORS[state.fuel] || "#0f766e";
+        const hitAreas = [];
 
         rows.forEach((row, index) => {
           const y = plot.top + (index + 0.5) * rowHeight;
@@ -1590,7 +1596,20 @@
           brandCtx.moveTo(medianX, y - boxHeight / 2 - 3);
           brandCtx.lineTo(medianX, y + boxHeight / 2 + 3);
           brandCtx.stroke();
+
+          hitAreas.push({
+            index,
+            minX,
+            maxX,
+            q1X,
+            q3X,
+            medianX,
+            y,
+            boxTop: y - boxHeight / 2,
+            boxBottom: y + boxHeight / 2,
+          });
         });
+        state.brandLayout.hitAreas = hitAreas;
       }
 
       function priceLevelSeries() {
@@ -2407,6 +2426,31 @@
         return index;
       }
 
+      function pickBrandMark(clientX, clientY) {
+        if (!state.brandLayout?.hitAreas?.length) return null;
+        const rect = brandCanvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const tolerance = 6;
+        const area = state.brandLayout.hitAreas.find((candidate) => {
+          const onWhisker =
+            x >= candidate.minX - tolerance &&
+            x <= candidate.maxX + tolerance &&
+            Math.abs(y - candidate.y) <= tolerance;
+          const onBox =
+            x >= candidate.q1X - tolerance &&
+            x <= candidate.q3X + tolerance &&
+            y >= candidate.boxTop - tolerance &&
+            y <= candidate.boxBottom + tolerance;
+          const onMedian =
+            Math.abs(x - candidate.medianX) <= tolerance &&
+            y >= candidate.boxTop - 6 &&
+            y <= candidate.boxBottom + 6;
+          return onWhisker || onBox || onMedian;
+        });
+        return area ? area.index : null;
+      }
+
       function pickHistogram(clientX) {
         if (!state.histogramLayout) return null;
         const { plot, rows } = state.histogramLayout;
@@ -2416,6 +2460,36 @@
         const index = Math.floor(((x - plot.left) / plot.width) * rows.length);
         if (index < 0 || index >= rows.length) return null;
         return index;
+      }
+
+      function pickHistogramBar(clientX, clientY) {
+        if (!state.histogramLayout) return null;
+        const { plot, rows } = state.histogramLayout;
+        const rect = histogramCanvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        if (
+          x < plot.left ||
+          x > plot.left + plot.width ||
+          y < plot.top ||
+          y > plot.top + plot.height
+        ) {
+          return null;
+        }
+        const slotWidth = plot.width / rows.length;
+        const barWidth = Math.max(1, slotWidth - 1.5);
+        const maxCount = Math.max(1, ...rows.map((row) => Number(row.count) || 0));
+        const domain = { min: 0, max: maxCount };
+        const index = Math.floor((x - plot.left) / slotWidth);
+        const row = rows[index];
+        if (!row || !(row.count > 0)) return null;
+        const barLeft =
+          plot.left + index * slotWidth + Math.max(0, (slotWidth - barWidth) / 2);
+        const barRight = barLeft + barWidth;
+        const barTop = yScale(domain, plot, Number(row.count) || 0);
+        return x >= barLeft && x <= barRight && y >= barTop
+          ? index
+          : null;
       }
 
       function escapeHtml(value) {
@@ -2456,20 +2530,26 @@
         managementTooltipEl.hidden = true;
       }
 
-      function nearestCycleRow(layout, targetCanvas, clientX) {
+      function nearestLineRow(layout, targetCanvas, clientX, clientY, valueKey) {
         if (!layout?.rows?.length) return null;
         const rect = targetCanvas.getBoundingClientRect();
         const x = clientX - rect.left;
+        const y = clientY - rect.top;
         if (x < layout.plot.left || x > layout.plot.left + layout.plot.width) {
           return null;
         }
-        const hour = Math.round(((x - layout.plot.left) / layout.plot.width) * 24);
-        return layout.rows.reduce((best, row) => {
-          if (!best) return row;
-          return Math.abs(row.hour - hour) < Math.abs(best.hour - hour)
-            ? row
-            : best;
-        }, null);
+        const candidates = layout.rows
+          .filter((row) => Number.isFinite(row[valueKey]))
+          .map((row) => {
+            const pointX = layout.plot.left + (row.hour * layout.plot.width) / 24;
+            const pointY = yScale(layout.domain, layout.plot, row[valueKey]);
+            return {
+              row,
+              distance: Math.hypot(pointX - x, pointY - y),
+            };
+          })
+          .sort((left, right) => left.distance - right.distance);
+        return candidates[0]?.distance <= 10 ? candidates[0].row : null;
       }
 
       function cycleHourLabel(row, dateLabel = "") {
@@ -2488,20 +2568,24 @@
         if (!bucket) return hideManagementTooltip();
         const viewMode = viewModeForFuel();
         const adjusted = adjustedHourlyRow(bucket);
+        const rect = canvas.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const pointY = yScale(state.layout.domain, state.layout.plot, adjusted.median);
+        if (Math.abs(y - pointY) > 10) return hideManagementTooltip();
         const referenceMeta = hourlyReferenceMeta(bucket, viewMode);
         const dateLabel = selectedEntry?.summaryDate
           ? formatLongDate(selectedEntry.summaryDate)
           : latestSelectedDateLabel();
         showManagementTooltip(e, "Preis\u00e4nderung", [
-          `X: ${dateLabel} ${bucketLabel(bucket)}:00`,
-          `Y: ${formatSignedRelativeLabel(adjusted.median)}`,
+          `Zeitpunkt: ${dateLabel} ${bucketLabel(bucket)}:00`,
+          `Median-Aenderung: ${formatSignedRelativeLabel(adjusted.median)}`,
           `Referenz: ${referenceMeta.referenceLabel}`,
         ]);
       });
       canvas.addEventListener("mouseleave", hideManagementTooltip);
 
       brandCanvas.addEventListener("mousemove", (e) => {
-        const index = pickBrand(e.clientY);
+        const index = pickBrandMark(e.clientX, e.clientY);
         if (index == null) return hideManagementTooltip();
         const row = brandRows()[index];
         if (!row) return hideManagementTooltip();
@@ -2515,37 +2599,49 @@
       brandCanvas.addEventListener("mouseleave", hideManagementTooltip);
 
       priceLevelCanvas.addEventListener("mousemove", (e) => {
-        const row = nearestCycleRow(state.priceLevelLayout, priceLevelCanvas, e.clientX);
+        const row = nearestLineRow(
+          state.priceLevelLayout,
+          priceLevelCanvas,
+          e.clientX,
+          e.clientY,
+          "avg",
+        );
         if (!row) return hideManagementTooltip();
         showManagementTooltip(e, "Durchschnittspreis", [
-          `X: ${cycleHourLabel(row)}`,
-          `Y: ${formatValue(row.avg)} EUR/l`,
+          `Zeitpunkt: ${cycleHourLabel(row)}`,
+          `Durchschnittspreis: ${formatValue(row.avg)} EUR/l`,
         ]);
       });
       priceLevelCanvas.addEventListener("mouseleave", hideManagementTooltip);
 
       forecastCanvas.addEventListener("mousemove", (e) => {
-        const row = nearestCycleRow(state.forecastLayout, forecastCanvas, e.clientX);
+        const row = nearestLineRow(
+          state.forecastLayout,
+          forecastCanvas,
+          e.clientX,
+          e.clientY,
+          "median",
+        );
         if (!row) return hideManagementTooltip();
         const dateLabel = state.forecastLayout?.targetDate
           ? formatLongDate(state.forecastLayout.targetDate)
           : "";
         showManagementTooltip(e, "Prognose Median", [
-          `X: ${cycleHourLabel(row, dateLabel)}`,
-          `Y: ${formatValue(row.median)} EUR/l`,
+          `Prognosezeitpunkt: ${cycleHourLabel(row, dateLabel)}`,
+          `Prognose-Median: ${formatValue(row.median)} EUR/l`,
           `q1-q3: ${formatValue(row.q1)} bis ${formatValue(row.q3)} EUR/l`,
         ]);
       });
       forecastCanvas.addEventListener("mouseleave", hideManagementTooltip);
 
       histogramCanvas.addEventListener("mousemove", (e) => {
-        const index = pickHistogram(e.clientX);
+        const index = pickHistogramBar(e.clientX, e.clientY);
         if (index == null || !state.histogramLayout) return hideManagementTooltip();
         const row = state.histogramLayout.rows[index];
         if (!row) return hideManagementTooltip();
         showManagementTooltip(e, "Zeitpunkt der 12:00-Referenz", [
-          `X: ${histogramBucketRangeLabel(row, state.histogramLayout.bucketMinutes)}`,
-          `Y: ${formatCount(row.stations)} Stationen`,
+          `Zeitfenster: ${histogramBucketRangeLabel(row, state.histogramLayout.bucketMinutes)}`,
+          `Stationen: ${formatCount(row.stations)}`,
           `Anteil: ${formatPercent(row.share)} %`,
         ]);
       });
