@@ -2130,7 +2130,7 @@
 
         if (!rows.length) {
           forecastNoteEl.textContent =
-            `Keine Prognose verf\u00fcgbar: Fuer die Berechnung werden nur Statistikdaten ab dem ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} verwendet.`;
+            `Keine Prognose verfügbar: Für die Berechnung werden nur Statistikdaten ab dem ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} verwendet.`;
           return;
         }
 
@@ -2242,9 +2242,9 @@
         const lastSourceDate = sourceDates[sourceDates.length - 1] || firstSourceDate;
         const baseDateLabel = series.baseDate
           ? formatLongDate(series.baseDate)
-          : "dem letzten verfuegbaren Tag";
+          : "dem letzten verfügbaren Tag";
         forecastNoteEl.textContent =
-          `Prognosemodell fuer ${formatLongDate(targetDate)}: Die Median-Prognose wird aus dem 12:00-Uhr-Gesamtmarkt-Median vom ${baseDateLabel} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Medianverlauf der lokal verfuegbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} abgeleitet. Die schattierte Flaeche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
+          `Prognosemodell für ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel} und nutzt den typischen 12:00-Uhr-bis-12:00-Uhr-Medianverlauf, der aus den lokal verfügbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} gelernt wurde. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
       }
 
       function drawHistogramChart() {

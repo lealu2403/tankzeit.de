@@ -158,6 +158,7 @@
       const stationBrand = params.get("brand") || "";
       const DATA_BASE = "data2/";
       const APP_TIME_ZONE = "Europe/Berlin";
+      const FORECAST_MIN_DATE_STR = "2026-04-02";
       const BRAND_FORECAST_WEIGHT = 0.22;
       const BRAND_FORECAST_ORIENTATION_WEIGHT = 0.08;
       const BRAND_FORECAST_CORRECTION_CAP = 0.025;
@@ -198,7 +199,7 @@
       } else {
         mapsLink.removeAttribute("href");
         mapsLink.setAttribute("aria-disabled", "true");
-        mapsLink.textContent = "Google Maps nicht verfuegbar";
+        mapsLink.textContent = "Google Maps nicht verfügbar";
       }
 
       function stationPath(station) {
@@ -629,7 +630,10 @@
           return { brand: normalizedBrand, byDay: new Map() };
         }
 
-        const days = eachCycleStartDay(selectedRange.from, selectedRange.to);
+        const fromDay = selectedRange.from < FORECAST_MIN_DATE_STR
+          ? FORECAST_MIN_DATE_STR
+          : selectedRange.from;
+        const days = eachCycleStartDay(fromDay, selectedRange.to);
         const requestedDays = Array.from(new Set([previousDay(days[0]), ...days].filter(Boolean)));
         const summaries = await Promise.all(
           requestedDays.map(async (day) => ({
@@ -816,7 +820,10 @@
           return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
         }
 
-        const fromDay = selectedRange?.from || historyRows[0]?.date || "";
+        const requestedFromDay = selectedRange?.from || historyRows[0]?.date || "";
+        const fromDay = requestedFromDay && requestedFromDay < FORECAST_MIN_DATE_STR
+          ? FORECAST_MIN_DATE_STR
+          : requestedFromDay;
         const toDay = selectedRange?.to || historyRows[historyRows.length - 1]?.date || "";
         const sourceDays = eachCycleStartDay(fromDay, toDay)
           .map((day) => ({
@@ -1341,8 +1348,8 @@
           if (!rows.length) {
             clearPriceLevelChart();
             renderForecastChart({ rows: [] });
-            note.textContent = "Fuer diese Station liegt noch kein Preisniveau von 12:00 Uhr bis 12:00 Uhr vor.";
-            forecastNote.textContent = "Keine Prognose verfuegbar: Fuer diese Station liegen noch nicht genug Stationsdaten vor.";
+            note.textContent = "Für diese Station liegt noch kein Preisniveau von 12:00 Uhr bis 12:00 Uhr vor.";
+            forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
             return;
           }
           renderPriceLevelChart(rows);
@@ -1365,12 +1372,12 @@
             const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
             const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
             const brandContext = stationBrand
-              ? ` Zusätzlich berücksichtigt das Modell die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige Marktkorrektur, sofern dafür Marktdaten verfügbar sind.`
-              : " Zusätzlich berücksichtigt das Modell, sofern Marktdaten verfügbar sind, die Markenposition gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige Marktkorrektur.";
+              ? ` Zusätzlich wird die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen, sofern dafür Marktdaten verfügbar sind.`
+              : " Zusätzlich wird, sofern Marktdaten verfügbar sind, die Markenposition gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen.";
             forecastNote.textContent =
-              `Prognosemodell für diese Station: Die Median-Prognose wird aus dem 12:00-Uhr-Referenzpreis vom ${formatDate(forecast.baseDate)} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Stationsverlauf im gewählten Zeitraum abgeleitet.${brandContext} Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}.`;
+              `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)} und nutzt den Median des kumulierten 12:00-Uhr-bis-12:00-Uhr-Stationsverlaufs, der ausschließlich aus den Stationsdaten nach der Umstellung ab ${formatDate(FORECAST_MIN_DATE_STR)} gelernt wurde.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
           } else {
-            forecastNote.textContent = "Keine Prognose verfuegbar: Fuer diese Station liegen noch nicht genug Stationsdaten vor.";
+            forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
           }
         } catch (err) {
           note.textContent = "Preisniveau konnte lokal nicht geladen werden.";
