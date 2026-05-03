@@ -145,7 +145,7 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
-            <h2 id="price-level-title">Durchschnitts- und Medianpreis</h2>
+            <h2 id="price-level-title">Durchschnittspreis</h2>
           </div>
         </div>
 
@@ -1685,7 +1685,7 @@
 
       function computePriceLevelDomain(rows) {
         const values = rows
-          .flatMap((row) => [row.avg, row.median])
+          .map((row) => row.avg)
           .filter((value) => Number.isFinite(value));
         if (!values.length) return BRAND_PRICE_DOMAIN;
 
@@ -1972,11 +1972,10 @@
         const theme = currentChartTheme();
         const series = priceLevelSeries();
         const rows = series.rows;
-        const isEstimatedPriceLevel =
-          series.averageMode === "estimated" || series.medianMode === "estimated";
+        const isEstimatedPriceLevel = series.averageMode === "estimated";
         priceLevelNoteEl.textContent = isEstimatedPriceLevel
-          ? "Modelliertes Preisniveau: Durchschnitt und Median werden aus dem 12:00-Gesamtmarktwert und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Werte."
-          : "Exakte Durchschnitts- und Medianpreise auf Basis aggregierter Preiswerte im gew\u00e4hlten Zeitraum.";
+          ? "Modelliertes Preisniveau: Der Durchschnittspreis wird aus dem 12:00-Gesamtmarkt-Durchschnitt und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Durchschnittswerte."
+          : "Exakter Durchschnittspreis auf Basis aggregierter Preiswerte im gew\u00e4hlten Zeitraum.";
         const domain = computePriceLevelDomain(rows);
         state.priceLevelLayout = drawPriceLevelCoordinateSystem(
           priceLevelCanvas,
@@ -1986,7 +1985,6 @@
         const { plot } = state.priceLevelLayout;
 
         const avgColor = FUEL_COLORS[state.fuel] || "#0f766e";
-        const medianColor = theme.overallStroke;
         const drawLineSeries = (valueKey, color, dashed = false) => {
           const points = rows
             .map((row) => ({
@@ -2026,7 +2024,6 @@
 
         if (rows.length > 0) {
           drawLineSeries("avg", avgColor);
-          drawLineSeries("median", medianColor, true);
         }
 
         const legendItems = [
@@ -2037,14 +2034,6 @@
                 : "Durchschnitt",
             color: avgColor,
             dashed: false,
-          },
-          {
-            label:
-              series.medianMode === "estimated"
-                ? "Median gesch\u00e4tzt"
-                : "Median",
-            color: medianColor,
-            dashed: true,
           },
         ];
         let legendX = plot.left + plot.width - 190;
@@ -2106,7 +2095,6 @@
 
         const theme = currentChartTheme();
         const forecastColor = FUEL_COLORS[state.fuel] || "#0f766e";
-        const averageColor = theme.overallStroke;
         const xForRow = (row) => plot.left + (row.hour * plot.width) / 24;
         const pointsFor = (valueKey) =>
           rows
@@ -2168,7 +2156,6 @@
         };
 
         drawLineSeries("median", forecastColor);
-        drawLineSeries("avg", averageColor, true);
 
         const legendItems = [
           {
@@ -2177,25 +2164,33 @@
             dashed: false,
           },
           {
-            label: "Prognose Durchschnitt",
-            color: averageColor,
-            dashed: true,
+            label: "Typischer Bereich q1-q3",
+            color: "rgba(15, 118, 110, 0.22)",
+            fill: true,
           },
         ];
-        let legendX = plot.left + plot.width - 210;
+        let legendX = plot.left + plot.width - 230;
         if (legendX < plot.left) legendX = plot.left;
         let legendY = plot.top + 8;
         forecastCtx.font = "11px Manrope, sans-serif";
         forecastCtx.textAlign = "left";
         legendItems.forEach((item) => {
-          forecastCtx.strokeStyle = item.color;
-          forecastCtx.lineWidth = 3;
-          if (item.dashed) forecastCtx.setLineDash([7, 5]);
-          forecastCtx.beginPath();
-          forecastCtx.moveTo(legendX, legendY);
-          forecastCtx.lineTo(legendX + 22, legendY);
-          forecastCtx.stroke();
-          forecastCtx.setLineDash([]);
+          if (item.fill) {
+            forecastCtx.fillStyle = item.color;
+            forecastCtx.fillRect(legendX, legendY - 6, 22, 10);
+            forecastCtx.strokeStyle = forecastColor;
+            forecastCtx.lineWidth = 1;
+            forecastCtx.strokeRect(legendX, legendY - 6, 22, 10);
+          } else {
+            forecastCtx.strokeStyle = item.color;
+            forecastCtx.lineWidth = 3;
+            if (item.dashed) forecastCtx.setLineDash([7, 5]);
+            forecastCtx.beginPath();
+            forecastCtx.moveTo(legendX, legendY);
+            forecastCtx.lineTo(legendX + 22, legendY);
+            forecastCtx.stroke();
+            forecastCtx.setLineDash([]);
+          }
           forecastCtx.fillStyle = theme.legendText;
           forecastCtx.fillText(item.label, legendX + 30, legendY + 4);
           legendY += 18;
@@ -2208,7 +2203,7 @@
           ? formatLongDate(series.baseDate)
           : "dem letzten verfuegbaren Tag";
         forecastNoteEl.textContent =
-          `Prognosemodell: Das erwartete Preisniveau wird aus dem 12:00-Gesamtmarktpreis vom ${baseDateLabel} und dem typischen 12:00-bis-12:00-Verlauf der lokal verfuegbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} abgeleitet. Median und Durchschnitt nutzen denselben typischen st\u00fcndlichen Median-Verlauf, jeweils auf ihrem aktuellen 12:00-Basisniveau. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median und ${formatValue(series.baseAvg)} EUR/l Durchschnitt; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
+          `Prognosemodell: Die Median-Prognose wird aus dem 12:00-Gesamtmarkt-Median vom ${baseDateLabel} und dem typischen 12:00-bis-12:00-Medianverlauf der lokal verfuegbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} abgeleitet. Die schattierte Flaeche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
       }
 
       function drawHistogramChart() {
