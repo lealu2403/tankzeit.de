@@ -158,11 +158,13 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
-            <h2>Prognose</h2>
+            <h2 id="forecast-title">Prognose</h2>
           </div>
         </div>
 
-        <div class="chart-wrap management-forecast-placeholder" aria-hidden="true"></div>
+        <div class="chart-wrap">
+          <canvas id="forecast-plot"></canvas>
+        </div>
       </section>
 
       <section class="card management-chart-card">
@@ -278,6 +280,9 @@
       const priceLevelNoteEl = document.getElementById("price-level-note");
       const priceLevelCanvas = document.getElementById("price-level-plot");
       const priceLevelCtx = priceLevelCanvas.getContext("2d");
+      const forecastTitleEl = document.getElementById("forecast-title");
+      const forecastCanvas = document.getElementById("forecast-plot");
+      const forecastCtx = forecastCanvas.getContext("2d");
       const histogramTitleEl = document.getElementById("histogram-title");
       const histogramCanvas = document.getElementById("histogram-plot");
       const histogramCtx = histogramCanvas.getContext("2d");
@@ -341,6 +346,7 @@
         layout: null,
         brandLayout: null,
         priceLevelLayout: null,
+        forecastLayout: null,
         histogramLayout: null,
         date: null,
         startDate: null,
@@ -1013,6 +1019,7 @@
         state.rangeBrandCache = null;
         state.brandLayout = null;
         state.priceLevelLayout = null;
+        state.forecastLayout = null;
         state.histogramLayout = null;
         brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
         priceLevelCtx.clearRect(
@@ -1020,6 +1027,12 @@
           0,
           priceLevelCanvas.width,
           priceLevelCanvas.height,
+        );
+        forecastCtx.clearRect(
+          0,
+          0,
+          forecastCanvas.width,
+          forecastCanvas.height,
         );
         histogramCtx.clearRect(
           0,
@@ -1681,6 +1694,88 @@
         };
       }
 
+      function drawPriceLevelCoordinateSystem(targetCanvas, targetCtx, domain) {
+        resizeCanvas(targetCanvas, targetCtx);
+        const w = targetCanvas.getBoundingClientRect().width;
+        const h = targetCanvas.getBoundingClientRect().height;
+        const theme = currentChartTheme();
+        const plot = { left: 88, right: 24, top: 24, bottom: 56 };
+        plot.width = w - plot.left - plot.right;
+        plot.height = h - plot.top - plot.bottom;
+
+        targetCtx.clearRect(0, 0, w, h);
+
+        targetCtx.strokeStyle = theme.grid;
+        targetCtx.fillStyle = theme.axisText;
+        targetCtx.lineWidth = 1;
+        targetCtx.font = "12px Manrope, sans-serif";
+        targetCtx.textAlign = "right";
+        targetCtx.textBaseline = "middle";
+
+        const yTickCount = 4;
+        for (let i = 0; i < yTickCount; i++) {
+          const value =
+            domain.min + (i * (domain.max - domain.min)) / (yTickCount - 1);
+          const y = yScale(domain, plot, value);
+          targetCtx.beginPath();
+          targetCtx.moveTo(plot.left, y);
+          targetCtx.lineTo(plot.left + plot.width, y);
+          targetCtx.stroke();
+          targetCtx.fillText(formatValue(value), plot.left - 10, y);
+        }
+
+        targetCtx.save();
+        targetCtx.translate(24, plot.top + plot.height / 2);
+        targetCtx.rotate(-Math.PI / 2);
+        targetCtx.textAlign = "center";
+        targetCtx.fillStyle = theme.axisTitle;
+        targetCtx.fillText(`Preis ${fuelDisplayName(state.fuel)} (EUR/l)`, 0, 0);
+        targetCtx.restore();
+
+        const xTicks = [
+          { offset: 0, label: "12" },
+          { offset: 4, label: "16" },
+          { offset: 8, label: "20" },
+          { offset: 12, label: "00" },
+          { offset: 16, label: "04" },
+          { offset: 20, label: "08" },
+          { offset: 24, label: "12" },
+        ];
+        targetCtx.textAlign = "center";
+        targetCtx.textBaseline = "alphabetic";
+        targetCtx.fillStyle = theme.tickText;
+        xTicks.forEach((tick) => {
+          const x = plot.left + (tick.offset * plot.width) / 24;
+          targetCtx.beginPath();
+          targetCtx.moveTo(x, plot.top);
+          targetCtx.lineTo(x, plot.top + plot.height);
+          targetCtx.stroke();
+          targetCtx.fillText(tick.label, x, plot.top + plot.height + 24);
+        });
+
+        const midnightX = plot.left + (12 * plot.width) / 24;
+        targetCtx.save();
+        targetCtx.setLineDash([6, 4]);
+        targetCtx.strokeStyle = "rgba(37,99,235,0.35)";
+        targetCtx.beginPath();
+        targetCtx.moveTo(midnightX, plot.top);
+        targetCtx.lineTo(midnightX, plot.top + plot.height);
+        targetCtx.stroke();
+        targetCtx.setLineDash([]);
+        targetCtx.fillStyle = "rgba(37,99,235,0.78)";
+        targetCtx.fillText("00:00", midnightX + 22, plot.top + 16);
+        targetCtx.restore();
+
+        targetCtx.fillStyle = theme.axisTitle;
+        targetCtx.fillText(
+          "Stunde im 12:00\u219212:00-Zyklus",
+          plot.left + plot.width / 2,
+          plot.top + plot.height + 42,
+        );
+
+        return { plot, w, h, domain };
+      }
+
       function drawPriceLevelChart() {
         if (!state.summary) {
           priceLevelTitleEl.textContent = "Durchschnittspreis";
@@ -1704,9 +1799,6 @@
           `Durchschnittspreis \u00b7 ${fuelDisplayName(state.fuel)}` +
           (periodLabel ? ` \u00b7 ${periodLabel}` : "");
 
-        resizeCanvas(priceLevelCanvas, priceLevelCtx);
-        const w = priceLevelCanvas.getBoundingClientRect().width;
-        const h = priceLevelCanvas.getBoundingClientRect().height;
         const theme = currentChartTheme();
         const series = priceLevelSeries();
         const rows = series.rows;
@@ -1716,80 +1808,12 @@
           ? "Modelliertes Preisniveau: Durchschnitt und Median werden aus dem 12:00-Gesamtmarktwert und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Werte."
           : "Exakte Durchschnitts- und Medianpreise auf Basis aggregierter Preiswerte im gew\u00e4hlten Zeitraum.";
         const domain = computePriceLevelDomain(rows);
-        const plot = { left: 88, right: 24, top: 24, bottom: 56 };
-        plot.width = w - plot.left - plot.right;
-        plot.height = h - plot.top - plot.bottom;
-        state.priceLevelLayout = { plot, w, h, domain };
-
-        priceLevelCtx.clearRect(0, 0, w, h);
-
-        priceLevelCtx.strokeStyle = theme.grid;
-        priceLevelCtx.fillStyle = theme.axisText;
-        priceLevelCtx.lineWidth = 1;
-        priceLevelCtx.font = "12px Manrope, sans-serif";
-        priceLevelCtx.textAlign = "right";
-        priceLevelCtx.textBaseline = "middle";
-
-        const yTickCount = 4;
-        for (let i = 0; i < yTickCount; i++) {
-          const value =
-            domain.min + (i * (domain.max - domain.min)) / (yTickCount - 1);
-          const y = yScale(domain, plot, value);
-          priceLevelCtx.beginPath();
-          priceLevelCtx.moveTo(plot.left, y);
-          priceLevelCtx.lineTo(plot.left + plot.width, y);
-          priceLevelCtx.stroke();
-          priceLevelCtx.fillText(formatValue(value), plot.left - 10, y);
-        }
-
-        priceLevelCtx.save();
-        priceLevelCtx.translate(24, plot.top + plot.height / 2);
-        priceLevelCtx.rotate(-Math.PI / 2);
-        priceLevelCtx.textAlign = "center";
-        priceLevelCtx.fillStyle = theme.axisTitle;
-        priceLevelCtx.fillText(`Preis ${fuelDisplayName(state.fuel)} (EUR/l)`, 0, 0);
-        priceLevelCtx.restore();
-
-        const xTicks = [
-          { offset: 0, label: "12" },
-          { offset: 4, label: "16" },
-          { offset: 8, label: "20" },
-          { offset: 12, label: "00" },
-          { offset: 16, label: "04" },
-          { offset: 20, label: "08" },
-          { offset: 24, label: "12" },
-        ];
-        priceLevelCtx.textAlign = "center";
-        priceLevelCtx.textBaseline = "alphabetic";
-        priceLevelCtx.fillStyle = theme.tickText;
-        xTicks.forEach((tick) => {
-          const x = plot.left + (tick.offset * plot.width) / 24;
-          priceLevelCtx.beginPath();
-          priceLevelCtx.moveTo(x, plot.top);
-          priceLevelCtx.lineTo(x, plot.top + plot.height);
-          priceLevelCtx.stroke();
-          priceLevelCtx.fillText(tick.label, x, plot.top + plot.height + 24);
-        });
-
-        const midnightX = plot.left + (12 * plot.width) / 24;
-        priceLevelCtx.save();
-        priceLevelCtx.setLineDash([6, 4]);
-        priceLevelCtx.strokeStyle = "rgba(37,99,235,0.35)";
-        priceLevelCtx.beginPath();
-        priceLevelCtx.moveTo(midnightX, plot.top);
-        priceLevelCtx.lineTo(midnightX, plot.top + plot.height);
-        priceLevelCtx.stroke();
-        priceLevelCtx.setLineDash([]);
-        priceLevelCtx.fillStyle = "rgba(37,99,235,0.78)";
-        priceLevelCtx.fillText("00:00", midnightX + 22, plot.top + 16);
-        priceLevelCtx.restore();
-
-        priceLevelCtx.fillStyle = theme.axisTitle;
-        priceLevelCtx.fillText(
-          "Stunde im 12:00\u219212:00-Zyklus",
-          plot.left + plot.width / 2,
-          plot.top + plot.height + 42,
+        state.priceLevelLayout = drawPriceLevelCoordinateSystem(
+          priceLevelCanvas,
+          priceLevelCtx,
+          domain,
         );
+        const { plot } = state.priceLevelLayout;
 
         const avgColor = FUEL_COLORS[state.fuel] || "#0f766e";
         const medianColor = theme.overallStroke;
@@ -1871,6 +1895,25 @@
           priceLevelCtx.fillText(item.label, legendX + 30, legendY + 4);
           legendY += 18;
         });
+      }
+
+      function drawForecastChart() {
+        const periodLabel = isRangeModeActive()
+          ? `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`
+          : state.date instanceof Date
+            ? formatLongDate(state.date)
+            : "";
+        forecastTitleEl.textContent =
+          `Prognose \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (periodLabel ? ` \u00b7 ${periodLabel}` : "");
+
+        const series = state.summary ? priceLevelSeries() : { rows: [] };
+        const domain = computePriceLevelDomain(series.rows || []);
+        state.forecastLayout = drawPriceLevelCoordinateSystem(
+          forecastCanvas,
+          forecastCtx,
+          domain,
+        );
       }
 
       function drawHistogramChart() {
@@ -2130,6 +2173,7 @@
           draw();
           drawBrandChart();
           drawPriceLevelChart();
+          drawForecastChart();
           drawHistogramChart();
         });
       });
@@ -2253,6 +2297,7 @@
           draw();
           drawBrandChart();
           drawPriceLevelChart();
+          drawForecastChart();
           drawHistogramChart();
         } catch (e) {
           setStatus("Management-Daten konnten nicht geladen werden.", "error");
@@ -2265,6 +2310,7 @@
           draw();
           drawBrandChart();
           drawPriceLevelChart();
+          drawForecastChart();
           drawHistogramChart();
         }
       });
@@ -2274,6 +2320,7 @@
         draw();
         drawBrandChart();
         drawPriceLevelChart();
+        drawForecastChart();
         drawHistogramChart();
       });
 

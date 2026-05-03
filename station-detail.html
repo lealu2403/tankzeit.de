@@ -93,13 +93,10 @@
           </div>
         </div>
         <div
-          class="station-detail-chart-placeholder forecast-placeholder"
-          role="img"
+          class="station-detail-chart-wrap"
           aria-label="Vorbereiteter Chartbereich fuer die Prognose dieser Tankstelle"
         >
-          <div class="station-detail-axis station-detail-axis-y"></div>
-          <div class="station-detail-axis station-detail-axis-x"></div>
-          <p>Prognose-Chart vorbereitet</p>
+          <canvas id="forecast-chart"></canvas>
         </div>
       </section>
     </main>
@@ -155,6 +152,7 @@
       const lng = params.get("lng") || "";
       const DATA_BASE = "data2/";
       let priceLevelChart = null;
+      let forecastChart = null;
 
       const fuelLabels = {
         diesel: "Diesel",
@@ -548,6 +546,166 @@
         }
       }
 
+      function clearForecastChart() {
+        if (forecastChart) {
+          forecastChart.destroy();
+          forecastChart = null;
+        }
+      }
+
+      function fallbackForecastRows() {
+        return Array.from({ length: 25 }, (_, index) => {
+          const clockHour = (12 + index) % 24;
+          return {
+            label: `${String(clockHour).padStart(2, "0")}:00`,
+            price: null,
+            clockHour,
+            date: "",
+          };
+        });
+      }
+
+      function renderForecastCoordinateSystem(rows) {
+        const chartRows = rows.length ? rows : fallbackForecastRows();
+        const labels = chartRows.map((row) => row.label);
+        const domain = priceLevelDomain(
+          chartRows.map((row) => row.price).filter((value) => value != null),
+        );
+        const visibleTickIndexes = new Set();
+        const shortRange = chartRows.length <= 30;
+        const mediumRange = chartRows.length <= 96;
+        chartRows.forEach((row, index) => {
+          if (shortRange && index % 3 === 0) {
+            visibleTickIndexes.add(index);
+            return;
+          }
+          if (row.clockHour === 12) {
+            visibleTickIndexes.add(index);
+            return;
+          }
+          if (mediumRange && row.clockHour === 0) {
+            visibleTickIndexes.add(index);
+          }
+        });
+        const midnightIndexes = chartRows
+          .map((row, index) => (row.clockHour === 0 ? index : -1))
+          .filter((index) => index >= 0);
+        const ctx = document.getElementById("forecast-chart").getContext("2d");
+        if (forecastChart) forecastChart.destroy();
+        forecastChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Prognose",
+                data: chartRows.map(() => null),
+                borderColor: "#0f766e",
+                backgroundColor: "rgba(15, 118, 110, 0.08)",
+                borderWidth: 2.4,
+                pointRadius: 0,
+                tension: 0,
+                fill: false,
+              },
+            ],
+          },
+          options: applyChartTheme({
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            devicePixelRatio: Math.max(1, window.devicePixelRatio || 1),
+            scales: {
+              x: {
+                alignToPixels: true,
+                title: {
+                  display: true,
+                  text: "Zeitachse 12:00 bis 12:00",
+                  font: {
+                    size: 12,
+                    weight: "700",
+                  },
+                },
+                ticks: {
+                  autoSkip: false,
+                  maxRotation: 0,
+                  minRotation: 0,
+                  padding: 8,
+                  font: {
+                    size: 11,
+                    weight: "700",
+                  },
+                  callback(value, index) {
+                    if (!visibleTickIndexes.has(index)) return "";
+                    const row = chartRows[index];
+                    if (!row) return "";
+                    if (row.clockHour === 12 && row.date) {
+                      return `${formatDate(row.date).slice(0, 5)} 12`;
+                    }
+                    return row.label.replace(":00", "");
+                  },
+                },
+              },
+              y: {
+                alignToPixels: true,
+                min: domain.min,
+                max: domain.max,
+                ticks: {
+                  padding: 8,
+                  font: {
+                    size: 11,
+                    weight: "700",
+                  },
+                  callback(value) {
+                    return formatEuroTick(value);
+                  },
+                },
+                title: {
+                  display: true,
+                  text: "Preis (EUR/l)",
+                  font: {
+                    size: 12,
+                    weight: "700",
+                  },
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                display: false,
+              },
+              tooltip: {
+                enabled: false,
+              },
+            },
+          }),
+          plugins: [
+            {
+              id: "stationForecastMidnightDivider",
+              afterDraw(chart) {
+                if (!midnightIndexes.length) return;
+                const xScale = chart.scales.x;
+                const chartArea = chart.chartArea;
+                if (!xScale || !chartArea) return;
+                const { ctx } = chart;
+                ctx.save();
+                midnightIndexes.forEach((midnightIndex) => {
+                  const dividerX = xScale.getPixelForValue(midnightIndex);
+                  ctx.setLineDash([6, 4]);
+                  ctx.strokeStyle = "rgba(37, 99, 235, 0.34)";
+                  ctx.lineWidth = 1.2;
+                  ctx.beginPath();
+                  ctx.moveTo(dividerX, chartArea.top);
+                  ctx.lineTo(dividerX, chartArea.bottom);
+                  ctx.stroke();
+                  ctx.setLineDash([]);
+                });
+                ctx.restore();
+              },
+            },
+          ],
+        });
+      }
+
       function renderPriceLevelChart(rows) {
         const labels = rows.map((row) => row.label);
         const values = rows.map((row) => row.price);
@@ -715,11 +873,13 @@
       async function loadPriceLevelChart() {
         const note = document.getElementById("price-level-note");
         if (!stationId) {
+          clearForecastChart();
           note.textContent = "Keine Station ausgewaehlt.";
           return;
         }
         try {
           await waitForChartJs();
+          renderForecastCoordinateSystem([]);
           const stats = await fetchJson(`${DATA_BASE}${stationPath(stationId)}/${fuel}.json`);
           let rows = normalizePriceRows(stats);
           let summary = stats?.cycle_summary || {};
@@ -751,10 +911,12 @@
             : updateRangeControls(summary);
           if (!rows.length) {
             clearPriceLevelChart();
+            renderForecastCoordinateSystem([]);
             note.textContent = "Fuer diese Station liegt noch kein 12:00-bis-12:00-Preisniveau vor.";
             return;
           }
           renderPriceLevelChart(rows);
+          renderForecastCoordinateSystem(rows);
           const availableStart = isFallback
             ? selectedRange.from
             : summary.cycle_start || selectedRange.from;
