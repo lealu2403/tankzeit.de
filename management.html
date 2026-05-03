@@ -178,6 +178,7 @@
         <div class="chart-wrap">
           <canvas id="plot"></canvas>
         </div>
+        <p class="chart-note" id="delta-note"></p>
       </section>
 
       <section class="card management-chart-card">
@@ -190,6 +191,7 @@
         <div class="chart-wrap">
           <canvas id="histogram-plot"></canvas>
         </div>
+        <p class="chart-note" id="histogram-note"></p>
       </section>
 
       <section class="card management-footer">
@@ -272,6 +274,7 @@
 
       const statusEl = document.getElementById("status");
       const titleEl = document.getElementById("title");
+      const deltaNoteEl = document.getElementById("delta-note");
       const canvas = document.getElementById("plot");
       const ctx = canvas.getContext("2d");
       const brandTitleEl = document.getElementById("brand-title");
@@ -286,6 +289,7 @@
       const forecastCanvas = document.getElementById("forecast-plot");
       const forecastCtx = forecastCanvas.getContext("2d");
       const histogramTitleEl = document.getElementById("histogram-title");
+      const histogramNoteEl = document.getElementById("histogram-note");
       const histogramCanvas = document.getElementById("histogram-plot");
       const histogramCtx = histogramCanvas.getContext("2d");
       const rangeToggleBtn = document.getElementById("range-toggle");
@@ -1027,6 +1031,7 @@
         state.forecastLayout = null;
         state.histogramLayout = null;
         brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
+        deltaNoteEl.textContent = "";
         priceLevelCtx.clearRect(
           0,
           0,
@@ -1046,6 +1051,7 @@
           histogramCanvas.width,
           histogramCanvas.height,
         );
+        histogramNoteEl.textContent = "";
       }
 
       function isRangeModeActive() {
@@ -1151,6 +1157,10 @@
         return dayIndex === 0 ? 25 : 24;
       }
 
+      function latestSelectedDateLabel() {
+        return state.date instanceof Date ? formatLongDate(state.date) : "";
+      }
+
       function rangeHourTickOffset(hour, tickIndex) {
         if (tickIndex === 0) return 0;
         return hour >= 12 ? hour - 12 : hour + 12;
@@ -1180,9 +1190,13 @@
         plot.height = h - plot.top - plot.bottom;
         state.layout = { plot, w, h, chartEntries };
         state.chartEntries = chartEntries;
-        titleEl.textContent = rangeModeActive
-          ? `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)} \u00b7 ${formatISODate(state.startDate)} bis ${formatISODate(state.endDate)}`
-          : `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}`;
+        const latestDateLabel = latestSelectedDateLabel();
+        titleEl.textContent =
+          `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (latestDateLabel ? ` \u00b7 ${latestDateLabel}` : "");
+        deltaNoteEl.textContent = latestDateLabel
+          ? `Diese Auswertung bezieht sich auf den aktuellsten geladenen Tag im gew\u00e4hlten Zeitraum: ${latestDateLabel}.`
+          : "";
 
         ctx.clearRect(0, 0, w, h);
 
@@ -1902,24 +1916,23 @@
         targetCtx.fillText(`Preis ${fuelDisplayName(state.fuel)} (EUR/l)`, 0, 0);
         targetCtx.restore();
 
-        const xTicks = [
-          { offset: 0, label: "12" },
-          { offset: 4, label: "16" },
-          { offset: 8, label: "20" },
-          { offset: 12, label: "00" },
-          { offset: 16, label: "04" },
-          { offset: 20, label: "08" },
-          { offset: 24, label: "12" },
-        ];
+        const xTicks = Array.from({ length: 25 }, (_, offset) => ({
+          offset,
+          label: String((12 + offset) % 24).padStart(2, "0"),
+          grid: offset % 4 === 0,
+        }));
         targetCtx.textAlign = "center";
         targetCtx.textBaseline = "alphabetic";
         targetCtx.fillStyle = theme.tickText;
+        targetCtx.font = "10px Manrope, sans-serif";
         xTicks.forEach((tick) => {
           const x = plot.left + (tick.offset * plot.width) / 24;
-          targetCtx.beginPath();
-          targetCtx.moveTo(x, plot.top);
-          targetCtx.lineTo(x, plot.top + plot.height);
-          targetCtx.stroke();
+          if (tick.grid) {
+            targetCtx.beginPath();
+            targetCtx.moveTo(x, plot.top);
+            targetCtx.lineTo(x, plot.top + plot.height);
+            targetCtx.stroke();
+          }
           targetCtx.fillText(tick.label, x, plot.top + plot.height + 24);
         });
 
@@ -2211,6 +2224,7 @@
         const summary = histogramSummary();
         if (!rawRows.length && !(Number(summary?.stations) > 0)) {
           histogramTitleEl.textContent = "Zeitpunkt der 12:00-Referenz";
+          histogramNoteEl.textContent = "";
           histogramCtx.clearRect(
             0,
             0,
@@ -2222,7 +2236,13 @@
         }
 
         const rows = histogramSeries();
-        histogramTitleEl.textContent = `Zeitpunkt der 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}`;
+        const latestDateLabel = latestSelectedDateLabel();
+        histogramTitleEl.textContent =
+          `Zeitpunkt der 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
+          (latestDateLabel ? ` \u00b7 ${latestDateLabel}` : "");
+        histogramNoteEl.textContent = latestDateLabel
+          ? `Dieses Histogramm bezieht sich auf den aktuellsten geladenen Tag im gew\u00e4hlten Zeitraum: ${latestDateLabel}.`
+          : "";
         resizeCanvas(histogramCanvas, histogramCtx);
         const w = histogramCanvas.getBoundingClientRect().width;
         const h = histogramCanvas.getBoundingClientRect().height;
