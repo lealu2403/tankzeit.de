@@ -155,10 +155,15 @@
       const fuel = (params.get("fuel") || "diesel").toLowerCase();
       const lat = params.get("lat") || "";
       const lng = params.get("lng") || "";
+      const stationBrand = params.get("brand") || "";
       const DATA_BASE = "data2/";
       const APP_TIME_ZONE = "Europe/Berlin";
+      const BRAND_FORECAST_WEIGHT = 0.22;
+      const BRAND_FORECAST_ORIENTATION_WEIGHT = 0.08;
+      const BRAND_FORECAST_CORRECTION_CAP = 0.025;
       let priceLevelChart = null;
       let forecastChart = null;
+      const managementSummaryCache = new Map();
 
       const fuelLabels = {
         diesel: "Diesel",
@@ -251,6 +256,21 @@
         const month = String(date.getUTCMonth() + 1).padStart(2, "0");
         const year = date.getUTCFullYear();
         return `${day}.${month}.${year}`;
+      }
+
+      function formatISODate(date) {
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+        const day = String(date.getUTCDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function dateParts(date) {
+        return {
+          y: String(date.getUTCFullYear()),
+          m: String(date.getUTCMonth() + 1).padStart(2, "0"),
+          d: String(date.getUTCDate()).padStart(2, "0"),
+        };
       }
 
       function selectedRangeLabel(range) {
@@ -367,6 +387,14 @@
         return quantile(sorted, 0.5);
       }
 
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      function normalizeBrandName(value) {
+        return String(value || "").trim().toUpperCase();
+      }
+
       function currentChartTheme() {
         const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         return isDark
@@ -449,6 +477,24 @@
         const response = await fetch(url);
         if (!response.ok) throw new Error(`Request failed: ${response.status}`);
         return response.text();
+      }
+
+      function managementUrlForDay(day) {
+        const parts = dateParts(parseISODate(day));
+        return `${DATA_BASE}${parts.y}/${parts.m}/${parts.d}/management_boxplots.json`;
+      }
+
+      async function fetchManagementSummary(day) {
+        if (!day) return null;
+        if (managementSummaryCache.has(day)) return managementSummaryCache.get(day);
+        try {
+          const summary = await fetchJson(managementUrlForDay(day));
+          managementSummaryCache.set(day, summary);
+          return summary;
+        } catch {
+          managementSummaryCache.set(day, null);
+          return null;
+        }
       }
 
       function parseCsv(text) {
@@ -577,6 +623,127 @@
         return days;
       }
 
+      async function loadBrandMarketDays(selectedRange, brandName) {
+        const normalizedBrand = normalizeBrandName(brandName);
+        if (!normalizedBrand || !selectedRange?.from || !selectedRange?.to) {
+          return { brand: normalizedBrand, byDay: new Map() };
+        }
+
+        const days = eachCycleStartDay(selectedRange.from, selectedRange.to);
+        const requestedDays = Array.from(new Set([previousDay(days[0]), ...days].filter(Boolean)));
+        const summaries = await Promise.all(
+          requestedDays.map(async (day) => ({
+            day,
+            summary: await fetchManagementSummary(day),
+          })),
+        );
+
+        return {
+          brand: normalizedBrand,
+          byDay: new Map(
+            summaries
+              .filter((entry) => entry.summary)
+              .map((entry) => [entry.day, entry.summary]),
+          ),
+        };
+      }
+
+      function brandRowsForSummary(summary) {
+        return Array.isArray(summary?.brand_distributions?.[fuel])
+          ? summary.brand_distributions[fuel]
+          : [];
+      }
+
+      function findBrandRow(summary, brandName) {
+        const normalizedBrand = normalizeBrandName(brandName);
+        if (!normalizedBrand) return null;
+        return brandRowsForSummary(summary).find(
+          (row) => normalizeBrandName(row?.brand) === normalizedBrand,
+        );
+      }
+
+      function overallMarketRow(summary) {
+        return brandRowsForSummary(summary).find(
+          (row) => normalizeBrandName(row?.brand) === "GESAMTMARKT",
+        );
+      }
+
+      function marketGroupMedian(summary, group) {
+        const rows = brandRowsForSummary(summary)
+          .filter((row) => {
+            const brand = normalizeBrandName(row?.brand);
+            return brand && brand !== "GESAMTMARKT" && brand !== "MISC";
+          })
+          .map((row) => Number(row?.median))
+          .filter((value) => Number.isFinite(value))
+          .sort((left, right) => left - right);
+        if (!rows.length) return null;
+        const sample = group === "high" ? rows.slice(-3) : rows.slice(0, 3);
+        return median(sample);
+      }
+
+      function brandMarketCorrection(day, referencePrice, brandMarket) {
+        if (!brandMarket?.brand || !brandMarket.byDay?.size) return 0;
+        const summary = brandMarket.byDay.get(day);
+        const brandRow = findBrandRow(summary, brandMarket.brand);
+        const overall = overallMarketRow(summary);
+        const brandMedian = Number(brandRow?.median);
+        const overallMedian = Number(overall?.median);
+        if (
+          !Number.isFinite(referencePrice) ||
+          !Number.isFinite(brandMedian) ||
+          !Number.isFinite(overallMedian)
+        ) {
+          return 0;
+        }
+
+        const stationPremium = referencePrice - overallMedian;
+        const brandPremium = brandMedian - overallMedian;
+        let correction = (brandPremium - stationPremium) * BRAND_FORECAST_WEIGHT;
+
+        const previousSummary = brandMarket.byDay.get(previousDay(day));
+        const previousOverall = overallMarketRow(previousSummary);
+        const previousBrand = findBrandRow(previousSummary, brandMarket.brand);
+        const previousOverallMedian = Number(previousOverall?.median);
+        const previousBrandMedian = Number(previousBrand?.median);
+        const marketMove = overallMedian - previousOverallMedian;
+        const brandMove = brandMedian - previousBrandMedian;
+
+        if (
+          Number.isFinite(marketMove) &&
+          Number.isFinite(brandMove) &&
+          Math.abs(marketMove) >= 0.03
+        ) {
+          const highMedian = marketGroupMedian(summary, "high");
+          const lowMedian = marketGroupMedian(summary, "low");
+          const previousHighMedian = marketGroupMedian(previousSummary, "high");
+          const previousLowMedian = marketGroupMedian(previousSummary, "low");
+          const highMove = highMedian - previousHighMedian;
+          const lowMove = lowMedian - previousLowMedian;
+          const spread = highMedian - lowMedian;
+
+          if (
+            Number.isFinite(highMove) &&
+            Number.isFinite(lowMove) &&
+            Number.isFinite(spread) &&
+            spread > 0
+          ) {
+            const distanceToHigh = Math.abs(brandMove - highMove);
+            const distanceToLow = Math.abs(brandMove - lowMove);
+            const orientation =
+              (distanceToLow - distanceToHigh) /
+              Math.max(0.001, distanceToLow + distanceToHigh);
+            correction += orientation * spread * BRAND_FORECAST_ORIENTATION_WEIGHT;
+          }
+        }
+
+        return clamp(
+          correction,
+          -BRAND_FORECAST_CORRECTION_CAP,
+          BRAND_FORECAST_CORRECTION_CAP,
+        );
+      }
+
       function normalizeFallbackPriceRows(stats, historyRows, selectedRange) {
         const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
         if (!hourlyRows.length || !historyRows.length) return { rows: [], summary: null };
@@ -643,7 +810,7 @@
         };
       }
 
-      function stationForecastSeries(stats, historyRows, selectedRange) {
+      function stationForecastSeries(stats, historyRows, selectedRange, brandMarket = null) {
         const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
         if (!hourlyRows.length || !historyRows.length) {
           return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
@@ -683,19 +850,25 @@
             prices: [],
           };
         });
+        let brandCorrectionApplied = false;
 
-        sourceDays.forEach(({ referencePrice, closingPrice }) => {
+        sourceDays.forEach(({ day, referencePrice, closingPrice }) => {
+          const brandCorrection = brandMarketCorrection(day, referencePrice, brandMarket);
+          if (Math.abs(brandCorrection) > 0.0005) brandCorrectionApplied = true;
           buckets.forEach((bucket) => {
             const sourceHour = bucket.hour === 24 ? 12 : bucket.clockHour;
             const delta = byHour.get(sourceHour);
             if (!Number.isFinite(delta)) return;
+            const brandCorrectionShare = bucket.hour / 24;
             const price =
               bucket.hour === 0
                 ? referencePrice
                 : bucket.hour === 24 && Number.isFinite(closingPrice)
                   ? closingPrice
                   : referencePrice + delta;
-            if (Number.isFinite(price)) bucket.prices.push(price);
+            if (Number.isFinite(price)) {
+              bucket.prices.push(price + brandCorrection * brandCorrectionShare);
+            }
           });
         });
 
@@ -720,6 +893,7 @@
           sourceDays,
           baseDate: baseSourceDay.day,
           baseMedian,
+          brandAdjusted: brandCorrectionApplied,
         };
       }
 
@@ -1172,7 +1346,13 @@
             return;
           }
           renderPriceLevelChart(rows);
-          const forecast = stationForecastSeries(stats, historyRows, selectedRange);
+          const brandMarket = await loadBrandMarketDays(selectedRange, stationBrand);
+          const forecast = stationForecastSeries(
+            stats,
+            historyRows,
+            selectedRange,
+            brandMarket,
+          );
           renderForecastChart(forecast);
           const availableStart = selectedRange.from;
           const availableEnd = selectedRange.to;
@@ -1184,8 +1364,11 @@
           if (forecast.rows.length) {
             const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
             const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
+            const brandContext = forecast.brandAdjusted
+              ? ` Ergänzend wird die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe vorsichtig als Marktkorrektur berücksichtigt.`
+              : "";
             forecastNote.textContent =
-              `Prognosemodell für diese Station: Die Median-Prognose wird aus dem 12:00-Uhr-Referenzpreis vom ${formatDate(forecast.baseDate)} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Stationsverlauf im gewählten Zeitraum abgeleitet. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}.`;
+              `Prognosemodell für diese Station: Die Median-Prognose wird aus dem 12:00-Uhr-Referenzpreis vom ${formatDate(forecast.baseDate)} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Stationsverlauf im gewählten Zeitraum abgeleitet.${brandContext} Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}.`;
           } else {
             forecastNote.textContent = "Keine Prognose verfuegbar: Fuer diese Station liegen noch nicht genug Stationsdaten vor.";
           }

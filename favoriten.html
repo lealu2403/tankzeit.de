@@ -132,8 +132,9 @@
         return String(url).replaceAll("&", "&amp;");
       }
 
-      function stationDetailUrl(stationId, stationName, lat, lng, fuel = "e10") {
-        return `station-detail.html?id=${stationId}&fuel=${fuel}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}`;
+      function stationDetailUrl(stationId, stationName, lat, lng, fuel = "e10", brand = "") {
+        const brandPart = brand ? `&brand=${encodeURIComponent(brand)}` : "";
+        return `station-detail.html?id=${stationId}&fuel=${fuel}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}${brandPart}`;
       }
 
       function favoriteById(id) {
@@ -243,8 +244,9 @@
             if (profile) {
               const station = fav.find((f) => f.id === id) || {};
               const stationName = station.name || "Tankstelle";
+              const stationBrand = station.brand || station.name || "";
               const detailsHref = hrefForHtml(
-                stationDetailUrl(id, stationName, station.lat || "", station.lng || ""),
+                stationDetailUrl(id, stationName, station.lat || "", station.lng || "", "e10", stationBrand),
               );
               profile.innerHTML = `<a href="${detailsHref}">${escapeHtml(TankzeitStats.profileText(stats, "Details"))}</a>`;
             }
@@ -303,8 +305,9 @@
         favoritesEl.innerHTML = fav
           .map(
             (station) => {
+              const stationBrand = station.brand || station.name || "";
               const detailsHref = hrefForHtml(
-                stationDetailUrl(station.id, station.name, station.lat, station.lng),
+                stationDetailUrl(station.id, station.name, station.lat, station.lng, "e10", stationBrand),
               );
               return `
           <tr data-lat="${station.lat}" data-lng="${station.lng}">

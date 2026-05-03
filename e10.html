@@ -263,8 +263,9 @@
         return String(url).replaceAll("&", "&amp;");
       }
 
-      function stationDetailUrl(stationId, stationName, lat, lng) {
-        return `station-detail.html?id=${stationId}&fuel=${FUEL}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}`;
+      function stationDetailUrl(stationId, stationName, lat, lng, brand = "") {
+        const brandPart = brand ? `&brand=${encodeURIComponent(brand)}` : "";
+        return `station-detail.html?id=${stationId}&fuel=${FUEL}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}${brandPart}`;
       }
 
       function setStatus(message, type = "info") {
@@ -292,9 +293,9 @@
         }
       }
 
-      function addAndStore(id, name, lat, lng) {
+      function addAndStore(id, name, lat, lng, brand = "") {
         if (!ids.includes(id)) {
-          fav.push({ id, name, lat, lng });
+          fav.push({ id, name, lat, lng, brand });
           ids.push(id);
           localStorage.setItem("fav", JSON.stringify(fav));
           localStorage.setItem("ids", JSON.stringify(ids));
@@ -464,7 +465,7 @@
           .map((s) => {
             const isSaved = ids.includes(s.id);
             const detailsHref = hrefForHtml(
-              stationDetailUrl(s.id, s.name, s.lat, s.lng),
+              stationDetailUrl(s.id, s.name, s.lat, s.lng, s.brand || ""),
             );
             return `
             <tr id="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">
@@ -486,6 +487,7 @@
               station.brand || station.name,
               station.lat,
               station.lng,
+              station.brand || "",
             );
             btn.textContent = "❤️";
             btn.disabled = true;
@@ -497,7 +499,7 @@
             const statsUrl = `${DATA_BASE}${s.id.split("-").join("/")}/${FUEL}.json`;
             const stats = await fetchJson(statsUrl);
             const detailsHref = hrefForHtml(
-              stationDetailUrl(s.id, s.name, s.lat, s.lng),
+              stationDetailUrl(s.id, s.name, s.lat, s.lng, s.brand || ""),
             );
             document.getElementById(`${s.id}-profile`).innerHTML =
               `<a href="${detailsHref}">${escapeHtml(TankzeitStats.profileText(stats, "Details"))}</a>`;
