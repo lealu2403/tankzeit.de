@@ -1256,7 +1256,11 @@
         );
         ctx.restore();
 
-        if (viewMode === "cycle" && stats.length >= 13) {
+        if (
+          viewMode === "cycle" &&
+          stats.length >= 13 &&
+          !(rangeModeActive && (state.rangeSummaries || []).length > 20)
+        ) {
           const midnightIndexes = chartEntries
             .map((entry, index) => ({ entry, index }))
             .filter(({ entry }) => {

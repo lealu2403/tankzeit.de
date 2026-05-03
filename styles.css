@@ -780,15 +780,24 @@ canvas {
 
 .control-grid {
   display: grid;
-  grid-template-columns: minmax(380px, 1.35fr) minmax(220px, 0.65fr);
-  gap: 14px 28px;
+  grid-template-columns: minmax(360px, 520px) minmax(260px, 1fr);
+  gap: 14px 64px;
+  align-items: start;
   width: min(100%, 860px);
-  margin-left: auto;
+  margin: 0 auto;
 }
 
 .control-group {
   display: grid;
   gap: 8px;
+}
+
+.range-control-group {
+  justify-self: stretch;
+}
+
+.control-grid > .control-group:not(.range-control-group) {
+  justify-self: center;
 }
 
 .control-label {
@@ -807,14 +816,24 @@ canvas {
 }
 
 .fuel-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 1fr));
   gap: 8px;
-  flex-wrap: wrap;
+  width: min(100%, 260px);
+  align-items: stretch;
+}
+
+.fuel-tabs .btn,
+#range-toggle {
+  min-height: 58px;
+  justify-content: center;
+  border-radius: 999px;
 }
 
 .range-picker {
   display: grid;
   gap: 8px;
+  width: 100%;
   max-width: 520px;
 }
 
@@ -826,6 +845,11 @@ canvas {
   border-radius: 18px;
   background: rgba(15, 23, 42, 0.14);
   box-shadow: var(--shadow-sm);
+}
+
+.range-panel .btn {
+  min-height: 48px;
+  justify-content: center;
 }
 
 .range-panel[hidden] {
@@ -977,7 +1001,12 @@ canvas {
   .control-grid {
     grid-template-columns: 1fr;
     width: 100%;
-    margin-left: 0;
+    margin: 0;
+    gap: 16px;
+  }
+
+  .fuel-tabs {
+    width: min(100%, 320px);
   }
 
   .range-inputs {
