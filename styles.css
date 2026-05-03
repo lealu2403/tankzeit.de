@@ -869,6 +869,36 @@ canvas {
   max-width: 980px;
 }
 
+.management-tooltip {
+  position: fixed;
+  z-index: 1000;
+  display: grid;
+  gap: 4px;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 8px;
+  background: rgba(9, 14, 17, 0.94);
+  color: #f8fafc;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.management-tooltip[hidden] {
+  display: none;
+}
+
+.management-tooltip strong {
+  color: #ffffff;
+  font-size: 0.8rem;
+}
+
+.management-tooltip span {
+  color: rgba(248, 250, 252, 0.86);
+}
+
 .management-chart-card .chart-wrap {
   margin-top: 4px;
 }
