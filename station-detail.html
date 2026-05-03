@@ -114,6 +114,7 @@
         >
           <canvas id="forecast-chart"></canvas>
         </div>
+        <p class="chart-note station-detail-chart-note" id="forecast-note"></p>
       </section>
     </main>
 
@@ -311,6 +312,23 @@
         }
         const pad = Math.max(0.02, (max - min) * 0.12);
         return { min: min - pad, max: max + pad };
+      }
+
+      function quantile(sortedValues, q) {
+        if (!sortedValues.length) return null;
+        const pos = (sortedValues.length - 1) * q;
+        const base = Math.floor(pos);
+        const rest = pos - base;
+        const next = sortedValues[base + 1];
+        if (next === undefined) return sortedValues[base];
+        return sortedValues[base] + rest * (next - sortedValues[base]);
+      }
+
+      function median(values) {
+        const sorted = values
+          .filter((value) => Number.isFinite(value))
+          .sort((left, right) => left - right);
+        return quantile(sorted, 0.5);
       }
 
       function currentChartTheme() {
@@ -589,6 +607,86 @@
         };
       }
 
+      function stationForecastSeries(stats, historyRows, selectedRange) {
+        const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
+        if (!hourlyRows.length || !historyRows.length) {
+          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
+        }
+
+        const fromDay = selectedRange?.from || historyRows[0]?.date || "";
+        const toDay = selectedRange?.to || historyRows[historyRows.length - 1]?.date || "";
+        const sourceDays = eachCycleStartDay(fromDay, toDay)
+          .map((day) => ({
+            day,
+            referencePrice: findHistoryPrice(historyRows, day),
+            closingPrice: findHistoryPrice(historyRows, nextDay(day)),
+          }))
+          .filter((day) => Number.isFinite(day.referencePrice));
+
+        if (!sourceDays.length) {
+          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
+        }
+
+        const byHour = new Map();
+        hourlyRows.forEach((row) => {
+          const hour = Number(row?.hour);
+          const delta = Number(row?.price);
+          if (Number.isFinite(hour) && Number.isFinite(delta)) {
+            byHour.set(Math.round(hour), delta);
+          }
+        });
+
+        const baseSourceDay = sourceDays[sourceDays.length - 1];
+        const baseMedian = Number(baseSourceDay.referencePrice);
+        const buckets = Array.from({ length: 25 }, (_, cycleHour) => {
+          const clockHour = (12 + cycleHour) % 24;
+          return {
+            hour: cycleHour,
+            clockHour,
+            label: String(clockHour).padStart(2, "0"),
+            prices: [],
+          };
+        });
+
+        sourceDays.forEach(({ referencePrice, closingPrice }) => {
+          buckets.forEach((bucket) => {
+            const sourceHour = bucket.hour === 24 ? 12 : bucket.clockHour;
+            const delta = byHour.get(sourceHour);
+            if (!Number.isFinite(delta)) return;
+            const price =
+              bucket.hour === 0
+                ? referencePrice
+                : bucket.hour === 24 && Number.isFinite(closingPrice)
+                  ? closingPrice
+                  : referencePrice + delta;
+            if (Number.isFinite(price)) bucket.prices.push(price);
+          });
+        });
+
+        const rows = buckets
+          .map((bucket) => {
+            const sorted = bucket.prices.sort((left, right) => left - right);
+            const rowMedian = quantile(sorted, 0.5);
+            const q1 = quantile(sorted, 0.25);
+            const q3 = quantile(sorted, 0.75);
+            if (!Number.isFinite(rowMedian)) return null;
+            return {
+              ...bucket,
+              median: Number(rowMedian.toFixed(3)),
+              q1: Number((Number.isFinite(q1) ? q1 : rowMedian).toFixed(3)),
+              q3: Number((Number.isFinite(q3) ? q3 : rowMedian).toFixed(3)),
+            };
+          })
+          .filter(Boolean);
+
+        return {
+          rows,
+          sourceDays,
+          baseDate: baseSourceDay.day,
+          baseMedian,
+        };
+      }
+
       function updateRangeControls(summary) {
         const fromInput = document.getElementById("cycle-from");
         const toInput = document.getElementById("cycle-to");
@@ -665,17 +763,11 @@
         });
       }
 
-      function renderForecastCoordinateSystem(rows) {
-        const chartRows = rows.length ? rows : fallbackForecastRows();
+      function renderForecastChart(series) {
+        const chartRows = series?.rows?.length ? series.rows : fallbackForecastRows();
         const labels = chartRows.map((row) => row.label);
-        const domain = priceLevelDomain(
-          chartRows.map((row) => row.price).filter((value) => value != null),
-        );
-        const {
-          visibleTickIndexes,
-          labelTickIndexes,
-          midnightIndexes,
-        } = axisProfileForRows(chartRows);
+        const values = chartRows.flatMap((row) => [row.median, row.q1, row.q3]);
+        const domain = priceLevelDomain(values);
         const ctx = document.getElementById("forecast-chart").getContext("2d");
         if (forecastChart) forecastChart.destroy();
         forecastChart = new Chart(ctx, {
@@ -684,13 +776,31 @@
             labels,
             datasets: [
               {
-                label: "Prognose",
-                data: chartRows.map(() => null),
-                borderColor: "#0f766e",
-                backgroundColor: "rgba(15, 118, 110, 0.08)",
-                borderWidth: 2.4,
+                label: "q3",
+                data: chartRows.map((row) => row.q3 ?? null),
+                borderColor: "rgba(15, 118, 110, 0)",
+                backgroundColor: "rgba(15, 118, 110, 0)",
                 pointRadius: 0,
-                tension: 0,
+                tension: 0.18,
+              },
+              {
+                label: "Typischer Bereich q1-q3",
+                data: chartRows.map((row) => row.q1 ?? null),
+                borderColor: "rgba(15, 118, 110, 0)",
+                backgroundColor: "rgba(15, 118, 110, 0.14)",
+                pointRadius: 0,
+                fill: "-1",
+                tension: 0.18,
+              },
+              {
+                label: "Prognose Median",
+                data: chartRows.map((row) => row.median ?? null),
+                borderColor: "#0f766e",
+                backgroundColor: "#0f766e",
+                borderWidth: 2.4,
+                pointRadius: 2.5,
+                pointHoverRadius: 4,
+                tension: 0.18,
                 fill: false,
               },
             ],
@@ -705,17 +815,17 @@
                 alignToPixels: true,
                 grid: {
                   color(context) {
-                    return visibleTickIndexes.has(context.index)
+                    return context.index % 4 === 0
                       ? currentChartTheme().grid
                       : "rgba(0, 0, 0, 0)";
                   },
                   lineWidth(context) {
-                    return visibleTickIndexes.has(context.index) ? 1 : 0;
+                    return context.index % 4 === 0 ? 1 : 0;
                   },
                 },
                 title: {
                   display: true,
-                  text: "Zeitachse 12:00 Uhr bis 12:00 Uhr",
+                  text: "Stunde im 12:00 Uhr-12:00 Uhr-Zyklus",
                   font: {
                     size: 12,
                     weight: "700",
@@ -731,9 +841,8 @@
                     weight: "700",
                   },
                   callback(value, index) {
-                    if (!labelTickIndexes.has(index)) return "";
                     const row = chartRows[index];
-                    return formatAxisTickLabel(row);
+                    return row?.label || "";
                   },
                 },
               },
@@ -766,10 +875,28 @@
             },
             plugins: {
               legend: {
-                display: false,
+                display: true,
+                position: "top",
+                align: "end",
+                labels: {
+                  filter(item) {
+                    return item.text !== "q3";
+                  },
+                  usePointStyle: false,
+                  boxWidth: 22,
+                },
               },
               tooltip: {
-                enabled: false,
+                callbacks: {
+                  label(context) {
+                    const row = chartRows[context.dataIndex];
+                    if (!row || context.dataset.label === "q3") return "";
+                    if (context.dataset.label === "Typischer Bereich q1-q3") {
+                      return `q1-q3: ${formatFuelPrice(row.q1)} bis ${formatFuelPrice(row.q3)} EUR/l`;
+                    }
+                    return `Prognose-Median: ${formatFuelPrice(row.median)} EUR/l`;
+                  },
+                },
               },
             },
           }),
@@ -777,23 +904,25 @@
             {
               id: "stationForecastMidnightDivider",
               afterDraw(chart) {
-                if (!midnightIndexes.length) return;
                 const xScale = chart.scales.x;
                 const chartArea = chart.chartArea;
                 if (!xScale || !chartArea) return;
                 const { ctx } = chart;
+                const midnightIndex = chartRows.findIndex((row) => row.clockHour === 0);
+                if (midnightIndex < 0) return;
+                const dividerX = xScale.getPixelForValue(midnightIndex);
                 ctx.save();
-                midnightIndexes.forEach((midnightIndex) => {
-                  const dividerX = xScale.getPixelForValue(midnightIndex);
-                  ctx.setLineDash([6, 4]);
-                  ctx.strokeStyle = "rgba(37, 99, 235, 0.34)";
-                  ctx.lineWidth = 1.2;
-                  ctx.beginPath();
-                  ctx.moveTo(dividerX, chartArea.top);
-                  ctx.lineTo(dividerX, chartArea.bottom);
-                  ctx.stroke();
-                  ctx.setLineDash([]);
-                });
+                ctx.setLineDash([6, 4]);
+                ctx.strokeStyle = "rgba(37, 99, 235, 0.34)";
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(dividerX, chartArea.top);
+                ctx.lineTo(dividerX, chartArea.bottom);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = "rgba(37, 99, 235, 0.78)";
+                ctx.font = "11px Manrope, sans-serif";
+                ctx.fillText("00:00", dividerX + 6, chartArea.top + 14);
                 ctx.restore();
               },
             },
@@ -964,65 +1093,65 @@
 
       async function loadPriceLevelChart() {
         const note = document.getElementById("price-level-note");
+        const forecastNote = document.getElementById("forecast-note");
         if (!stationId) {
           clearForecastChart();
           note.textContent = "Keine Station ausgewaehlt.";
+          forecastNote.textContent = "";
           return;
         }
         try {
           await waitForChartJs();
-          renderForecastCoordinateSystem([]);
           const stats = await fetchJson(`${DATA_BASE}${stationPath(stationId)}/${fuel}.json`);
+          const historyText = await fetchText(
+            `${DATA_BASE}${stationPath(stationId)}/${fuel}/history.csv`,
+          );
+          const historyRows = normalizeHistoryRows(parseCsv(historyText));
+          const historySummary = {
+            cycle_start: historyRows[0]?.date || "",
+            cycle_end: historyRows[historyRows.length - 1]?.date || "",
+          };
+          const selectedRange = updateRangeControls(historySummary);
           let rows = normalizePriceRows(stats);
-          let summary = stats?.cycle_summary || {};
           let isFallback = false;
-          if (!rows.length) {
-            const historyText = await fetchText(
-              `${DATA_BASE}${stationPath(stationId)}/${fuel}/history.csv`,
-            );
-            const historyRows = normalizeHistoryRows(parseCsv(historyText));
-            const historySummary = {
-              cycle_start: historyRows[0]?.date || "",
-              cycle_end: historyRows[historyRows.length - 1]?.date || "",
-            };
-            const fallbackRange = updateRangeControls(historySummary);
-            const fallback = normalizeFallbackPriceRows(
-              stats,
-              historyRows,
-              fallbackRange,
-            );
+          const fallback = normalizeFallbackPriceRows(
+            stats,
+            historyRows,
+            selectedRange,
+          );
+          if (fallback.rows.length) {
             rows = fallback.rows;
-            summary = fallback.summary || summary;
-            isFallback = rows.length > 0;
+            isFallback = true;
           }
-          const selectedRange = isFallback
-            ? {
-                from: document.getElementById("cycle-from").value,
-                to: document.getElementById("cycle-to").value,
-              }
-            : updateRangeControls(summary);
           updateChartHeadings(selectedRange);
           if (!rows.length) {
             clearPriceLevelChart();
-            renderForecastCoordinateSystem([]);
+            renderForecastChart({ rows: [] });
             note.textContent = "Fuer diese Station liegt noch kein Preisniveau von 12:00 Uhr bis 12:00 Uhr vor.";
+            forecastNote.textContent = "Keine Prognose verfuegbar: Fuer diese Station liegen noch nicht genug Stationsdaten vor.";
             return;
           }
           renderPriceLevelChart(rows);
-          renderForecastCoordinateSystem(rows);
-          const availableStart = isFallback
-            ? selectedRange.from
-            : summary.cycle_start || selectedRange.from;
-          const availableEnd = isFallback
-            ? selectedRange.to
-            : summary.cycle_end || selectedRange.to;
+          const forecast = stationForecastSeries(stats, historyRows, selectedRange);
+          renderForecastChart(forecast);
+          const availableStart = selectedRange.from;
+          const availableEnd = selectedRange.to;
           note.textContent = `${fuelLabels[fuel] || fuel.toUpperCase()} - 12:00 Uhr bis 12:00 Uhr - ${formatDate(
             availableStart,
           )} bis ${formatDate(availableEnd)}${
             isFallback ? " - aus Tagesprofil und Mittagspreisen abgeleitet" : ""
           }`;
+          if (forecast.rows.length) {
+            const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
+            const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
+            forecastNote.textContent =
+              `Prognosemodell fuer diese Station: Die Median-Prognose wird aus dem 12:00-Uhr-Referenzpreis vom ${formatDate(forecast.baseDate)} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Stationsverlauf im gewaehlten Zeitraum abgeleitet. Die schattierte Flaeche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}.`;
+          } else {
+            forecastNote.textContent = "Keine Prognose verfuegbar: Fuer diese Station liegen noch nicht genug Stationsdaten vor.";
+          }
         } catch (err) {
           note.textContent = "Preisniveau konnte lokal nicht geladen werden.";
+          forecastNote.textContent = "Prognose konnte lokal nicht geladen werden.";
         }
       }
 
