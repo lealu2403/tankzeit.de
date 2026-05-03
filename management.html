@@ -165,6 +165,7 @@
         <div class="chart-wrap">
           <canvas id="forecast-plot"></canvas>
         </div>
+        <p class="chart-note" id="forecast-note"></p>
       </section>
 
       <section class="card management-chart-card">
@@ -281,6 +282,7 @@
       const priceLevelCanvas = document.getElementById("price-level-plot");
       const priceLevelCtx = priceLevelCanvas.getContext("2d");
       const forecastTitleEl = document.getElementById("forecast-title");
+      const forecastNoteEl = document.getElementById("forecast-note");
       const forecastCanvas = document.getElementById("forecast-plot");
       const forecastCtx = forecastCanvas.getContext("2d");
       const histogramTitleEl = document.getElementById("histogram-title");
@@ -311,6 +313,7 @@
       };
       const BRAND_PRICE_DOMAIN = { min: 1.5, max: 3.0 };
       const APP_TIME_ZONE = "Europe/Berlin";
+      const FORECAST_MIN_DATE_STR = "2026-04-02";
 
       function currentChartTheme() {
         if (DARK_MODE_MEDIA_QUERY.matches) {
@@ -357,6 +360,8 @@
         rangeDates: [],
         stationBrandById: null,
         rangeBrandCache: null,
+        forecastSummaryCache: new Map(),
+        forecastRequestToken: 0,
         chartEntries: [],
         rangePanelOpen: false,
       };
@@ -1034,6 +1039,7 @@
           forecastCanvas.width,
           forecastCanvas.height,
         );
+        forecastNoteEl.textContent = "";
         histogramCtx.clearRect(
           0,
           0,
@@ -1694,6 +1700,170 @@
         };
       }
 
+      function computeForecastDomain(rows) {
+        const values = rows
+          .flatMap((row) => [row.avg, row.median, row.q1, row.q3])
+          .filter((value) => Number.isFinite(value));
+        if (!values.length) return BRAND_PRICE_DOMAIN;
+
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const center = (min + max) / 2;
+        const span = Math.max(max - min, 0.08);
+        const padding = Math.max(span * 0.18, 0.02);
+        return {
+          min: Math.max(0, center - span / 2 - padding),
+          max: center + span / 2 + padding,
+        };
+      }
+
+      function sourceDaysSinceForecastCutoff() {
+        const sourceDays =
+          (state.rangeSummaries || []).length > 0
+            ? state.rangeSummaries
+            : [{ date: state.date, summary: state.summary }];
+        return sourceDays.filter((rangeDay) => {
+          if (!rangeDay?.summary || !(rangeDay.date instanceof Date)) return false;
+          return formatISODate(rangeDay.date) >= FORECAST_MIN_DATE_STR;
+        });
+      }
+
+      async function loadForecastSourceDays(untilDate) {
+        if (!(untilDate instanceof Date)) return sourceDaysSinceForecastCutoff();
+        const cutoffDate = parseISODate(FORECAST_MIN_DATE_STR);
+        if (untilDate < cutoffDate) return [];
+
+        const requestedDates = datesInRange(cutoffDate, untilDate);
+        const loadedByDate = new Map(
+          sourceDaysSinceForecastCutoff().map((rangeDay) => [
+            formatISODate(rangeDay.date),
+            rangeDay,
+          ]),
+        );
+
+        const results = await Promise.all(
+          requestedDates.map(async (candidateDate) => {
+            const isoDate = formatISODate(candidateDate);
+            if (loadedByDate.has(isoDate)) return loadedByDate.get(isoDate);
+            if (state.forecastSummaryCache.has(isoDate)) {
+              return state.forecastSummaryCache.get(isoDate);
+            }
+            try {
+              const response = await fetch(urlForDate(candidateDate), {
+                cache: "no-store",
+              });
+              if (!response.ok) return null;
+              const rangeDay = {
+                date: candidateDate,
+                summary: await response.json(),
+              };
+              state.forecastSummaryCache.set(isoDate, rangeDay);
+              return rangeDay;
+            } catch {
+              return null;
+            }
+          }),
+        );
+
+        return results.filter(Boolean);
+      }
+
+      function overallMarketRow(summary) {
+        return (summary?.brand_distributions?.[state.fuel] || []).find(
+          (row) => row?.brand === "Gesamtmarkt",
+        );
+      }
+
+      function forecastSeries(sourceDays = sourceDaysSinceForecastCutoff()) {
+        const baseDay = [...sourceDays]
+          .reverse()
+          .find((rangeDay) => {
+            const overall = overallMarketRow(rangeDay.summary);
+            return (
+              Number.isFinite(Number(overall?.avg)) &&
+              Number.isFinite(Number(overall?.median))
+            );
+          });
+        const baseOverall = overallMarketRow(baseDay?.summary);
+        const baseAvg = Number(baseOverall?.avg);
+        const baseMedian = Number(baseOverall?.median);
+
+        if (
+          !sourceDays.length ||
+          !baseDay ||
+          !Number.isFinite(baseAvg) ||
+          !Number.isFinite(baseMedian)
+        ) {
+          return {
+            rows: [],
+            sourceDays,
+            baseDate: null,
+            baseAvg: null,
+            baseMedian: null,
+          };
+        }
+
+        const byHour = new Map();
+        sourceDays.forEach((rangeDay) => {
+          const rows = rangeDay.summary?.fuels?.[state.fuel] || [];
+          rows.forEach((row) => {
+            const rawHour =
+              row.cycle_hour !== undefined ? row.cycle_hour : row.hour;
+            const hour = Number(rawHour);
+            if (!Number.isFinite(hour) || hour < 0 || hour > 24) return;
+
+            const adjusted = adjustedHourlyRow(row);
+            const median = Number(adjusted.median);
+            const q1 = Number(adjusted.q1);
+            const q3 = Number(adjusted.q3);
+            if (!Number.isFinite(median)) return;
+
+            const bucket = byHour.get(hour) || {
+              hour,
+              clockHour: Number.isFinite(Number(row.clock_hour))
+                ? Number(row.clock_hour)
+                : (12 + hour) % 24,
+              medianDeltas: [],
+              q1Deltas: [],
+              q3Deltas: [],
+            };
+            bucket.medianDeltas.push(median);
+            if (Number.isFinite(q1)) bucket.q1Deltas.push(q1);
+            if (Number.isFinite(q3)) bucket.q3Deltas.push(q3);
+            byHour.set(hour, bucket);
+          });
+        });
+
+        const rows = Array.from(byHour.values())
+          .sort((left, right) => left.hour - right.hour)
+          .map((row) => {
+            const medianDelta = quantile(row.medianDeltas.sort((a, b) => a - b), 0.5);
+            const q1Delta = row.q1Deltas.length
+              ? quantile(row.q1Deltas.sort((a, b) => a - b), 0.5)
+              : null;
+            const q3Delta = row.q3Deltas.length
+              ? quantile(row.q3Deltas.sort((a, b) => a - b), 0.5)
+              : null;
+            return {
+              ...row,
+              avg: Number.isFinite(medianDelta) ? baseAvg + medianDelta : null,
+              median: Number.isFinite(medianDelta)
+                ? baseMedian + medianDelta
+                : null,
+              q1: Number.isFinite(q1Delta) ? baseMedian + q1Delta : null,
+              q3: Number.isFinite(q3Delta) ? baseMedian + q3Delta : null,
+            };
+          });
+
+        return {
+          rows,
+          sourceDays,
+          baseDate: baseDay.date,
+          baseAvg,
+          baseMedian,
+        };
+      }
+
       function drawPriceLevelCoordinateSystem(targetCanvas, targetCtx, domain) {
         resizeCanvas(targetCanvas, targetCtx);
         const w = targetCanvas.getBoundingClientRect().width;
@@ -1897,7 +2067,9 @@
         });
       }
 
-      function drawForecastChart() {
+      async function drawForecastChart() {
+        const requestToken = state.forecastRequestToken + 1;
+        state.forecastRequestToken = requestToken;
         const periodLabel = isRangeModeActive()
           ? `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`
           : state.date instanceof Date
@@ -1907,13 +2079,136 @@
           `Prognose \u00b7 ${fuelDisplayName(state.fuel)}` +
           (periodLabel ? ` \u00b7 ${periodLabel}` : "");
 
-        const series = state.summary ? priceLevelSeries() : { rows: [] };
-        const domain = computePriceLevelDomain(series.rows || []);
+        const forecastEndDate =
+          state.endDate instanceof Date ? state.endDate : state.date;
+        const sourceDays = state.summary
+          ? await loadForecastSourceDays(forecastEndDate)
+          : [];
+        if (requestToken !== state.forecastRequestToken) return;
+
+        const series = state.summary
+          ? forecastSeries(sourceDays)
+          : { rows: [], sourceDays: [], baseDate: null };
+        const rows = series.rows || [];
+        const domain = computeForecastDomain(rows);
         state.forecastLayout = drawPriceLevelCoordinateSystem(
           forecastCanvas,
           forecastCtx,
           domain,
         );
+        const { plot } = state.forecastLayout;
+
+        if (!rows.length) {
+          forecastNoteEl.textContent =
+            `Keine Prognose verf\u00fcgbar: Fuer die Berechnung werden nur Statistikdaten ab dem ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} verwendet.`;
+          return;
+        }
+
+        const theme = currentChartTheme();
+        const forecastColor = FUEL_COLORS[state.fuel] || "#0f766e";
+        const averageColor = theme.overallStroke;
+        const xForRow = (row) => plot.left + (row.hour * plot.width) / 24;
+        const pointsFor = (valueKey) =>
+          rows
+            .map((row) => ({
+              x: xForRow(row),
+              y: Number.isFinite(row[valueKey])
+                ? yScale(domain, plot, row[valueKey])
+                : null,
+            }))
+            .filter((point) => point.y !== null);
+
+        const q1Points = pointsFor("q1");
+        const q3Points = pointsFor("q3");
+        if (q1Points.length && q3Points.length && q1Points.length === q3Points.length) {
+          forecastCtx.save();
+          forecastCtx.fillStyle = "rgba(15, 118, 110, 0.12)";
+          forecastCtx.beginPath();
+          q1Points.forEach((point, index) => {
+            if (index === 0) {
+              forecastCtx.moveTo(point.x, point.y);
+            } else {
+              forecastCtx.lineTo(point.x, point.y);
+            }
+          });
+          [...q3Points].reverse().forEach((point) => {
+            forecastCtx.lineTo(point.x, point.y);
+          });
+          forecastCtx.closePath();
+          forecastCtx.fill();
+          forecastCtx.restore();
+        }
+
+        const drawLineSeries = (valueKey, color, dashed = false) => {
+          const points = pointsFor(valueKey);
+          if (!points.length) return;
+          forecastCtx.save();
+          forecastCtx.strokeStyle = color;
+          forecastCtx.lineWidth = 2.6;
+          forecastCtx.lineJoin = "round";
+          forecastCtx.lineCap = "round";
+          if (dashed) forecastCtx.setLineDash([7, 5]);
+          forecastCtx.beginPath();
+          points.forEach((point, index) => {
+            if (index === 0) {
+              forecastCtx.moveTo(point.x, point.y);
+            } else {
+              forecastCtx.lineTo(point.x, point.y);
+            }
+          });
+          forecastCtx.stroke();
+          forecastCtx.setLineDash([]);
+          forecastCtx.fillStyle = color;
+          points.forEach((point) => {
+            forecastCtx.beginPath();
+            forecastCtx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+            forecastCtx.fill();
+          });
+          forecastCtx.restore();
+        };
+
+        drawLineSeries("median", forecastColor);
+        drawLineSeries("avg", averageColor, true);
+
+        const legendItems = [
+          {
+            label: "Prognose Median",
+            color: forecastColor,
+            dashed: false,
+          },
+          {
+            label: "Prognose Durchschnitt",
+            color: averageColor,
+            dashed: true,
+          },
+        ];
+        let legendX = plot.left + plot.width - 210;
+        if (legendX < plot.left) legendX = plot.left;
+        let legendY = plot.top + 8;
+        forecastCtx.font = "11px Manrope, sans-serif";
+        forecastCtx.textAlign = "left";
+        legendItems.forEach((item) => {
+          forecastCtx.strokeStyle = item.color;
+          forecastCtx.lineWidth = 3;
+          if (item.dashed) forecastCtx.setLineDash([7, 5]);
+          forecastCtx.beginPath();
+          forecastCtx.moveTo(legendX, legendY);
+          forecastCtx.lineTo(legendX + 22, legendY);
+          forecastCtx.stroke();
+          forecastCtx.setLineDash([]);
+          forecastCtx.fillStyle = theme.legendText;
+          forecastCtx.fillText(item.label, legendX + 30, legendY + 4);
+          legendY += 18;
+        });
+
+        const sourceDates = series.sourceDays.map((day) => formatISODate(day.date));
+        const firstSourceDate = sourceDates[0] || FORECAST_MIN_DATE_STR;
+        const lastSourceDate = sourceDates[sourceDates.length - 1] || firstSourceDate;
+        const baseDateLabel = series.baseDate
+          ? formatLongDate(series.baseDate)
+          : "dem letzten verfuegbaren Tag";
+        forecastNoteEl.textContent =
+          `Prognosemodell: Das erwartete Preisniveau wird aus dem 12:00-Gesamtmarktpreis vom ${baseDateLabel} und dem typischen 12:00-bis-12:00-Verlauf der lokal verfuegbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} abgeleitet. Median und Durchschnitt nutzen denselben typischen st\u00fcndlichen Median-Verlauf, jeweils auf ihrem aktuellen 12:00-Basisniveau. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median und ${formatValue(series.baseAvg)} EUR/l Durchschnitt; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
       }
 
       function drawHistogramChart() {
