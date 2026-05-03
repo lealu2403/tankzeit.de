@@ -4,6 +4,8 @@
     "https://play.google.com/store/apps/details?id=de.tankzeit.android";
   const ANDROID_STORE_LINK = "market://details?id=de.tankzeit.android";
   const IOS_LINK = "https://apps.apple.com/de/app/tankzeit/id6759522835";
+  const VEHICLE_DATA_URL = "data/adac_models_by_make.csv?v=20260503-adac-full";
+  let tankplanVehiclesPromise = null;
 
   function isAndroid() {
     return /Android/i.test(navigator.userAgent || "");
@@ -99,6 +101,191 @@
     } catch (error) {
       window.num = parseOptionalNumber;
     }
+  }
+
+  function parseVehicleCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let quoted = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const char = text[i];
+      if (quoted) {
+        if (char === '"' && text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else if (char === '"') {
+          quoted = false;
+        } else {
+          cell += char;
+        }
+      } else if (char === '"') {
+        quoted = true;
+      } else if (char === ",") {
+        row.push(cell);
+        cell = "";
+      } else if (char === "\n") {
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = "";
+      } else if (char !== "\r") {
+        cell += char;
+      }
+    }
+
+    if (cell || row.length) {
+      row.push(cell);
+      rows.push(row);
+    }
+
+    const headers = rows.shift() || [];
+    return rows
+      .filter((item) => item.length > 1)
+      .map((item) => Object.fromEntries(headers.map((header, index) => [header, item[index] || ""])));
+  }
+
+  function normalizeVehicleText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[-_/]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function parseBuildYear(value) {
+    const match = String(value || "").match(/\b(19|20)\d{2}\b/);
+    return match ? Number(match[0]) : null;
+  }
+
+  function tankplanVehicleMeta(vehicle) {
+    return [
+      vehicle.fahrzeugbezeichnung,
+      vehicle.generation,
+      vehicle.baujahr,
+      vehicle.kraftstoffart,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  async function loadTankplanVehicles() {
+    if (!tankplanVehiclesPromise) {
+      tankplanVehiclesPromise = fetch(VEHICLE_DATA_URL, { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) throw new Error("Fahrzeugdaten konnten nicht geladen werden.");
+          return response.text();
+        })
+        .then((text) => parseVehicleCsv(text).filter((vehicle) => vehicle.fahrzeugbezeichnung));
+    }
+    return tankplanVehiclesPromise;
+  }
+
+  function ensureBuildYearField() {
+    if (!location.pathname.endsWith("/tankplan.html")) return null;
+    let input = document.getElementById("build-year");
+    if (input) return input;
+
+    const modelInput = document.getElementById("model");
+    const modelField = modelInput?.closest(".tankplan-field");
+    if (!modelField) return null;
+
+    const field = document.createElement("div");
+    field.className = "tankplan-field";
+    field.innerHTML = `
+      <label for="build-year">Baujahr</label>
+      <input id="build-year" name="buildYear" inputmode="numeric" min="2000" max="2026" step="1" placeholder="z. B. 2020" />
+    `;
+    modelField.insertAdjacentElement("afterend", field);
+    return field.querySelector("#build-year");
+  }
+
+  async function renderTankplanSuggestionsWithYear() {
+    const manufacturerInput = document.getElementById("manufacturer");
+    const modelInput = document.getElementById("model");
+    const buildYearInput = document.getElementById("build-year");
+    const suggestionsEl = document.getElementById("suggestions");
+    if (!manufacturerInput || !modelInput || !suggestionsEl) return;
+
+    const manufacturer = normalizeVehicleText(manufacturerInput.value);
+    const model = normalizeVehicleText(modelInput.value);
+    const buildYear = parseBuildYear(buildYearInput?.value);
+
+    suggestionsEl.replaceChildren();
+    if (!manufacturer && !model && buildYear === null) {
+      suggestionsEl.hidden = true;
+      return;
+    }
+
+    let vehicles = [];
+    try {
+      vehicles = await loadTankplanVehicles();
+    } catch (error) {
+      if (typeof setStatus === "function") setStatus(error.message);
+      return;
+    }
+
+    const allMatches = vehicles
+      .filter((vehicle) => {
+        const vehicleManufacturer = normalizeVehicleText(vehicle.hersteller);
+        const vehicleModel = normalizeVehicleText(vehicle.modell);
+        const vehicleName = normalizeVehicleText(vehicle.fahrzeugbezeichnung);
+        const vehicleYear = parseBuildYear(vehicle.baujahr);
+        return (
+          (!manufacturer || vehicleManufacturer.includes(manufacturer)) &&
+          (!model || vehicleModel.includes(model) || vehicleName.includes(model)) &&
+          (buildYear === null || vehicleYear === buildYear)
+        );
+      })
+      .sort((a, b) => {
+        const yearDifference = (parseBuildYear(b.baujahr) || 0) - (parseBuildYear(a.baujahr) || 0);
+        if (yearDifference !== 0) return yearDifference;
+        return String(a.fahrzeugbezeichnung || "").localeCompare(String(b.fahrzeugbezeichnung || ""), "de");
+      });
+
+    const matches = allMatches.slice(0, 250);
+    if (!matches.length) {
+      suggestionsEl.hidden = true;
+      if (typeof setStatus === "function") setStatus("Keine passenden Fahrzeuge gefunden.");
+      return;
+    }
+
+    matches.forEach((vehicle) => {
+      const button = document.createElement("button");
+      button.className = "tankplan-suggestion";
+      button.type = "button";
+      button.innerHTML = `<strong>${vehicle.hersteller} ${vehicle.modell}</strong><span>${tankplanVehicleMeta(vehicle)}</span>`;
+      button.addEventListener("click", () => {
+        if (typeof selectVehicle === "function") selectVehicle(vehicle);
+      });
+      suggestionsEl.append(button);
+    });
+    suggestionsEl.hidden = false;
+    if (typeof setStatus === "function") {
+      setStatus(`${matches.length} von ${allMatches.length} Vorschlägen angezeigt.`);
+    }
+  }
+
+  function enhanceTankplanVehicleSearch() {
+    if (!location.pathname.endsWith("/tankplan.html")) return;
+    const buildYearInput = ensureBuildYearField();
+    if (!buildYearInput) return;
+
+    try {
+      renderSuggestions = renderTankplanSuggestionsWithYear;
+    } catch (error) {
+      window.renderSuggestions = renderTankplanSuggestionsWithYear;
+    }
+    window.renderSuggestions = renderTankplanSuggestionsWithYear;
+
+    buildYearInput.addEventListener("input", () => {
+      window.clearTimeout(buildYearInput.dataset.timerId);
+      const timerId = window.setTimeout(renderTankplanSuggestionsWithYear, 120);
+      buildYearInput.dataset.timerId = String(timerId);
+    });
   }
 
   function dataPath(date) {
@@ -311,6 +498,7 @@
   function buildPromo() {
     fixTankplanCalculator();
     syncTankplanNav();
+    enhanceTankplanVehicleSearch();
     window.setTimeout(repairTankplanPriceRange, 450);
     if (document.getElementById(PROMO_ID)) return;
 
