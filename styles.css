@@ -891,6 +891,13 @@ canvas {
   display: block;
 }
 
+.management-forecast-placeholder {
+  min-height: 260px;
+  border: 1px solid rgba(128, 128, 128, 0.16);
+  border-radius: 8px;
+  background: rgba(20, 184, 166, 0.035);
+}
+
 .management-footer {
   padding-top: 14px;
   padding-bottom: 14px;
@@ -923,6 +930,10 @@ canvas {
 
   #price-level-plot {
     height: 300px;
+  }
+
+  .management-forecast-placeholder {
+    min-height: 240px;
   }
 }
 
