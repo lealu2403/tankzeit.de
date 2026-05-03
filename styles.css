@@ -1072,6 +1072,16 @@ canvas {
   margin-bottom: 18px;
 }
 
+.station-detail-shell .legal-back {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-light));
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+}
+
 .station-hero,
 .legal-card {
   background: linear-gradient(180deg, var(--panel-strong) 0%, var(--card-glass) 100%);
@@ -1208,12 +1218,25 @@ canvas {
   margin-bottom: 22px;
 }
 
+.station-detail-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 28px;
+  align-items: end;
+}
+
 .station-detail-hero .station-chip-row {
   align-items: center;
+  margin-bottom: 0;
 }
 
 .station-detail-hero .station-chip-row .link-btn {
-  margin-left: auto;
+  white-space: nowrap;
+}
+
+.station-detail-toolbar-range {
+  justify-content: flex-end;
+  align-items: end;
 }
 
 .station-detail-card-heading {
@@ -1225,7 +1248,10 @@ canvas {
 }
 
 .station-detail-card-heading h2 {
-  margin-top: 0;
+  margin: 0;
+  color: var(--accent);
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  line-height: 1.25;
 }
 
 .station-detail-range {
@@ -1244,13 +1270,14 @@ canvas {
 
 .station-detail-range input,
 .station-detail-range select {
-  min-height: 38px;
+  min-height: 42px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background: var(--panel);
-  color: var(--muted);
-  padding: 8px 10px;
+  color: var(--ink);
+  padding: 9px 12px;
   font: inherit;
+  font-weight: 800;
 }
 
 .station-detail-chart-placeholder {
@@ -1306,8 +1333,8 @@ canvas {
 
 .station-detail-chart-wrap {
   position: relative;
-  height: 320px;
-  min-height: 320px;
+  height: 340px;
+  min-height: 340px;
 }
 
 .station-detail-chart-wrap canvas {
@@ -1479,6 +1506,18 @@ canvas {
   }
   .station-actions .link-btn,
   .info-links .link-btn {
+    width: 100%;
+  }
+  .station-detail-toolbar {
+    grid-template-columns: 1fr;
+  }
+  .station-detail-toolbar-range {
+    justify-content: stretch;
+  }
+  .station-detail-toolbar-range label {
+    flex: 1 1 140px;
+  }
+  .station-detail-toolbar-range input {
     width: 100%;
   }
   .station-detail-hero .station-chip-row .link-btn {

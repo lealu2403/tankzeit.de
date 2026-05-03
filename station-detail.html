@@ -36,27 +36,20 @@
         <p class="station-summary" id="station-meta">
           Detailansicht f&uuml;r das Preisniveau von 12:00 Uhr bis 12:00 Uhr.
         </p>
-        <div class="station-chip-row">
-          <span class="station-chip" id="station-fuel">Kraftstoff</span>
-          <span class="station-chip">12:00 Uhr bis 12:00 Uhr</span>
-          <a
-            class="link-btn"
-            id="maps-link"
-            href="#"
-            target="_blank"
-            rel="noopener noreferrer"
-            >In Google Maps &ouml;ffnen</a
-          >
-        </div>
-      </section>
-
-      <section class="legal-card station-detail-card">
-        <div class="station-detail-card-heading">
-          <div>
-            <p class="legal-kicker">Chart</p>
-            <h2>Preisniveau 12:00 Uhr bis 12:00 Uhr</h2>
+        <div class="station-detail-toolbar">
+          <div class="station-chip-row">
+            <span class="station-chip" id="station-fuel">Kraftstoff</span>
+            <span class="station-chip">12:00 Uhr bis 12:00 Uhr</span>
+            <a
+              class="link-btn"
+              id="maps-link"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              >In Google Maps &ouml;ffnen</a
+            >
           </div>
-          <div class="station-detail-range" aria-label="Zeitraum">
+          <div class="station-detail-range station-detail-toolbar-range" aria-label="Zeitraum">
             <label for="cycle-from">
               Von
               <input id="cycle-from" type="date" />
@@ -65,6 +58,14 @@
               Bis
               <input id="cycle-to" type="date" />
             </label>
+          </div>
+        </div>
+      </section>
+
+      <section class="legal-card station-detail-card">
+        <div class="station-detail-card-heading">
+          <div>
+            <h2 id="price-level-heading">Preisniveau 12:00 Uhr bis 12:00 Uhr</h2>
           </div>
         </div>
         <div class="station-detail-chart-wrap">
@@ -78,8 +79,7 @@
       <section class="legal-card station-detail-card">
         <div class="station-detail-card-heading">
           <div>
-            <p class="legal-kicker">Chart</p>
-            <h2>Prognose</h2>
+            <h2 id="forecast-heading">Prognose</h2>
           </div>
           <div class="station-detail-range" aria-label="Prognosezeitraum">
             <label>
@@ -198,6 +198,21 @@
         return `${day}.${month}.${year}`;
       }
 
+      function selectedRangeLabel(range) {
+        if (!range?.from || !range?.to) return "";
+        return `${formatDate(range.from)} bis ${formatDate(range.to)}`;
+      }
+
+      function updateChartHeadings(range) {
+        const fuelName = fuelLabels[fuel] || fuel.toUpperCase();
+        const period = selectedRangeLabel(range);
+        const suffix = period ? ` · ${fuelName} · ${period}` : ` · ${fuelName}`;
+        document.getElementById("price-level-heading").textContent =
+          `Preisniveau 12:00 Uhr bis 12:00 Uhr${suffix}`;
+        document.getElementById("forecast-heading").textContent =
+          `Prognose${suffix}`;
+      }
+
       function formatFuelPrice(value) {
         const amount = Number(value);
         if (!Number.isFinite(amount)) return "-";
@@ -235,15 +250,15 @@
           ? {
               axisLabel: "rgba(237, 244, 243, 0.82)",
               axisTitle: "rgba(237, 244, 243, 0.92)",
-              grid: "rgba(148, 163, 184, 0.18)",
-              border: "rgba(148, 163, 184, 0.3)",
+              grid: "rgba(148, 163, 184, 0.16)",
+              border: "rgba(148, 163, 184, 0.34)",
               tooltipBackground: "rgba(9, 14, 17, 0.96)",
             }
           : {
               axisLabel: "rgba(31, 41, 55, 0.76)",
               axisTitle: "rgba(31, 41, 55, 0.88)",
-              grid: "rgba(15, 118, 110, 0.12)",
-              border: "rgba(15, 118, 110, 0.2)",
+              grid: "rgba(15, 118, 110, 0.14)",
+              border: "rgba(15, 118, 110, 0.26)",
               tooltipBackground: "rgba(17, 24, 39, 0.94)",
             };
       }
@@ -270,6 +285,15 @@
           };
         });
         options.scales = scales;
+        options.layout = {
+          padding: {
+            top: 8,
+            right: 10,
+            bottom: 0,
+            left: 4,
+          },
+          ...(options.layout || {}),
+        };
         options.plugins = {
           ...(options.plugins || {}),
           tooltip: {
@@ -615,6 +639,16 @@
             scales: {
               x: {
                 alignToPixels: true,
+                grid: {
+                  color(context) {
+                    return visibleTickIndexes.has(context.index)
+                      ? currentChartTheme().grid
+                      : "rgba(0, 0, 0, 0)";
+                  },
+                  lineWidth(context) {
+                    return visibleTickIndexes.has(context.index) ? 1 : 0;
+                  },
+                },
                 title: {
                   display: true,
                   text: "Zeitachse 12:00 Uhr bis 12:00 Uhr",
@@ -647,6 +681,9 @@
                 alignToPixels: true,
                 min: domain.min,
                 max: domain.max,
+                grid: {
+                  lineWidth: 1,
+                },
                 ticks: {
                   padding: 8,
                   font: {
@@ -762,6 +799,16 @@
             scales: {
               x: {
                 alignToPixels: true,
+                grid: {
+                  color(context) {
+                    return visibleTickIndexes.has(context.index)
+                      ? currentChartTheme().grid
+                      : "rgba(0, 0, 0, 0)";
+                  },
+                  lineWidth(context) {
+                    return visibleTickIndexes.has(context.index) ? 1 : 0;
+                  },
+                },
                 title: {
                   display: true,
                   text: "Zeitachse 12:00 Uhr bis 12:00 Uhr",
@@ -794,6 +841,9 @@
                 alignToPixels: true,
                 min: domain.min,
                 max: domain.max,
+                grid: {
+                  lineWidth: 1,
+                },
                 ticks: {
                   padding: 8,
                   font: {
@@ -907,6 +957,7 @@
                 to: document.getElementById("cycle-to").value,
               }
             : updateRangeControls(summary);
+          updateChartHeadings(selectedRange);
           if (!rows.length) {
             clearPriceLevelChart();
             renderForecastCoordinateSystem([]);
