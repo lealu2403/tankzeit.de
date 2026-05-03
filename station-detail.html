@@ -49,15 +49,29 @@
               >In Google Maps &ouml;ffnen</a
             >
           </div>
-          <div class="station-detail-range station-detail-toolbar-range" aria-label="Zeitraum">
-            <label for="cycle-from">
-              Von
-              <input id="cycle-from" type="date" />
-            </label>
-            <label for="cycle-to">
-              Bis
-              <input id="cycle-to" type="date" />
-            </label>
+          <div class="control-group station-detail-toolbar-range">
+            <div class="control-label">Zeitraum w&auml;hlen</div>
+            <div class="range-picker station-detail-range-picker" aria-label="Zeitraum w&auml;hlen">
+              <button
+                class="btn"
+                id="cycle-range-toggle"
+                type="button"
+                aria-expanded="true"
+                aria-controls="cycle-range-panel"
+              >
+                Zeitraum w&auml;hlen
+              </button>
+              <div class="range-panel" id="cycle-range-panel">
+                <div class="range-inputs">
+                  <input id="cycle-from" type="date" aria-label="Startdatum" />
+                  <span class="range-separator">bis</span>
+                  <input id="cycle-to" type="date" aria-label="Enddatum" />
+                </div>
+                <button class="btn primary" id="cycle-range-apply" type="button">
+                  Anzeigen
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -561,6 +575,11 @@
         );
       }
 
+      function applySelectedRange() {
+        updateRangeInUrl();
+        loadPriceLevelChart();
+      }
+
       function clearPriceLevelChart() {
         if (priceLevelChart) {
           priceLevelChart.destroy();
@@ -982,14 +1001,16 @@
         }
       }
 
-      document.getElementById("cycle-from").addEventListener("change", () => {
-        updateRangeInUrl();
-        loadPriceLevelChart();
+      document.getElementById("cycle-range-toggle").addEventListener("click", () => {
+        const panel = document.getElementById("cycle-range-panel");
+        const toggle = document.getElementById("cycle-range-toggle");
+        const shouldOpen = panel.hasAttribute("hidden");
+        panel.hidden = !shouldOpen;
+        toggle.setAttribute("aria-expanded", String(shouldOpen));
       });
-      document.getElementById("cycle-to").addEventListener("change", () => {
-        updateRangeInUrl();
-        loadPriceLevelChart();
-      });
+      document.getElementById("cycle-range-apply").addEventListener("click", applySelectedRange);
+      document.getElementById("cycle-from").addEventListener("change", updateRangeInUrl);
+      document.getElementById("cycle-to").addEventListener("change", updateRangeInUrl);
 
       loadPriceLevelChart();
     </script>
