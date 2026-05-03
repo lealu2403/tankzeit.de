@@ -1365,7 +1365,7 @@
             const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
             const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
             const brandContext = forecast.brandAdjusted
-              ? ` Ergänzend wird die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe vorsichtig als Marktkorrektur berücksichtigt.`
+              ? ` Zusätzlich berücksichtigt das Modell die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige Marktkorrektur.`
               : "";
             forecastNote.textContent =
               `Prognosemodell für diese Station: Die Median-Prognose wird aus dem 12:00-Uhr-Referenzpreis vom ${formatDate(forecast.baseDate)} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Stationsverlauf im gewählten Zeitraum abgeleitet.${brandContext} Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}.`;
