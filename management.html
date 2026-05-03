@@ -95,7 +95,7 @@
                 </div>
               </div>
               <div class="control-hint" id="range-hint">
-                Gilt aktuell nur f&uuml;r den Chart Preis&auml;nderung zur 12:00-Referenz im 12:00-&gt;12:00-Zyklus.
+                Gilt aktuell nur f&uuml;r den Chart Preis&auml;nderung zur 12:00-Uhr-Referenz im 12:00-Uhr-&gt;12:00-Uhr-Zyklus.
               </div>
             </div>
             <div class="control-group">
@@ -134,7 +134,7 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
-            <h2 id="brand-title">12:00-Referenzpreis nach Marke</h2>
+            <h2 id="brand-title">12:00-Uhr-Referenzpreis nach Marke</h2>
           </div>
         </div>
         <div class="chart-wrap">
@@ -184,7 +184,7 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
-            <h2 id="histogram-title">Zeitpunkt der 12:00-Referenz</h2>
+            <h2 id="histogram-title">Zeitpunkt der 12:00-Uhr-Referenz</h2>
           </div>
         </div>
 
@@ -197,15 +197,15 @@
       <section class="card management-footer">
         <div class="footer-notes">
           <p class="footer-note">
-            <strong>12:00-Referenzpreis nach Marke:</strong> Zeigt je Marke den
+            <strong>12:00-Uhr-Referenzpreis nach Marke:</strong> Zeigt je Marke den
             ausgew&auml;hlten Referenzpreis. F&uuml;r jeden Kraftstoff gilt: Eine positive
             Preis&auml;nderung zwischen <code>12:00</code> und
-            <code>12:15</code> z&auml;hlt noch als 12:00-Referenz. Ohne solche
+            <code>12:15</code> z&auml;hlt noch als 12:00-Uhr-Referenz. Ohne solche
             Erh&ouml;hung bleibt der bis <code>12:00</code> etablierte Preis
             ma&szlig;geblich.
           </p>
           <p class="footer-note">
-            <strong>Preis&auml;nderung zur 12:00-Referenz:</strong> Grau zeigt den
+            <strong>Preis&auml;nderung zur 12:00-Uhr-Referenz:</strong> Grau zeigt den
             Zyklus von <code>12:00</code> Vortag bis <code>12:00</code> des
             gew&auml;hlten Tags relativ zur ausgew&auml;hlten Noon-Referenz. Die
             gestrichelte Linie markiert Mitternacht. Ein sichtbarer "Noon Dip"
@@ -215,7 +215,7 @@
             zeigt zus&auml;tzlich Quartilspanne und Spannweite.
           </p>
           <p class="footer-note">
-            <strong>Zeitpunkt der 12:00-Referenz:</strong> Das Histogramm zeigt
+            <strong>Zeitpunkt der 12:00-Uhr-Referenz:</strong> Das Histogramm zeigt
             je Kraftstoff, wann der verwendete Referenzpreis pro Station
             tats&auml;chlich feststeht. Balken nach <code>12:00</code> bedeuten
             qualifizierte Verz&ouml;gerungen bis <code>12:15</code>. Balken bis
@@ -466,20 +466,20 @@
       function hourlyReferenceMeta(bucket, viewMode) {
         if (viewMode === "cycle") {
           return {
-            label: "12:00 Vortag \u2192 12:00 Tag",
-            referenceLabel: "Vortag 12:00",
+            label: "12:00 Uhr Vortag \u2192 12:00 Uhr Tag",
+            referenceLabel: "Vortag 12:00 Uhr",
             colors: HOURLY_REFERENCE_COLORS.sameDay,
           };
         }
         return Number(bucket?.hour) < 12
           ? {
               label: "00:00 - 11:59",
-              referenceLabel: "Vortag 12:00",
+              referenceLabel: "Vortag 12:00 Uhr",
               colors: HOURLY_REFERENCE_COLORS.priorDay,
             }
           : {
-              label: "12:00 - 23:59",
-              referenceLabel: "Tages-12:00",
+              label: "12:00 Uhr - 23:59 Uhr",
+              referenceLabel: "Tages-12:00 Uhr",
               colors: HOURLY_REFERENCE_COLORS.sameDay,
             };
       }
@@ -1202,7 +1202,7 @@
           ? `${formatLongDate(state.startDate)} bis ${formatLongDate(state.endDate)}`
           : latestDateLabel;
         titleEl.textContent =
-          `Preis\u00e4nderung zur 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
+          `Preis\u00e4nderung zur 12:00-Uhr-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
           (selectedPeriodLabel ? ` \u00b7 ${selectedPeriodLabel}` : "");
         deltaNoteEl.textContent = "";
 
@@ -1303,7 +1303,7 @@
           ctx.fillStyle = "rgba(37,99,235,0.78)";
           ctx.fillText("12:00", noonX + 6, plot.top + 14);
           if (Number.isFinite(noonMedian)) {
-            const label = `${formatSignedRelativeLabel(noonMedian)} zum Tages-12:00`;
+            const label = `${formatSignedRelativeLabel(noonMedian)} zum Tages-12:00 Uhr`;
             const noonY = yScale(domain, plot, noonMedian);
             const labelMidValue = noonMedian / 2 + 0.005;
             const labelY = clamp(
@@ -1398,10 +1398,10 @@
         ctx.fillText(
           viewMode === "cycle"
             ? isPartialCycle
-              ? "Stunde seit 12:00"
+              ? "Stunde seit 12:00 Uhr"
               : rangeModeActive
-                ? "Stunde im 12:00 \u2192 12:00-Zyklus \u00b7 Zeitraum von Starttag 12:00 bis Endtag 12:00"
-                : "Stunde im 24h-Zyklus (12 Vortag \u2192 12 Tag)"
+                ? "Stunde im 12:00 Uhr \u2192 12:00 Uhr-Zyklus \u00b7 Zeitraum von Starttag 12:00 Uhr bis Endtag 12:00 Uhr"
+                : "Stunde im 24h-Zyklus (12 Uhr Vortag \u2192 12 Uhr Tag)"
             : "Stunde",
           plot.left +
             plot.width / 2 -
@@ -1478,7 +1478,7 @@
       function drawBrandChart() {
         const rows = brandRows();
         if (!rows.length) {
-          brandTitleEl.textContent = "12:00-Referenzpreis nach Marke";
+          brandTitleEl.textContent = "12:00-Uhr-Referenzpreis nach Marke";
           brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
           state.brandLayout = null;
           return;
@@ -1486,7 +1486,7 @@
 
         const periodLabel = brandChartPeriodLabel();
         brandTitleEl.textContent =
-          `12:00-Referenzpreis nach Marke \u00b7 ${fuelDisplayName(state.fuel)}` +
+          `12:00-Uhr-Referenzpreis nach Marke \u00b7 ${fuelDisplayName(state.fuel)}` +
           (periodLabel ? ` \u00b7 ${periodLabel}` : "");
 
         brandCanvas.style.height = `${Math.max(280, rows.length * 42 + 90)}px`;
@@ -1981,7 +1981,7 @@
 
         targetCtx.fillStyle = theme.axisTitle;
         targetCtx.fillText(
-          "Stunde im 12:00\u219212:00-Zyklus",
+          "Stunde im 12:00 Uhr\u219212:00 Uhr-Zyklus",
           plot.left + plot.width / 2,
           plot.top + plot.height + 42,
         );
@@ -2017,7 +2017,7 @@
         const rows = series.rows;
         const isEstimatedPriceLevel = series.averageMode === "estimated";
         priceLevelNoteEl.textContent = isEstimatedPriceLevel
-          ? "Modelliertes Preisniveau: Der Durchschnittspreis wird aus dem 12:00-Gesamtmarkt-Durchschnitt und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Durchschnittswerte."
+          ? "Modelliertes Preisniveau: Der Durchschnittspreis wird aus dem 12:00-Uhr-Gesamtmarkt-Durchschnitt und der typischen st\u00fcndlichen Preisver\u00e4nderung im gew\u00e4hlten Zeitraum abgeleitet. Sobald vollst\u00e4ndige Preisaggregate vorliegen, nutzt die Ansicht automatisch exakte Durchschnittswerte."
           : "Exakter Durchschnittspreis auf Basis aggregierter Preiswerte im gew\u00e4hlten Zeitraum.";
         const domain = computePriceLevelDomain(rows);
         state.priceLevelLayout = drawPriceLevelCoordinateSystem(
@@ -2244,14 +2244,14 @@
           ? formatLongDate(series.baseDate)
           : "dem letzten verfuegbaren Tag";
         forecastNoteEl.textContent =
-          `Prognosemodell fuer ${formatLongDate(targetDate)}: Die Median-Prognose wird aus dem 12:00-Gesamtmarkt-Median vom ${baseDateLabel} und dem typischen 12:00-bis-12:00-Medianverlauf der lokal verfuegbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} abgeleitet. Die schattierte Flaeche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
+          `Prognosemodell fuer ${formatLongDate(targetDate)}: Die Median-Prognose wird aus dem 12:00-Uhr-Gesamtmarkt-Median vom ${baseDateLabel} und dem typischen 12:00-Uhr-bis-12:00-Uhr-Medianverlauf der lokal verfuegbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} abgeleitet. Die schattierte Flaeche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
       }
 
       function drawHistogramChart() {
         const rawRows = histogramRows();
         const summary = histogramSummary();
         if (!rawRows.length && !(Number(summary?.stations) > 0)) {
-          histogramTitleEl.textContent = "Zeitpunkt der 12:00-Referenz";
+          histogramTitleEl.textContent = "Zeitpunkt der 12:00-Uhr-Referenz";
           histogramNoteEl.textContent = "";
           histogramCtx.clearRect(
             0,
@@ -2266,7 +2266,7 @@
         const rows = histogramSeries();
         const latestDateLabel = latestSelectedDateLabel();
         histogramTitleEl.textContent =
-          `Zeitpunkt der 12:00-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
+          `Zeitpunkt der 12:00-Uhr-Referenz \u00b7 ${fuelDisplayName(state.fuel)}` +
           (latestDateLabel ? ` \u00b7 ${latestDateLabel}` : "");
         histogramNoteEl.textContent = latestDateLabel
           ? `Dieses Histogramm bezieht sich auf den aktuellsten geladenen Tag im gew\u00e4hlten Zeitraum: ${latestDateLabel}.`
@@ -2388,8 +2388,8 @@
 
         if (hasBreakdown) {
           const legendItems = [
-            { label: "Erh\u00f6hung 12:00-12:15", color: `${fuelColor}cc` },
-            { label: "Fallback \u2264 12:00", color: "rgba(107, 114, 128, 0.72)" },
+            { label: "Erh\u00f6hung 12:00 Uhr-12:15 Uhr", color: `${fuelColor}cc` },
+            { label: "Fallback \u2264 12:00 Uhr", color: "rgba(107, 114, 128, 0.72)" },
           ];
           let legendX = plot.left + plot.width - 180;
           if (legendX < plot.left) legendX = plot.left;
@@ -2643,7 +2643,7 @@
         if (index == null || !state.histogramLayout) return hideManagementTooltip();
         const row = state.histogramLayout.rows[index];
         if (!row) return hideManagementTooltip();
-        showManagementTooltip(e, "Zeitpunkt der 12:00-Referenz", [
+        showManagementTooltip(e, "Zeitpunkt der 12:00-Uhr-Referenz", [
           `Zeitfenster: ${histogramBucketRangeLabel(row, state.histogramLayout.bucketMinutes)}`,
           `Stationen: ${formatCount(row.stations)}`,
           `Anteil: ${formatPercent(row.share)} %`,
@@ -2692,11 +2692,11 @@
         const details = [];
         if (row.increase_count > 0) {
           details.push(
-            `${formatCount(row.increase_count)} Erh\u00f6hungen 12:00-12:15`,
+            `${formatCount(row.increase_count)} Erh\u00f6hungen 12:00 Uhr-12:15 Uhr`,
           );
         }
         if (row.fallback_count > 0) {
-          details.push(`${formatCount(row.fallback_count)} Fallbacks \u2264 12:00`);
+          details.push(`${formatCount(row.fallback_count)} Fallbacks \u2264 12:00 Uhr`);
         }
         if (row.other_count > 0) {
           details.push(`${formatCount(row.other_count)} ohne Detailtyp`);

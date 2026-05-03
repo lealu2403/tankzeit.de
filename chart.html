@@ -13,7 +13,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
       <meta
         name="description"
-        content="Mittagspreise und PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Referenz fÃ¼r eine Tankstelle."
+        content="Mittagspreise und PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Uhr-Referenz fÃ¼r eine Tankstelle."
       />
     <meta name="robots" content="noindex,follow" />
     <title>Tankzeit | Chart</title>
@@ -35,7 +35,7 @@
       <header>
         <div class="brand">
           <h1>Tankzeit</h1>
-          <p>Mittagspreise seit 1. April und PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Referenz.</p>
+          <p>Mittagspreise seit 1. April und PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Uhr-Referenz.</p>
         </div>
       </header>
 
@@ -429,21 +429,21 @@
       function referenceMetaForHour(hour) {
         return Number(hour) < 12
           ? {
-              label: "Vortag 12:00",
+              label: "Vortag 12:00 Uhr",
               period: "00:00 - 11:59",
             }
           : {
-              label: "Tages-12:00",
-              period: "12:00 - 23:59",
+              label: "Tages-12:00 Uhr",
+              period: "12:00 Uhr - 23:59 Uhr",
             };
       }
 
       function buildReferenceSubtitle() {
-        return `${fuel.toUpperCase()} Â· PreisÃ¤nderung zur jeweiligen 12:00-Referenz Â· Grau = 00:00-11:59 ggÃ¼. Vortag 12:00 Â· Blau = 12:00-23:59 ggÃ¼. Tages-12:00 Â· negative Werte = gÃ¼nstiger, positive Werte = teurer`;
+        return `${fuel.toUpperCase()} Â· PreisÃ¤nderung zur jeweiligen 12:00-Uhr-Referenz Â· Grau = 00:00-11:59 ggÃ¼. Vortag 12:00 Uhr Â· Blau = 12:00-23:59 ggÃ¼. Tages-12:00 Uhr Â· negative Werte = gÃ¼nstiger, positive Werte = teurer`;
       }
 
       function buildCycleSubtitle() {
-        return `${fuel.toUpperCase()} Â· PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Referenz im Zyklus 12:00 Vortag â†’ 12:00 Tag Â· ErhÃ¶hungen bis 12:15 zÃ¤hlen noch zum Noon-Anker, spÃ¤tere nicht Â· Mitternacht markiert die Tagesgrenze`;
+        return `${fuel.toUpperCase()} Â· PreisÃ¤nderung zur ausgewÃ¤hlten 12:00-Uhr-Referenz im Zyklus 12:00 Uhr Vortag â†’ 12:00 Uhr Tag Â· ErhÃ¶hungen bis 12:15 Uhr zÃ¤hlen noch zum Noon-Anker, spÃ¤tere nicht Â· Mitternacht markiert die Tagesgrenze`;
       }
 
       function sanitizeRelativeValue(valueInEuro) {
@@ -711,7 +711,7 @@
                 fill: false,
               },
               {
-                label: "12:00 - 23:59",
+                label: "12:00 Uhr - 23:59 Uhr",
                 data: sameDayValues,
                 borderColor: SAME_DAY_COLOR.stroke,
                 backgroundColor: SAME_DAY_COLOR.stroke,
@@ -761,7 +761,7 @@
                 },
                 title: {
                   display: true,
-                  text: "PreisÃ¤nderung zur jeweiligen 12:00-Referenz (â‚¬/l)",
+                  text: "PreisÃ¤nderung zur jeweiligen 12:00-Uhr-Referenz (â‚¬/l)",
                 },
               },
             },
@@ -860,7 +860,7 @@
             labels,
             datasets: [
               {
-                label: "12:00 Vortag â†’ 12:00 Tag",
+                label: "12:00 Uhr Vortag â†’ 12:00 Uhr Tag",
                 data: values,
                 borderColor: SAME_DAY_COLOR.stroke,
                 backgroundColor: SAME_DAY_COLOR.stroke,
@@ -910,7 +910,7 @@
                 },
                 title: {
                   display: true,
-                  text: "PreisÃ¤nderung zum 12:00-Anker (â‚¬/l)",
+                  text: "PreisÃ¤nderung zum 12:00-Uhr-Anker (â‚¬/l)",
                 },
               },
             },
@@ -933,9 +933,9 @@
                     const row = cycleRows[context[0]?.dataIndex];
                     if (!row) return [];
                     return [
-                      `Zyklus: 12:00 Vortag â†’ 12:00 Tag`,
+                      `Zyklus: 12:00 Uhr Vortag â†’ 12:00 Uhr Tag`,
                       `Uhrzeit: ${row.label}:00`,
-                      `Referenz: Vortag 12:00`,
+                      `Referenz: Vortag 12:00 Uhr`,
                     ];
                   },
                 },

@@ -34,13 +34,11 @@
         <p class="legal-kicker">Tankzeit Station</p>
         <h1 id="station-name">Tankstelle</h1>
         <p class="station-summary" id="station-meta">
-          Detailansicht f&uuml;r das 12:00-bis-12:00-Preisniveau.
+          Detailansicht f&uuml;r das Preisniveau von 12:00 Uhr bis 12:00 Uhr.
         </p>
         <div class="station-chip-row">
           <span class="station-chip" id="station-fuel">Kraftstoff</span>
-          <span class="station-chip">12:00 bis 12:00</span>
-        </div>
-        <div class="station-actions">
+          <span class="station-chip">12:00 Uhr bis 12:00 Uhr</span>
           <a
             class="link-btn"
             id="maps-link"
@@ -56,7 +54,7 @@
         <div class="station-detail-card-heading">
           <div>
             <p class="legal-kicker">Chart</p>
-            <h2>Preisniveau 12:00 bis 12:00</h2>
+            <h2>Preisniveau 12:00 Uhr bis 12:00 Uhr</h2>
           </div>
           <div class="station-detail-range" aria-label="Zeitraum">
             <label for="cycle-from">
@@ -476,7 +474,7 @@
               date,
               label:
                 clockHour === 12
-                  ? `${formatDate(date).slice(0, 5)} 12:00`
+                  ? `${formatDate(date).slice(0, 5)} 12:00 Uhr`
                   : `${String(clockHour).padStart(2, "0")}:00`,
               price: Number(price.toFixed(3)),
               count: 1,
@@ -619,7 +617,7 @@
                 alignToPixels: true,
                 title: {
                   display: true,
-                  text: "Zeitachse 12:00 bis 12:00",
+                  text: "Zeitachse 12:00 Uhr bis 12:00 Uhr",
                   font: {
                     size: 12,
                     weight: "700",
@@ -766,7 +764,7 @@
                 alignToPixels: true,
                 title: {
                   display: true,
-                  text: "Zeitachse 12:00 bis 12:00",
+                  text: "Zeitachse 12:00 Uhr bis 12:00 Uhr",
                   font: {
                     size: 12,
                     weight: "700",
@@ -912,7 +910,7 @@
           if (!rows.length) {
             clearPriceLevelChart();
             renderForecastCoordinateSystem([]);
-            note.textContent = "Fuer diese Station liegt noch kein 12:00-bis-12:00-Preisniveau vor.";
+            note.textContent = "Fuer diese Station liegt noch kein Preisniveau von 12:00 Uhr bis 12:00 Uhr vor.";
             return;
           }
           renderPriceLevelChart(rows);
@@ -923,7 +921,7 @@
           const availableEnd = isFallback
             ? selectedRange.to
             : summary.cycle_end || selectedRange.to;
-          note.textContent = `${fuelLabels[fuel] || fuel.toUpperCase()} - 12:00 bis 12:00 - ${formatDate(
+          note.textContent = `${fuelLabels[fuel] || fuel.toUpperCase()} - 12:00 Uhr bis 12:00 Uhr - ${formatDate(
             availableStart,
           )} bis ${formatDate(availableEnd)}${
             isFallback ? " - aus Tagesprofil und Mittagspreisen abgeleitet" : ""

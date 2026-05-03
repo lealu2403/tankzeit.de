@@ -1200,11 +1200,20 @@ canvas {
 }
 
 .station-detail-shell {
+  max-width: 1140px;
   padding-bottom: 96px;
 }
 
 .station-detail-card {
   margin-bottom: 22px;
+}
+
+.station-detail-hero .station-chip-row {
+  align-items: center;
+}
+
+.station-detail-hero .station-chip-row .link-btn {
+  margin-left: auto;
 }
 
 .station-detail-card-heading {
@@ -1471,6 +1480,11 @@ canvas {
   .station-actions .link-btn,
   .info-links .link-btn {
     width: 100%;
+  }
+  .station-detail-hero .station-chip-row .link-btn {
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
   }
   .station-shell,
   .legal-shell {
