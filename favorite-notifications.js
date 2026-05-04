@@ -68,7 +68,7 @@
     const settings = loadSettings();
     const setting = settings[stationId] || {};
     const fuel = normalizeFuel(setting.fuel);
-    const limit = Number.isFinite(Number(setting.limit)) ? String(setting.limit).replace(".", ",") : "";
+    const limit = Number.isFinite(Number(setting.limit)) ? formatPrice(setting.limit) : "";
     const checked = setting.enabled ? "checked" : "";
 
     return `
@@ -82,7 +82,7 @@
             <option value="e10" ${fuel === "e10" ? "selected" : ""}>E10</option>
             <option value="diesel" ${fuel === "diesel" ? "selected" : ""}>Diesel</option>
           </select>
-          <input data-alert-limit type="number" min="0" step="0.001" inputmode="decimal" value="${escapeHtml(limit)}" placeholder="1,699" aria-label="Preislimit in Euro pro Liter" />
+          <input data-alert-limit type="text" inputmode="decimal" value="${escapeHtml(limit)}" placeholder="1,699" aria-label="Preislimit in Euro pro Liter" />
           <button class="favorite-alert-save" type="button" data-alert-save>OK</button>
           <button class="favorite-alert-clear" type="button" data-alert-clear aria-label="Preislimit loeschen">x</button>
         </div>
@@ -130,6 +130,7 @@
       settings[stationId] = { enabled, fuel, limit };
     }
     saveSettings(settings);
+    if (limitInput && limit !== null) limitInput.value = formatPrice(limit);
 
     if (enabled) {
       ensureNotificationPermission().then((permission) => {
