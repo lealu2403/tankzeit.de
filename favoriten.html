@@ -33,6 +33,7 @@
           <h1>Favoriten</h1>
           <p>Deine gespeicherten Tankstellen im Überblick.</p>
         </div>
+        <div id="favorite-alert-global"></div>
       </header>
 
       <div id="status" class="status"></div>
@@ -46,13 +47,12 @@
               <th id="diesel-price-heading">Diesel €/l</th>
               <th>E10 Mittag / Senkungen</th>
               <th>Tankzeit</th>
-              <th>Preislimit</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="favorites">
             <tr>
-              <td colspan="7">Favoriten werden geladen...</td>
+              <td colspan="6">Favoriten werden geladen...</td>
             </tr>
           </tbody>
         </table>
@@ -103,7 +103,7 @@
 
     <script src="app-stats.js"></script>
     <script src="fuel-breakdown.js"></script>
-    <script src="favorite-notifications.js?v=20260504-price-alerts-v2"></script>
+    <script src="favorite-notifications.js?v=20260504-price-alerts-v3"></script>
     <script>
       const DATA_BASE = "data2/";
       const TANKERKOENIG_APOLOGY =
@@ -116,6 +116,9 @@
       const e10PriceHeadingEl = document.getElementById("e10-price-heading");
       const dieselPriceHeadingEl = document.getElementById(
         "diesel-price-heading",
+      );
+      const favoriteAlertGlobalEl = document.getElementById(
+        "favorite-alert-global",
       );
       const ids = JSON.parse(localStorage.getItem("ids")) || [];
       const fav = JSON.parse(localStorage.getItem("fav")) || [];
@@ -231,7 +234,7 @@
       async function loadPrices() {
         if (!ids.length) {
           favoritesEl.innerHTML =
-            "<tr><td colspan='7'>Keine Favoriten gespeichert.</td></tr>";
+            "<tr><td colspan='6'>Keine Favoriten gespeichert.</td></tr>";
           setStatus(
             "Noch keine Favoriten. Füge welche auf der Startseite hinzu.",
           );
@@ -310,7 +313,7 @@
       function render() {
         if (!fav.length) {
           favoritesEl.innerHTML =
-            "<tr><td colspan='7'>Keine Favoriten gespeichert.</td></tr>";
+            "<tr><td colspan='6'>Keine Favoriten gespeichert.</td></tr>";
           return;
         }
         favoritesEl.innerHTML = fav
@@ -327,7 +330,6 @@
             <td data-label="Diesel" id="${station.id}-diesel">...</td>
             <td data-label="E10 Mittag / Senkungen" id="${station.id}-profile"><a href="${detailsHref}">Details</a></td>
             <td data-label="Tankzeit" id="${station.id}-minimum">-</td>
-            <td data-label="Preislimit">${favoriteNotifications?.renderControls(station) || ""}</td>
             <td><button class="remove" data-id="${station.id}">🗑️</button></td>
           </tr>
         `;
@@ -338,11 +340,14 @@
         document.querySelectorAll(".remove").forEach((btn) => {
           btn.addEventListener("click", () => removeAndStore(btn.dataset.id));
         });
-        favoriteNotifications?.bindControls({ setStatus });
 
         loadPrices();
       }
 
+      if (favoriteAlertGlobalEl && favoriteNotifications) {
+        favoriteAlertGlobalEl.innerHTML = favoriteNotifications.renderGlobalControl();
+        favoriteNotifications.bindGlobalControl({ setStatus });
+      }
       setLivePriceAvailability(true);
       render();
     </script>
