@@ -46,12 +46,13 @@
               <th id="diesel-price-heading">Diesel €/l</th>
               <th>E10 Mittag / Senkungen</th>
               <th>Tankzeit</th>
+              <th>Preislimit</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="favorites">
             <tr>
-              <td colspan="6">Favoriten werden geladen...</td>
+              <td colspan="7">Favoriten werden geladen...</td>
             </tr>
           </tbody>
         </table>
@@ -102,6 +103,7 @@
 
     <script src="app-stats.js"></script>
     <script src="fuel-breakdown.js"></script>
+    <script src="favorite-notifications.js?v=20260504-price-alerts-v1"></script>
     <script>
       const DATA_BASE = "data2/";
       const TANKERKOENIG_APOLOGY =
@@ -117,6 +119,7 @@
       );
       const ids = JSON.parse(localStorage.getItem("ids")) || [];
       const fav = JSON.parse(localStorage.getItem("fav")) || [];
+      const favoriteNotifications = window.TankzeitFavoriteNotifications;
       let livePricesAvailable = true;
 
       function escapeHtml(value) {
@@ -184,6 +187,7 @@
           fav.splice(index, 1);
           localStorage.setItem("fav", JSON.stringify(fav));
           localStorage.setItem("ids", JSON.stringify(ids));
+          favoriteNotifications?.removeStation(id);
           render();
         }
       }
@@ -227,7 +231,7 @@
       async function loadPrices() {
         if (!ids.length) {
           favoritesEl.innerHTML =
-            "<tr><td colspan='6'>Keine Favoriten gespeichert.</td></tr>";
+            "<tr><td colspan='7'>Keine Favoriten gespeichert.</td></tr>";
           setStatus(
             "Noch keine Favoriten. Füge welche auf der Startseite hinzu.",
           );
@@ -284,7 +288,14 @@
               breakdownUrl(station, "diesel", entry.diesel),
             )}">${escapeHtml(String(entry.diesel))} €/l</a>`;
           });
-          clearStatus();
+
+          const priceAlertHits = favoriteNotifications?.evaluatePrices({
+            prices: prices.prices || {},
+            ids,
+            favorites: fav,
+            setStatus,
+          }) || [];
+          if (!priceAlertHits.length) clearStatus();
         } catch (err) {
           if (err && err.message === TANKERKOENIG_APOLOGY) {
             setLivePriceAvailability(false);
@@ -299,7 +310,7 @@
       function render() {
         if (!fav.length) {
           favoritesEl.innerHTML =
-            "<tr><td colspan='6'>Keine Favoriten gespeichert.</td></tr>";
+            "<tr><td colspan='7'>Keine Favoriten gespeichert.</td></tr>";
           return;
         }
         favoritesEl.innerHTML = fav
@@ -316,6 +327,7 @@
             <td data-label="Diesel" id="${station.id}-diesel">...</td>
             <td data-label="E10 Mittag / Senkungen" id="${station.id}-profile"><a href="${detailsHref}">Details</a></td>
             <td data-label="Tankzeit" id="${station.id}-minimum">-</td>
+            <td data-label="Preislimit">${favoriteNotifications?.renderControls(station) || ""}</td>
             <td><button class="remove" data-id="${station.id}">🗑️</button></td>
           </tr>
         `;
@@ -326,6 +338,7 @@
         document.querySelectorAll(".remove").forEach((btn) => {
           btn.addEventListener("click", () => removeAndStore(btn.dataset.id));
         });
+        favoriteNotifications?.bindControls({ setStatus });
 
         loadPrices();
       }
