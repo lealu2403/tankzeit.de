@@ -480,6 +480,11 @@ p {
   color: var(--muted);
 }
 
+.station-favorite-cell {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .table a {
   color: var(--accent);
   text-decoration: none;
@@ -551,6 +556,13 @@ p {
     font-weight: 600;
     color: var(--muted);
     margin-right: 10px;
+  }
+  .station-favorite-cell {
+    justify-content: flex-start;
+  }
+  .station-favorite-cell::before {
+    content: "";
+    display: none;
   }
 }
 
@@ -1487,6 +1499,38 @@ canvas {
   box-shadow: 0 26px 56px rgba(15, 118, 110, 0.28);
 }
 
+.breakdown-rebate-note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 14px;
+  align-items: center;
+  padding: 14px 18px;
+  border: 1px solid rgba(15, 118, 110, 0.26);
+  border-radius: 14px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--ink);
+}
+
+.breakdown-rebate-note[hidden] {
+  display: none;
+}
+
+.breakdown-rebate-note span {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.breakdown-rebate-note strong {
+  font-size: 1.1rem;
+  text-align: right;
+}
+
+.breakdown-rebate-note small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-weight: 700;
+}
+
 @media (prefers-color-scheme: dark) {
   .breakdown-step {
     background: linear-gradient(180deg, rgba(16, 24, 27, 0.98) 0%, rgba(9, 14, 17, 0.96) 100%);
@@ -1498,6 +1542,10 @@ canvas {
   .breakdown-step-emphasis,
   .breakdown-step-result {
     background: linear-gradient(135deg, rgba(15, 118, 110, 0.96), rgba(20, 184, 166, 0.88));
+  }
+  .breakdown-rebate-note {
+    background: rgba(20, 184, 166, 0.1);
+    border-color: rgba(126, 165, 158, 0.24);
   }
 }
 
@@ -1557,7 +1605,13 @@ canvas {
     grid-template-columns: 1fr;
     gap: 10px;
   }
+  .breakdown-rebate-note {
+    grid-template-columns: 1fr;
+  }
   .breakdown-step strong {
+    text-align: left;
+  }
+  .breakdown-rebate-note strong {
     text-align: left;
   }
 }
