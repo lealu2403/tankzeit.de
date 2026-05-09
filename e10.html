@@ -157,16 +157,17 @@
         <table class="table">
           <thead>
             <tr>
-              <th>Name</th>
-              <th id="price-heading">Preis €/l</th>
-              <th>Mittagspreis/Vortag</th>
-              <th>Tankzeit</th>
               <th></th>
+              <th>Name</th>
+              <th>Tankzeit</th>
+              <th id="price-heading">Preis €/l</th>
+              <th>Preisverlauf</th>
+              <th>Entfernung</th>
             </tr>
           </thead>
           <tbody id="stations">
             <tr>
-              <td colspan="5">Wir laden die Daten...</td>
+              <td colspan="6">Wir laden die Daten...</td>
             </tr>
           </tbody>
         </table>
@@ -263,9 +264,22 @@
         return String(url).replaceAll("&", "&amp;");
       }
 
+      function mapsUrl(lat, lng) {
+        return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      }
+
+      function chartUrl(stationId, stationName, lat, lng) {
+        return `chart.html?id=${stationId}&fuel=${FUEL}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}`;
+      }
+
       function stationDetailUrl(stationId, stationName, lat, lng, brand = "") {
         const brandPart = brand ? `&brand=${encodeURIComponent(brand)}` : "";
         return `station-detail.html?id=${stationId}&fuel=${FUEL}&name=${encodeURIComponent(stationName)}&lat=${lat}&lng=${lng}${brandPart}`;
+      }
+
+      function formatDistanceKm(distance) {
+        const value = Number(distance);
+        return Number.isFinite(value) ? `${value.toFixed(1)} km` : "-";
       }
 
       function setStatus(message, type = "info") {
@@ -464,16 +478,20 @@
         stationsEl.innerHTML = limited
           .map((s) => {
             const isSaved = ids.includes(s.id);
-            const detailsHref = hrefForHtml(
+            const stationDetailsHref = hrefForHtml(
               stationDetailUrl(s.id, s.name, s.lat, s.lng, s.brand || ""),
             );
+            const priceHistoryHref = hrefForHtml(
+              chartUrl(s.id, s.name, s.lat, s.lng),
+            );
             return `
-            <tr id="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}">
-              <td data-label="Name"><a href="${detailsHref}">${formatStationName(s)}</a></td>
-              <td data-label="Preis">${livePricesAvailable ? `${s[FUEL]} €/l` : NO_LIVE_PRICE_TEXT}</td>
-              <td data-label="Mittagspreis/Vortag" id="${s.id}-profile"><a href="${detailsHref}">Details</a></td>
+            <tr id="${s.id}">
+              <td class="station-favorite-cell"><button class="fav" data-id="${s.id}" ${isSaved ? "disabled" : ""}>${isSaved ? "❤️" : "🤍"}</button></td>
+              <td data-label="Name"><a href="${stationDetailsHref}">${formatStationName(s)}</a></td>
               <td data-label="Tankzeit" id="${s.id}-minimum">-</td>
-              <td><button class="fav" data-id="${s.id}" ${isSaved ? "disabled" : ""}>${isSaved ? "❤️" : "🤍"}</button></td>
+              <td data-label="Preis">${livePricesAvailable ? `${s[FUEL]} €/l` : NO_LIVE_PRICE_TEXT}</td>
+              <td data-label="Preisverlauf" id="${s.id}-profile"><a href="${priceHistoryHref}">Details</a></td>
+              <td data-label="Entfernung">${formatDistanceKm(s.dist)}</td>
             </tr>
           `;
           })
@@ -498,11 +516,11 @@
           limited.map(async (s) => {
             const statsUrl = `${DATA_BASE}${s.id.split("-").join("/")}/${FUEL}.json`;
             const stats = await fetchJson(statsUrl);
-            const detailsHref = hrefForHtml(
-              stationDetailUrl(s.id, s.name, s.lat, s.lng, s.brand || ""),
+            const priceHistoryHref = hrefForHtml(
+              chartUrl(s.id, s.name, s.lat, s.lng),
             );
             document.getElementById(`${s.id}-profile`).innerHTML =
-              `<a href="${detailsHref}">${escapeHtml(TankzeitStats.profileText(stats, "Details"))}</a>`;
+              `<a href="${priceHistoryHref}">${escapeHtml(TankzeitStats.profileText(stats, "Details"))}</a>`;
             document.getElementById(`${s.id}-minimum`).textContent =
               TankzeitStats.relativeMinimumText(stats, stats.text || "-");
 
@@ -526,7 +544,7 @@
           );
           if (!stations.length) {
             stationsEl.innerHTML =
-              "<tr><td colspan='5'>Keine offenen Stationen gefunden.</td></tr>";
+              "<tr><td colspan='6'>Keine offenen Stationen gefunden.</td></tr>";
             setStatus("Keine Stationen im Umkreis.");
             return;
           }
@@ -541,7 +559,7 @@
               );
               if (!fallbackStations.length) {
                 stationsEl.innerHTML =
-                  "<tr><td colspan='5'>Keine Stationen im Umkreis gefunden.</td></tr>";
+                  "<tr><td colspan='6'>Keine Stationen im Umkreis gefunden.</td></tr>";
                 setStatus(
                   "Livepreise sind derzeit nicht verfügbar. Im lokalen Verzeichnis wurden keine Stationen im Umkreis gefunden.",
                 );
@@ -553,7 +571,7 @@
             } catch (fallbackErr) {
               console.warn("Local station fallback failed", fallbackErr);
               stationsEl.innerHTML =
-                "<tr><td colspan='5'>Livepreise und lokales Stationsverzeichnis sind derzeit nicht verfügbar.</td></tr>";
+                "<tr><td colspan='6'>Livepreise und lokales Stationsverzeichnis sind derzeit nicht verfügbar.</td></tr>";
               setStatus(
                 "Livepreise sind derzeit nicht verfügbar und das lokale Stationsverzeichnis konnte nicht geladen werden.",
                 "error",
@@ -563,7 +581,7 @@
           }
           const message =
             "Fehler beim Laden der Daten. Bitte später erneut versuchen.";
-          stationsEl.innerHTML = `<tr><td colspan='5'>${message}</td></tr>`;
+          stationsEl.innerHTML = `<tr><td colspan='6'>${message}</td></tr>`;
           setStatus(message, "error");
         }
       }
