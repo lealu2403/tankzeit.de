@@ -480,16 +480,13 @@ p {
   color: var(--muted);
 }
 
+.station-favorite-heading,
 .station-favorite-cell {
-  width: 1%;
+  width: 44px;
+  min-width: 44px;
+  padding-right: 14px;
+  text-align: center;
   white-space: nowrap;
-}
-
-.station-name-cell {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
 }
 
 .table a {
