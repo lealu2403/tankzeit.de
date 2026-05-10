@@ -74,8 +74,11 @@
     const cell = row.querySelector("td[colspan]");
     if (!cell) return false;
 
-    const columnCount = table?.querySelectorAll("thead th").length || 6;
-    cell.setAttribute("colspan", String(Math.max(columnCount, 6)));
+    const columnCount = table?.querySelectorAll("thead th").length;
+    cell.setAttribute(
+      "colspan",
+      String(columnCount || Number(cell.getAttribute("colspan")) || 1),
+    );
     return true;
   }
 
@@ -125,7 +128,9 @@
 
     const stationCoordinates = stationCoordinatesFromRow(row);
     if (!stationCoordinates || !distanceCenter) {
-      distanceCell.textContent = "-";
+      const fallbackDistance = toFiniteNumber(row?.dataset?.dist);
+      distanceCell.textContent =
+        fallbackDistance === null ? "-" : formatDistanceKm(fallbackDistance);
       return;
     }
 

@@ -161,17 +161,16 @@
         <table class="table">
           <thead>
             <tr>
-              <th></th>
               <th>Name</th>
+              <th>Distanz</th>
               <th>Tankzeit</th>
               <th id="price-heading">Preis €/l</th>
               <th>Preisverlauf</th>
-              <th>Entfernung</th>
             </tr>
           </thead>
           <tbody id="stations">
             <tr>
-              <td colspan="6">Wir laden die Daten...</td>
+              <td colspan="5">Wir laden die Daten...</td>
             </tr>
           </tbody>
         </table>
@@ -489,13 +488,12 @@
               chartUrl(s.id, s.name, s.lat, s.lng),
             );
             return `
-            <tr id="${s.id}">
-              <td class="station-favorite-cell"><button class="fav" data-id="${s.id}" ${isSaved ? "disabled" : ""}>${isSaved ? "❤️" : "🤍"}</button></td>
-              <td data-label="Name"><a href="${stationDetailsHref}">${formatStationName(s)}</a></td>
+            <tr id="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}" data-dist="${s.dist}">
+              <td data-label="Name"><span class="station-name-cell"><a href="${stationDetailsHref}">${formatStationName(s)}</a><button class="fav" data-id="${s.id}" ${isSaved ? "disabled" : ""}>${isSaved ? "❤️" : "🤍"}</button></span></td>
+              <td data-label="Distanz" data-distance-column="true">${TankzeitStationCatalog.formatDistanceKm(s.dist)}</td>
               <td data-label="Tankzeit" id="${s.id}-minimum">-</td>
               <td data-label="Preis">${livePricesAvailable ? `${s[FUEL]} €/l` : NO_LIVE_PRICE_TEXT}</td>
               <td data-label="Preisverlauf" id="${s.id}-profile"><a href="${priceHistoryHref}">Details</a></td>
-              <td data-label="Entfernung">${formatDistanceKm(s.dist)}</td>
             </tr>
           `;
           })
@@ -551,7 +549,7 @@
           );
           if (!stations.length) {
             stationsEl.innerHTML =
-              "<tr><td colspan='6'>Keine offenen Stationen gefunden.</td></tr>";
+              "<tr><td colspan='5'>Keine offenen Stationen gefunden.</td></tr>";
             setStatus("Keine Stationen im Umkreis.");
             return;
           }
@@ -566,7 +564,7 @@
               );
               if (!fallbackStations.length) {
                 stationsEl.innerHTML =
-                  "<tr><td colspan='6'>Keine Stationen im Umkreis gefunden.</td></tr>";
+                  "<tr><td colspan='5'>Keine Stationen im Umkreis gefunden.</td></tr>";
                 setStatus(
                   "Livepreise sind derzeit nicht verfügbar. Im lokalen Verzeichnis wurden keine Stationen im Umkreis gefunden.",
                 );
@@ -578,7 +576,7 @@
             } catch (fallbackErr) {
               console.warn("Local station fallback failed", fallbackErr);
               stationsEl.innerHTML =
-                "<tr><td colspan='6'>Livepreise und lokales Stationsverzeichnis sind derzeit nicht verfügbar.</td></tr>";
+                "<tr><td colspan='5'>Livepreise und lokales Stationsverzeichnis sind derzeit nicht verfügbar.</td></tr>";
               setStatus(
                 "Livepreise sind derzeit nicht verfügbar und das lokale Stationsverzeichnis konnte nicht geladen werden.",
                 "error",
@@ -588,7 +586,7 @@
           }
           const message =
             "Fehler beim Laden der Daten. Bitte später erneut versuchen.";
-          stationsEl.innerHTML = `<tr><td colspan='6'>${message}</td></tr>`;
+          stationsEl.innerHTML = `<tr><td colspan='5'>${message}</td></tr>`;
           setStatus(message, "error");
         }
       }
