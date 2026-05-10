@@ -61,6 +61,7 @@
   function tankplanSearch() {
     const endDate = new Date();
     endDate.setHours(0, 0, 0, 0);
+    endDate.setDate(endDate.getDate() - 1);
     const startDate = new Date(endDate);
     startDate.setDate(endDate.getDate() - 13);
     const start = formatIsoDate(startDate);
