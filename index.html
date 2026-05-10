@@ -489,7 +489,7 @@
             );
             return `
             <tr id="${s.id}" data-lat="${s.lat}" data-lng="${s.lng}" data-dist="${s.dist}">
-              <td data-label="Name"><span class="station-name-cell"><a href="${stationDetailsHref}">${formatStationName(s)}</a><button class="fav" data-id="${s.id}" ${isSaved ? "disabled" : ""}>${isSaved ? "❤️" : "🤍"}</button></span></td>
+              <td data-label="Name"><span class="station-name-cell"><button class="fav" data-id="${s.id}" ${isSaved ? "disabled" : ""}>${isSaved ? "❤️" : "🤍"}</button><a href="${stationDetailsHref}">${formatStationName(s)}</a></span></td>
               <td data-label="Distanz" data-distance-column="true">${TankzeitStationCatalog.formatDistanceKm(s.dist)}</td>
               <td data-label="Tankzeit" id="${s.id}-minimum">-</td>
               <td data-label="Preis">${livePricesAvailable ? `${s[FUEL]} €/l` : NO_LIVE_PRICE_TEXT}</td>
