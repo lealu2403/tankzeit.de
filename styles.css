@@ -485,6 +485,13 @@ p {
   white-space: nowrap;
 }
 
+.station-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .table a {
   color: var(--accent);
   text-decoration: none;
