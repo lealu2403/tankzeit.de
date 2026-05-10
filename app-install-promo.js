@@ -59,30 +59,17 @@
   }
 
   function tankplanSearch() {
-    const params = new URLSearchParams(window.location.search);
-    let start = params.get("start");
-    let end = params.get("end") || start;
-
-    if (!start && !end) {
-      start = "2026-04-18";
-      end = "2026-05-01";
-    }
-
-    let dates = datesBetween(start, end);
-    if (dates.length < 2) {
-      const endDate = parseIsoDate(end || start) || parseIsoDate("2026-05-01");
-      const startDate = new Date(endDate);
-      startDate.setDate(endDate.getDate() - 13);
-      start = formatIsoDate(startDate);
-      end = formatIsoDate(endDate);
-      dates = datesBetween(start, end);
-    }
-
+    const endDate = new Date();
+    endDate.setHours(0, 0, 0, 0);
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - 13);
+    const start = formatIsoDate(startDate);
+    const end = formatIsoDate(endDate);
     return {
       start,
       end,
-      dates,
-      search: `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+      dates: datesBetween(start, end),
+      search: "",
     };
   }
 
@@ -312,12 +299,12 @@
     const fuels = ["diesel", "e5", "e10"];
     const summaries = [];
 
-    if (window.location.search !== range.search) {
-      history.replaceState(null, "", `${location.pathname}${range.search}`);
+    if (window.location.search) {
+      history.replaceState(null, "", location.pathname);
     }
 
     const statisticsNavLink = document.getElementById("statistics-nav-link");
-    if (statisticsNavLink) statisticsNavLink.href = `management.html${range.search}`;
+    if (statisticsNavLink) statisticsNavLink.href = "management.html";
 
     await Promise.all(
       range.dates.map(async (date) => {
@@ -406,14 +393,13 @@
     if (!nav) return;
 
     const isTankplan = location.pathname.endsWith("/tankplan.html");
-    const range = tankplanSearch();
     const existingTankplanLink = Array.from(nav.querySelectorAll(".nav-item")).find(
       (item) => item.textContent.trim() === "Tankplan",
     );
 
     if (existingTankplanLink) {
       existingTankplanLink.id ||= "tankplan-nav-link";
-      existingTankplanLink.href = `tankplan.html${range.search}`;
+      existingTankplanLink.href = "tankplan.html";
       if (isTankplan) {
         existingTankplanLink.classList.add("active", "tankplan");
         existingTankplanLink.setAttribute("aria-current", "page");
@@ -428,7 +414,7 @@
 
     const link = document.createElement("a");
     link.id = "tankplan-nav-link";
-    link.href = `tankplan.html${range.search}`;
+    link.href = "tankplan.html";
     link.className = `nav-item${isTankplan ? " active tankplan" : ""}`;
     if (isTankplan) link.setAttribute("aria-current", "page");
     link.innerHTML = `${tankplanIcon()}<span>Tankplan</span>`;
