@@ -67,12 +67,12 @@
     <title>Tankzeit.de: Beste Tankzeit finden und Geld sparen</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="preload" href="styles.css?v=20260409-app-promo-v18" as="style" />
+    <link rel="preload" href="styles.css?v=20260510-location-search" as="style" />
     <link
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&amp;display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260409-app-promo-v18" />
+    <link rel="stylesheet" href="styles.css?v=20260510-location-search" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -141,15 +141,26 @@
 
       <section class="hero" id="location-hint">
         <div class="tip">
-          <strong>Hinweis:</strong> Wir brauchen deinen Standort, um nahe
-          Tankstellen zu finden. Bitte erlaube den Zugriff im Browser.
+          <strong>Standort:</strong> Suche per Ort oder Postleitzahl oder nutze
+          den Browser-Standort, um nahe Tankstellen zu finden.
         </div>
-        <div class="tip">
-          Falls der automatische Abruf nicht klappt, kannst du den Button als
-          Backup erneut verwenden.
-        </div>
+        <form class="location-search" id="location-search-form">
+          <label for="location-search-input">Ort oder PLZ</label>
+          <div class="location-search-row">
+            <input
+              id="location-search-input"
+              type="search"
+              inputmode="search"
+              autocomplete="postal-code"
+              placeholder="z. B. 10115 Berlin"
+            />
+            <button class="btn primary" id="location-search-btn" type="submit">
+              Suchen
+            </button>
+          </div>
+        </form>
         <div class="location-actions">
-          <button class="btn primary" id="location-request-btn" type="button">
+          <button class="btn" id="location-request-btn" type="button">
             Standort abrufen
           </button>
         </div>
@@ -171,7 +182,7 @@
           </thead>
           <tbody id="stations">
             <tr>
-              <td colspan="6">Wir laden die Daten...</td>
+              <td colspan="6">Bitte Standort abrufen oder Ort/PLZ eingeben.</td>
             </tr>
           </tbody>
         </table>
@@ -221,7 +232,7 @@
     </nav>
 
     <script src="app-stats.js"></script>
-    <script src="station-catalog.js"></script>
+    <script src="station-catalog.js?v=20260510-location-search"></script>
     <script>
       const DATA_BASE = "data2/";
       const FUEL = "diesel";
@@ -236,10 +247,14 @@
       const stationsEl = document.getElementById("stations");
       const sortModeEl = document.getElementById("sort-mode");
       const locationRequestBtn = document.getElementById("location-request-btn");
+      const locationSearchForm = document.getElementById("location-search-form");
+      const locationSearchInput = document.getElementById("location-search-input");
+      const locationSearchBtn = document.getElementById("location-search-btn");
       const priceHeadingEl = document.getElementById("price-heading");
       const ids = JSON.parse(localStorage.getItem("ids")) || [];
       const fav = JSON.parse(localStorage.getItem("fav")) || [];
       const SORT_STORAGE_KEY = `tankzeit_sort_${FUEL}`;
+      const LOCATION_QUERY_STORAGE_KEY = `tankzeit_location_query_${FUEL}`;
       const LOCATION_OPTIONS = { enableHighAccuracy: false, maximumAge: 300000 };
       const LOCATION_DEADLINE_MS = 25000;
       let currentCenter = null;
@@ -254,6 +269,8 @@
           loadStations(currentCenter.lat, currentCenter.lng);
         }
       });
+      locationSearchInput.value =
+        localStorage.getItem(LOCATION_QUERY_STORAGE_KEY) || "";
 
       function escapeHtml(value) {
         return String(value ?? "")
@@ -328,6 +345,13 @@
           : "Standort abrufen";
       }
 
+      function setLocationSearchBusy(isBusy) {
+        if (!locationSearchBtn || !locationSearchInput) return;
+        locationSearchBtn.disabled = isBusy;
+        locationSearchInput.disabled = isBusy;
+        locationSearchBtn.textContent = isBusy ? "Sucht..." : "Suchen";
+      }
+
       function geoError(err) {
         clearLocationRequest();
         setLocationButtonBusy(false);
@@ -366,8 +390,6 @@
         clearLocationRequest();
         setLocationButtonBusy(false);
         clearStatus();
-        const hint = document.getElementById("location-hint");
-        if (hint) hint.style.display = "none";
         loadStations(position.coords.latitude, position.coords.longitude);
       }
 
@@ -399,6 +421,34 @@
         locationDeadlineId = window.setTimeout(() => {
           geoError({ code: 3, message: "Location request deadline exceeded." });
         }, LOCATION_DEADLINE_MS);
+      }
+
+      async function searchManualLocation(event) {
+        event.preventDefault();
+        const query = locationSearchInput.value.trim();
+        if (!query) {
+          setStatus("Bitte Ort oder Postleitzahl eingeben.", "error");
+          locationSearchInput.focus();
+          return;
+        }
+
+        clearLocationRequest();
+        setLocationButtonBusy(false);
+        setLocationSearchBusy(true);
+        setStatus("Ort wird gesucht...");
+        try {
+          const result = await TankzeitStationCatalog.geocodeLocationQuery(query);
+          localStorage.setItem(LOCATION_QUERY_STORAGE_KEY, query);
+          await loadStations(result.lat, result.lng);
+        } catch (err) {
+          console.warn("Location search failed", err);
+          setStatus(
+            err?.message || "Ortssuche fehlgeschlagen. Bitte erneut versuchen.",
+            "error",
+          );
+        } finally {
+          setLocationSearchBusy(false);
+        }
       }
 
       function isTankerkoenigRequest(url) {
@@ -541,6 +591,7 @@
 
       async function loadStations(lat, lng) {
         currentCenter = { lat, lng };
+        TankzeitStationCatalog.setDistanceCenter(lat, lng);
         setStatus("Stationen werden geladen...");
         const url = `https://creativecommons.tankerkoenig.de/json/list.php?rad=10&type=all&sort=dist&lat=${lat}&lng=${lng}&apikey=fe8673d1-47be-1156-77e4-040e06cb785c`;
         try {
@@ -594,8 +645,8 @@
       }
 
       setLivePriceAvailability(true);
+      locationSearchForm.addEventListener("submit", searchManualLocation);
       locationRequestBtn.addEventListener("click", requestLocation);
-      requestLocation();
     </script>
     <script src="app-install-promo.js?v=20260409-app-promo-v12"></script>
   </body>

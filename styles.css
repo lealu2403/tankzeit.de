@@ -267,6 +267,53 @@ p {
   padding-top: 4px;
 }
 
+.location-search {
+  display: grid;
+  gap: 8px;
+}
+
+.location-search label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.location-search-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.location-search input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 0.95rem;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.location-search input:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+@media (max-width: 520px) {
+  .location-search-row {
+    grid-template-columns: 1fr;
+  }
+
+  .location-search-row .btn,
+  .location-actions .btn {
+    width: 100%;
+  }
+}
+
 /* ========== App Install Promo ========== */
 .app-install-promo {
   margin: 0 0 12px;
