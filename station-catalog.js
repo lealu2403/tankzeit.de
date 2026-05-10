@@ -1,14 +1,8 @@
 (function () {
   const STATIONS_URL = "data/stations.json";
   const DISTANCE_COLUMN_LABEL = "Distanz";
-  const DISTANCE_LOCATION_OPTIONS = {
-    enableHighAccuracy: false,
-    maximumAge: 300000,
-    timeout: 25000,
-  };
   let stationCatalogPromise = null;
   let distanceCenter = null;
-  let distanceRequestStarted = false;
   let distanceColumnObserver = null;
 
   function toFiniteNumber(value) {
@@ -144,32 +138,6 @@
     );
   }
 
-  function requestDistanceCenter() {
-    if (
-      distanceRequestStarted ||
-      distanceCenter ||
-      !navigator.geolocation ||
-      !stationTableBody()?.querySelector('td[data-label="Name"]')
-    ) {
-      return;
-    }
-
-    distanceRequestStarted = true;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        distanceCenter = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        updateDistanceColumn();
-      },
-      () => {
-        distanceRequestStarted = false;
-      },
-      DISTANCE_LOCATION_OPTIONS,
-    );
-  }
-
   function updateDistanceColumn() {
     const tbody = stationTableBody();
     if (!tbody) return;
@@ -181,7 +149,14 @@
         updateDistanceCell(row);
       }
     });
-    requestDistanceCenter();
+  }
+
+  function setDistanceCenter(lat, lng) {
+    const centerLat = toFiniteNumber(lat);
+    const centerLng = toFiniteNumber(lng);
+    if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) return;
+    distanceCenter = { lat: centerLat, lng: centerLng };
+    updateDistanceColumn();
   }
 
   function installDistanceColumn() {
@@ -241,10 +216,65 @@
       .slice(0, limit);
   }
 
+  function locationLabelFromResult(result, fallback) {
+    const address = result?.address || {};
+    const city =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.municipality ||
+      address.county;
+    const postcode = address.postcode;
+    if (postcode && city) return `${postcode} ${city}`;
+    return city || postcode || result?.display_name || fallback;
+  }
+
+  async function geocodeLocationQuery(query) {
+    const trimmedQuery = String(query || "").trim();
+    if (!trimmedQuery) {
+      throw new Error("Bitte Ort oder Postleitzahl eingeben.");
+    }
+
+    const params = new URLSearchParams({
+      q: trimmedQuery,
+      format: "jsonv2",
+      addressdetails: "1",
+      countrycodes: "de",
+      limit: "1",
+      "accept-language": "de",
+    });
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+    );
+    if (!response.ok) {
+      throw new Error("Die Ortssuche ist gerade nicht erreichbar.");
+    }
+
+    const results = await response.json();
+    const match = Array.isArray(results)
+      ? results.find(
+          (result) =>
+            toFiniteNumber(result.lat) !== null &&
+            toFiniteNumber(result.lon) !== null,
+        )
+      : null;
+    if (!match) {
+      throw new Error("Kein Ort gefunden. Bitte Ort oder Postleitzahl prüfen.");
+    }
+
+    return {
+      lat: toFiniteNumber(match.lat),
+      lng: toFiniteNumber(match.lon),
+      label: locationLabelFromResult(match, trimmedQuery),
+    };
+  }
+
   window.TankzeitStationCatalog = {
     findNearbyStations,
     formatDistanceKm,
+    geocodeLocationQuery,
     loadCatalog,
+    setDistanceCenter,
   };
 
   if (document.readyState === "loading") {
