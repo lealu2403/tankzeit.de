@@ -9,9 +9,9 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "Tankzeit";
   const options = {
     body: payload.body || "Ein gespeichertes Preislimit wurde erreicht.",
-    icon: "/favicon-192.png",
-    badge: "/favicon-192.png",
-    data: { url: payload.url || "/favoriten.html" },
+    icon: "favicon-192.png",
+    badge: "favicon-192.png",
+    data: { url: payload.url || "favoriten.html" },
     tag: "tankzeit-price-alert",
   };
 
@@ -20,11 +20,11 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/favoriten.html";
+  const url = event.notification.data?.url || "favoriten.html";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(url) && "focus" in client) return client.focus();
+        if (client.url.endsWith(url) && "focus" in client) return client.focus();
       }
       if (clients.openWindow) return clients.openWindow(url);
       return undefined;
