@@ -37,7 +37,7 @@ async function sendPush(alert, hit) {
   const payload = JSON.stringify({
     title: `Tankzeit: ${stationLabel(hit.station)}`,
     body: `${alert.fuel.toUpperCase()} bei ${formatPrice(hit.price)} EUR/l, Limit ${formatPrice(alert.limit)} EUR/l.`,
-    url: "/favoriten.html",
+    url: "favoriten.html",
   });
 
   await webpush.sendNotification(alert.subscription, payload);
