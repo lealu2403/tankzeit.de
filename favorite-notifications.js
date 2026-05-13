@@ -136,6 +136,36 @@
     }
   }
 
+  function currentFavorites() {
+    try {
+      return JSON.parse(localStorage.getItem("fav")) || [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  async function syncBackendAlert(setting, setStatus) {
+    if (!window.TankzeitPushAlerts) return;
+    try {
+      if (!setting.enabled) {
+        await window.TankzeitPushAlerts.deleteAlert();
+        return;
+      }
+      const result = await window.TankzeitPushAlerts.syncAlert({
+        enabled: setting.enabled,
+        fuel: setting.fuel,
+        limit: setting.limit,
+        favorites: currentFavorites(),
+      });
+      if (result?.skipped === "missing_backend_url") {
+        setStatus?.("Preislimit lokal gespeichert. Fuer Hintergrund-Push fehlt noch die Backend-URL.");
+      }
+    } catch (err) {
+      console.warn("Backend alert sync failed", err);
+      setStatus?.("Preislimit lokal gespeichert. Hintergrund-Push konnte noch nicht verbunden werden.", "error");
+    }
+  }
+
   function saveGlobalControl(control, setStatus) {
     const enabled = Boolean(control.querySelector("[data-alert-enabled]")?.checked);
     const fuel = normalizeFuel(control.querySelector("[data-alert-fuel]")?.value);
@@ -147,7 +177,8 @@
       return;
     }
 
-    saveSetting({ enabled, fuel, limit });
+    const setting = { enabled, fuel, limit };
+    saveSetting(setting);
     if (limitInput && limit !== null) limitInput.value = formatPrice(limit);
 
     if (enabled) {
@@ -162,18 +193,22 @@
         }
         setStatus?.(`Preislimit fuer alle Favoriten gespeichert: ${fuel.toUpperCase()} bis ${formatPrice(limit)} EUR/l.`);
       });
+      syncBackendAlert(setting, setStatus);
       return;
     }
 
     setStatus?.("Preislimit gespeichert, Meldung ist deaktiviert.");
+    syncBackendAlert(setting, setStatus);
   }
 
   function clearGlobalControl(control, setStatus) {
-    saveSetting({ enabled: false, fuel: "e10", limit: null });
+    const setting = { enabled: false, fuel: "e10", limit: null };
+    saveSetting(setting);
     control.querySelector("[data-alert-enabled]").checked = false;
     control.querySelector("[data-alert-fuel]").value = "e10";
     control.querySelector("[data-alert-limit]").value = "";
     setStatus?.("Preislimit geloescht.");
+    syncBackendAlert(setting, setStatus);
   }
 
   function bindGlobalControl({ setStatus } = {}) {
@@ -196,6 +231,9 @@
       if (key.startsWith(`${stationId}:`)) delete hits[key];
     });
     saveLastHits(hits);
+
+    const setting = loadSetting();
+    if (setting.enabled) syncBackendAlert(setting);
   }
 
   function evaluatePrices({ prices, ids, favorites, setStatus }) {
