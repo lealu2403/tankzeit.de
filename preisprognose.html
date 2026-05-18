@@ -18,7 +18,7 @@
     />
     <link rel="stylesheet" href="styles.css?v=20260409-app-promo-v18" />
     <style>
-      .forecast-controls{margin-bottom:18px}.forecast-card #forecast-plot{height:420px!important}.forecast-card .chart-note{max-width:1120px}.forecast-tooltip{position:fixed;z-index:1000;display:grid;gap:4px;max-width:min(280px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(148,163,184,.34);border-radius:8px;background:rgba(9,14,17,.94);color:#f8fafc;box-shadow:var(--shadow-sm);font-size:.78rem;line-height:1.35;pointer-events:none}.forecast-tooltip[hidden]{display:none}.forecast-tooltip strong{color:#fff;font-size:.8rem}.forecast-tooltip span{color:rgba(248,250,252,.86)}@media(max-width:720px){.forecast-card #forecast-plot{height:300px!important}}
+      .forecast-controls{margin-bottom:18px}.forecast-card #forecast-plot{height:420px!important}.forecast-card .chart-note{max-width:1120px}.market-card{margin-top:18px}.market-layout{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(280px,.85fr);gap:18px;align-items:stretch}.market-chart-panel,.market-signal-panel{display:grid;gap:14px;align-content:start}.market-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}.market-tabs{display:flex;flex-wrap:wrap;gap:8px}.market-tabs .btn{min-height:42px;border-radius:999px;padding:8px 13px}.market-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.market-metric{border:1px solid rgba(148,163,184,.18);border-radius:8px;padding:10px 12px;background:rgba(15,118,110,.07)}.market-metric span{display:block;color:var(--muted);font-size:.74rem;font-weight:800;text-transform:uppercase}.market-metric strong{display:block;margin-top:3px;font-size:1rem}.market-card #brent-plot{height:300px!important}.market-empty{display:grid;place-items:center;min-height:220px;color:var(--muted);text-align:center;line-height:1.45}.signal-box{display:grid;gap:12px;border:1px solid rgba(148,163,184,.22);border-radius:8px;padding:16px;background:rgba(15,23,42,.10)}.signal-head{display:flex;gap:12px;align-items:center}.signal-light{width:44px;height:44px;border-radius:999px;box-shadow:0 0 0 6px rgba(148,163,184,.14)}.signal-light.rising{background:#dc2626;box-shadow:0 0 0 6px rgba(220,38,38,.15)}.signal-light.neutral{background:#d97706;box-shadow:0 0 0 6px rgba(217,119,6,.16)}.signal-light.falling{background:#16a34a;box-shadow:0 0 0 6px rgba(22,163,74,.15)}.signal-title{margin:0;font-size:1.05rem}.signal-text{margin:0;color:var(--muted);line-height:1.48}.signal-explain{display:grid;gap:8px;color:var(--muted);font-size:.9rem;line-height:1.5}.signal-explain p{margin:0}.forecast-tooltip{position:fixed;z-index:1000;display:grid;gap:4px;max-width:min(280px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(148,163,184,.34);border-radius:8px;background:rgba(9,14,17,.94);color:#f8fafc;box-shadow:var(--shadow-sm);font-size:.78rem;line-height:1.35;pointer-events:none}.forecast-tooltip[hidden]{display:none}.forecast-tooltip strong{color:#fff;font-size:.8rem}.forecast-tooltip span{color:rgba(248,250,252,.86)}@media(max-width:900px){.market-layout{grid-template-columns:1fr}.market-metrics{grid-template-columns:1fr}}@media(max-width:720px){.forecast-card #forecast-plot{height:300px!important}.market-card #brent-plot{height:260px!important}.market-actions{align-items:stretch}.market-tabs{width:100%}.market-tabs .btn{flex:1 1 auto}}
     </style>
   </head>
   <body>
@@ -67,6 +67,94 @@
           <canvas id="forecast-plot"></canvas>
         </div>
         <p class="chart-note" id="forecast-note"></p>
+      </section>
+
+      <section class="card management-chart-card market-card">
+        <div class="toolbar">
+          <div class="left">
+            <h2>Brent-Markttrend</h2>
+            <div class="meta" id="brent-meta">Ölpreisverlauf wird geladen.</div>
+          </div>
+        </div>
+
+        <div class="market-layout">
+          <div class="market-chart-panel">
+            <div class="market-actions" aria-label="Brent-Darstellung">
+              <div class="market-tabs" role="tablist" aria-label="Zeitraum">
+                <button class="btn primary" data-brent-range="30" role="tab" aria-selected="true">
+                  30 Tage
+                </button>
+                <button class="btn" data-brent-range="14" role="tab" aria-selected="false">
+                  14 Tage
+                </button>
+                <button class="btn" data-brent-range="90" role="tab" aria-selected="false">
+                  90 Tage
+                </button>
+              </div>
+              <div class="market-tabs" role="tablist" aria-label="Einheit">
+                <button class="btn primary" data-brent-unit="eur_liter" role="tab" aria-selected="true">
+                  EUR/l
+                </button>
+                <button class="btn" data-brent-unit="usd_barrel" role="tab" aria-selected="false">
+                  USD/Barrel
+                </button>
+              </div>
+            </div>
+
+            <div class="market-metrics" aria-label="Brent-Kennzahlen">
+              <div class="market-metric">
+                <span>Aktuell</span>
+                <strong id="brent-current">-</strong>
+              </div>
+              <div class="market-metric">
+                <span>7 Tage</span>
+                <strong id="brent-change-7">-</strong>
+              </div>
+              <div class="market-metric">
+                <span>30 Tage</span>
+                <strong id="brent-change-30">-</strong>
+              </div>
+            </div>
+
+            <div class="chart-wrap">
+              <canvas id="brent-plot"></canvas>
+              <div class="market-empty" id="brent-empty" hidden>
+                Brent-Historie ist nach dem nächsten Datenlauf verfügbar.
+              </div>
+            </div>
+          </div>
+
+          <aside class="market-signal-panel" aria-label="Brent-Ampel">
+            <div class="signal-box">
+              <div class="signal-head">
+                <div class="signal-light neutral" id="brent-signal-light" aria-hidden="true"></div>
+                <div>
+                  <h3 class="signal-title" id="brent-signal-title">Preisniveau neutral</h3>
+                  <p class="signal-text" id="brent-signal-text">
+                    Noch kein eindeutiger Marktdruck aus den Brent-Daten.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div class="signal-explain">
+              <p>
+                Der Ölpreis ist ein wichtiger Kostenfaktor für Benzin und Diesel,
+                wirkt aber nicht 1:1 auf den Tankstellenpreis.
+              </p>
+              <p>
+                Zwischen Rohölpreis und Zapfsäule liegen Wechselkurs,
+                Raffineriepreise, Großhandel, Steuern, CO₂-Kosten, Margen und
+                lokaler Wettbewerb. Außerdem reagieren Kraftstoffpreise meist
+                zeitversetzt.
+              </p>
+              <p>
+                Die Ampel zeigt deshalb keinen sicheren Preis, sondern ob vom
+                Rohölmarkt aktuell eher steigender, neutraler oder sinkender
+                Preisdruck ausgeht.
+              </p>
+            </div>
+          </aside>
+        </div>
       </section>
     </main>
 
@@ -146,6 +234,16 @@
       const forecastNoteEl = document.getElementById("forecast-note");
       const forecastCanvas = document.getElementById("forecast-plot");
       const forecastCtx = forecastCanvas.getContext("2d");
+      const brentMetaEl = document.getElementById("brent-meta");
+      const brentCurrentEl = document.getElementById("brent-current");
+      const brentChange7El = document.getElementById("brent-change-7");
+      const brentChange30El = document.getElementById("brent-change-30");
+      const brentCanvas = document.getElementById("brent-plot");
+      const brentCtx = brentCanvas.getContext("2d");
+      const brentEmptyEl = document.getElementById("brent-empty");
+      const brentSignalLightEl = document.getElementById("brent-signal-light");
+      const brentSignalTitleEl = document.getElementById("brent-signal-title");
+      const brentSignalTextEl = document.getElementById("brent-signal-text");
       const forecastTooltipEl = document.getElementById("forecast-tooltip");
 
       const state = {
@@ -154,6 +252,10 @@
         summary: null,
         sourceDays: [],
         forecastLayout: null,
+        brentHistory: null,
+        brentLayout: null,
+        brentRangeDays: 30,
+        brentUnit: "eur_liter",
         summaryCache: new Map(),
       };
 
@@ -196,6 +298,29 @@
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,
         }).format(value);
+      }
+
+      function formatPercent(value) {
+        if (!Number.isFinite(value)) return "-";
+        const sign = value > 0 ? "+" : "";
+        return `${sign}${new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        }).format(value)} %`;
+      }
+
+      function formatBrentValue(value, unit = state.brentUnit) {
+        if (!Number.isFinite(value)) return "-";
+        if (unit === "usd_barrel") {
+          return `${new Intl.NumberFormat("de-DE", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }).format(value)} USD/Barrel`;
+        }
+        return `${new Intl.NumberFormat("de-DE", {
+          minimumFractionDigits: 3,
+          maximumFractionDigits: 3,
+        }).format(value)} EUR/l`;
       }
 
       function berlinDateParts() {
@@ -298,6 +423,49 @@
         const rangeDay = { date, summary: await response.json() };
         state.summaryCache.set(isoDate, rangeDay);
         return rangeDay;
+      }
+
+      async function loadBrentHistory() {
+        const historyResponse = await fetch("data/brent_history.json", { cache: "no-store" });
+        if (historyResponse.ok) {
+          const history = await historyResponse.json();
+          const rows = (history.rows || [])
+            .map((row) => ({
+              date: parseISODate(row.date),
+              isoDate: row.date,
+              brent_usd_per_barrel: Number(row.brent_usd_per_barrel),
+              brent_eur_per_crude_liter: Number(row.brent_eur_per_crude_liter),
+              usd_per_eur: Number(row.usd_per_eur),
+              usd_per_eur_as_of: row.usd_per_eur_as_of,
+            }))
+            .filter((row) =>
+              Number.isFinite(row.brent_usd_per_barrel) &&
+              Number.isFinite(row.brent_eur_per_crude_liter),
+            )
+            .sort((left, right) => left.date - right.date);
+          if (rows.length) return { ...history, rows };
+        }
+
+        const snapshotResponse = await fetch("data/brent.json", { cache: "no-store" });
+        if (!snapshotResponse.ok) throw new Error(`HTTP ${snapshotResponse.status}`);
+        const snapshot = await snapshotResponse.json();
+        return {
+          series_id: snapshot.series_id,
+          barrel_liters: snapshot.barrel_liters,
+          first_date: snapshot.brent_as_of,
+          last_date: snapshot.brent_as_of,
+          row_count: 1,
+          generated_at: snapshot.generated_at,
+          sources: snapshot.sources,
+          rows: [{
+            date: parseISODate(snapshot.brent_as_of),
+            isoDate: snapshot.brent_as_of,
+            brent_usd_per_barrel: Number(snapshot.brent_usd_per_barrel),
+            brent_eur_per_crude_liter: Number(snapshot.brent_eur_per_crude_liter),
+            usd_per_eur: Number(snapshot.usd_per_eur),
+            usd_per_eur_as_of: snapshot.usd_per_eur_as_of,
+          }],
+        };
       }
 
       function quantile(sortedValues, percentile) {
@@ -530,6 +698,195 @@
         return { plot, width, height, domain };
       }
 
+      function brentValue(row, unit = state.brentUnit) {
+        return unit === "usd_barrel"
+          ? row.brent_usd_per_barrel
+          : row.brent_eur_per_crude_liter;
+      }
+
+      function brentRowsForRange() {
+        const rows = state.brentHistory?.rows || [];
+        if (!rows.length) return [];
+        const lastDate = rows[rows.length - 1].date;
+        const firstDate = addDays(lastDate, -state.brentRangeDays);
+        return rows.filter((row) => row.date >= firstDate && row.date <= lastDate);
+      }
+
+      function nearestBrentRow(daysBack) {
+        const rows = state.brentHistory?.rows || [];
+        if (rows.length < 2) return null;
+        const latest = rows[rows.length - 1];
+        const targetDate = addDays(latest.date, -daysBack);
+        const candidates = rows.filter((row) => row.date <= targetDate);
+        return candidates[candidates.length - 1] || rows[0];
+      }
+
+      function brentChangePercent(daysBack) {
+        const rows = state.brentHistory?.rows || [];
+        if (rows.length < 2) return null;
+        const latest = rows[rows.length - 1];
+        const prior = nearestBrentRow(daysBack);
+        if (!prior) return null;
+        const latestValue = latest.brent_eur_per_crude_liter;
+        const priorValue = prior.brent_eur_per_crude_liter;
+        if (!Number.isFinite(latestValue) || !Number.isFinite(priorValue) || priorValue === 0) {
+          return null;
+        }
+        return ((latestValue - priorValue) / priorValue) * 100;
+      }
+
+      function updateBrentSignal() {
+        const change7 = brentChangePercent(7);
+        const change14 = brentChangePercent(14);
+        let signal = "neutral";
+        if (Number.isFinite(change7) && Number.isFinite(change14)) {
+          if (change7 > 1.5 && change14 >= -0.5) signal = "rising";
+          if (change7 < -1.5 && change14 <= 0.5) signal = "falling";
+        } else if (Number.isFinite(change7)) {
+          if (change7 > 1.5) signal = "rising";
+          if (change7 < -1.5) signal = "falling";
+        }
+
+        const labels = {
+          rising: {
+            title: "Preisniveau steigt eher",
+            text: `Brent in EUR/Rohöl-Liter ist in den letzten 7 Tagen um ${formatPercent(change7)} gestiegen. Das spricht aktuell eher für steigenden Preisdruck.`,
+          },
+          neutral: {
+            title: "Preisniveau neutral",
+            text: Number.isFinite(change7)
+              ? `Brent in EUR/Rohöl-Liter liegt in den letzten 7 Tagen bei ${formatPercent(change7)}. Daraus ergibt sich aktuell kein klares Richtungssignal.`
+              : "Für eine Richtungseinschätzung werden historische Brent-Daten benötigt.",
+          },
+          falling: {
+            title: "Preisniveau sinkt eher",
+            text: `Brent in EUR/Rohöl-Liter ist in den letzten 7 Tagen um ${formatPercent(Math.abs(change7))} gefallen. Das spricht aktuell eher für sinkenden Preisdruck.`,
+          },
+        };
+
+        brentSignalLightEl.className = `signal-light ${signal}`;
+        brentSignalTitleEl.textContent = labels[signal].title;
+        brentSignalTextEl.textContent = labels[signal].text;
+      }
+
+      function drawBrentChart() {
+        const rows = brentRowsForRange();
+        const latest = state.brentHistory?.rows?.[state.brentHistory.rows.length - 1];
+        const latestValue = latest ? brentValue(latest) : null;
+        brentCurrentEl.textContent = formatBrentValue(latestValue);
+        brentChange7El.textContent = formatPercent(brentChangePercent(7));
+        brentChange30El.textContent = formatPercent(brentChangePercent(30));
+        updateBrentSignal();
+
+        if (latest) {
+          brentMetaEl.textContent =
+            `Brent-Daten bis ${formatLongDate(latest.date)} · Wechselkursdaten bis ${formatLongDate(parseISODate(latest.usd_per_eur_as_of || latest.isoDate))}`;
+        }
+
+        if (rows.length < 2) {
+          brentCanvas.hidden = true;
+          brentEmptyEl.hidden = false;
+          state.brentLayout = null;
+          return;
+        }
+
+        brentCanvas.hidden = false;
+        brentEmptyEl.hidden = true;
+        resizeCanvas(brentCanvas, brentCtx);
+        const width = brentCanvas.getBoundingClientRect().width;
+        const height = brentCanvas.getBoundingClientRect().height;
+        const theme = currentChartTheme();
+        const plot = { left: 72, right: 18, top: 24, bottom: 42 };
+        plot.width = width - plot.left - plot.right;
+        plot.height = height - plot.top - plot.bottom;
+        const values = rows.map((row) => brentValue(row)).filter((value) => Number.isFinite(value));
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const span = Math.max(max - min, state.brentUnit === "usd_barrel" ? 2 : 0.01);
+        const domain = {
+          min: min - span * 0.18,
+          max: max + span * 0.18,
+        };
+        const xForIndex = (index) =>
+          plot.left + (rows.length === 1 ? 0 : (index * plot.width) / (rows.length - 1));
+        const yForValue = (value) => yScale(domain, plot, value);
+        state.brentLayout = { plot, domain, rows, xForIndex };
+
+        brentCtx.clearRect(0, 0, width, height);
+        brentCtx.strokeStyle = theme.grid;
+        brentCtx.fillStyle = theme.axisText;
+        brentCtx.lineWidth = 1;
+        brentCtx.font = "12px Manrope, sans-serif";
+        brentCtx.textAlign = "right";
+        brentCtx.textBaseline = "middle";
+
+        for (let index = 0; index < 4; index += 1) {
+          const value = domain.min + (index * (domain.max - domain.min)) / 3;
+          const y = yForValue(value);
+          brentCtx.beginPath();
+          brentCtx.moveTo(plot.left, y);
+          brentCtx.lineTo(plot.left + plot.width, y);
+          brentCtx.stroke();
+          brentCtx.fillText(
+            state.brentUnit === "usd_barrel" ? formatValue(value) : value.toFixed(3).replace(".", ","),
+            plot.left - 10,
+            y,
+          );
+        }
+
+        const tickIndexes = [0, Math.floor((rows.length - 1) / 2), rows.length - 1]
+          .filter((value, index, array) => array.indexOf(value) === index);
+        brentCtx.textAlign = "center";
+        brentCtx.textBaseline = "alphabetic";
+        brentCtx.fillStyle = theme.tickText;
+        brentCtx.font = "10px Manrope, sans-serif";
+        tickIndexes.forEach((index) => {
+          const x = xForIndex(index);
+          brentCtx.beginPath();
+          brentCtx.moveTo(x, plot.top);
+          brentCtx.lineTo(x, plot.top + plot.height);
+          brentCtx.stroke();
+          brentCtx.fillText(formatLongDate(rows[index].date).slice(0, 5), x, plot.top + plot.height + 24);
+        });
+
+        const lineColor = "#2563eb";
+        const fillGradient = brentCtx.createLinearGradient(0, plot.top, 0, plot.top + plot.height);
+        fillGradient.addColorStop(0, "rgba(37,99,235,0.22)");
+        fillGradient.addColorStop(1, "rgba(37,99,235,0)");
+
+        brentCtx.beginPath();
+        rows.forEach((row, index) => {
+          const x = xForIndex(index);
+          const y = yForValue(brentValue(row));
+          if (index === 0) brentCtx.moveTo(x, y);
+          else brentCtx.lineTo(x, y);
+        });
+        brentCtx.lineTo(xForIndex(rows.length - 1), plot.top + plot.height);
+        brentCtx.lineTo(xForIndex(0), plot.top + plot.height);
+        brentCtx.closePath();
+        brentCtx.fillStyle = fillGradient;
+        brentCtx.fill();
+
+        brentCtx.beginPath();
+        rows.forEach((row, index) => {
+          const x = xForIndex(index);
+          const y = yForValue(brentValue(row));
+          if (index === 0) brentCtx.moveTo(x, y);
+          else brentCtx.lineTo(x, y);
+        });
+        brentCtx.strokeStyle = lineColor;
+        brentCtx.lineWidth = 2.6;
+        brentCtx.lineJoin = "round";
+        brentCtx.stroke();
+
+        const lastX = xForIndex(rows.length - 1);
+        const lastY = yForValue(brentValue(rows[rows.length - 1]));
+        brentCtx.fillStyle = lineColor;
+        brentCtx.beginPath();
+        brentCtx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+        brentCtx.fill();
+      }
+
       function drawForecastChart() {
         const targetDate = addDays(berlinToday(), 1);
         forecastTitleEl.textContent =
@@ -714,6 +1071,21 @@
         }
       }
 
+      async function loadMarketAnalysis() {
+        try {
+          state.brentHistory = await loadBrentHistory();
+          drawBrentChart();
+        } catch {
+          brentMetaEl.textContent = "Brent-Daten konnten lokal nicht geladen werden.";
+          brentCurrentEl.textContent = "-";
+          brentChange7El.textContent = "-";
+          brentChange30El.textContent = "-";
+          brentCanvas.hidden = true;
+          brentEmptyEl.hidden = false;
+          updateBrentSignal();
+        }
+      }
+
       document.querySelectorAll("[data-fuel]").forEach((button) => {
         button.addEventListener("click", () => {
           state.fuel = button.getAttribute("data-fuel");
@@ -748,14 +1120,61 @@
       });
       forecastCanvas.addEventListener("mouseleave", hideForecastTooltip);
 
+      document.querySelectorAll("[data-brent-range]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.brentRangeDays = Number(button.getAttribute("data-brent-range")) || 30;
+          document.querySelectorAll("[data-brent-range]").forEach((candidate) => {
+            candidate.classList.remove("primary");
+            candidate.setAttribute("aria-selected", "false");
+          });
+          button.classList.add("primary");
+          button.setAttribute("aria-selected", "true");
+          hideForecastTooltip();
+          drawBrentChart();
+        });
+      });
+
+      document.querySelectorAll("[data-brent-unit]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.brentUnit = button.getAttribute("data-brent-unit") || "eur_liter";
+          document.querySelectorAll("[data-brent-unit]").forEach((candidate) => {
+            candidate.classList.remove("primary");
+            candidate.setAttribute("aria-selected", "false");
+          });
+          button.classList.add("primary");
+          button.setAttribute("aria-selected", "true");
+          hideForecastTooltip();
+          drawBrentChart();
+        });
+      });
+
+      brentCanvas.addEventListener("mousemove", (event) => {
+        const layout = state.brentLayout;
+        if (!layout?.rows?.length) return hideForecastTooltip();
+        const rect = brentCanvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const index = Math.round(((x - layout.plot.left) / layout.plot.width) * (layout.rows.length - 1));
+        const row = layout.rows[Math.max(0, Math.min(layout.rows.length - 1, index))];
+        if (!row) return hideForecastTooltip();
+        showForecastTooltip(event, "Brent", [
+          `Datum: ${formatLongDate(row.date)}`,
+          `Wert: ${formatBrentValue(brentValue(row), state.brentUnit)}`,
+          `EUR/USD: ${Number.isFinite(row.usd_per_eur) ? row.usd_per_eur.toFixed(4).replace(".", ",") : "-"}`,
+        ]);
+      });
+      brentCanvas.addEventListener("mouseleave", hideForecastTooltip);
+
       window.addEventListener("resize", () => {
         if (state.sourceDays.length) drawForecastChart();
+        if (state.brentHistory?.rows?.length) drawBrentChart();
       });
       DARK_MODE_MEDIA_QUERY.addEventListener?.("change", () => {
         if (state.sourceDays.length) drawForecastChart();
+        if (state.brentHistory?.rows?.length) drawBrentChart();
       });
 
       loadForecast();
+      loadMarketAnalysis();
     </script>
     <script src="app-install-promo.js?v=20260409-app-promo-v12"></script>
   </body>
