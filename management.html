@@ -2158,33 +2158,21 @@
         const q1Points = pointsFor("q1");
         const q3Points = pointsFor("q3");
         if (q1Points.length && q3Points.length && q1Points.length === q3Points.length) {
-          const traceStepAreaBoundary = (points, reverse = false) => {
-            if (reverse) {
-              forecastCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-              for (let index = points.length - 1; index > 0; index--) {
-                const point = points[index];
-                const previousPoint = points[index - 1];
-                forecastCtx.lineTo(previousPoint.x, point.y);
-                forecastCtx.lineTo(previousPoint.x, previousPoint.y);
-              }
-              return;
-            }
-            forecastCtx.moveTo(points[0].x, points[0].y);
-            for (let index = 0; index < points.length - 1; index++) {
-              const point = points[index];
-              const nextPoint = points[index + 1];
-              forecastCtx.lineTo(nextPoint.x, point.y);
-              forecastCtx.lineTo(nextPoint.x, nextPoint.y);
-            }
-          };
-
           forecastCtx.save();
           forecastCtx.fillStyle = "rgba(15, 118, 110, 0.12)";
-          forecastCtx.beginPath();
-          traceStepAreaBoundary(q1Points);
-          traceStepAreaBoundary(q3Points, true);
-          forecastCtx.closePath();
-          forecastCtx.fill();
+          for (let index = 0; index < q1Points.length - 1; index++) {
+            const q1Point = q1Points[index];
+            const q3Point = q3Points[index];
+            const nextPoint = q1Points[index + 1];
+            forecastCtx.beginPath();
+            forecastCtx.rect(
+              q1Point.x,
+              Math.min(q1Point.y, q3Point.y),
+              nextPoint.x - q1Point.x,
+              Math.abs(q3Point.y - q1Point.y),
+            );
+            forecastCtx.fill();
+          }
           forecastCtx.restore();
         }
 
