@@ -158,19 +158,6 @@
       <section class="card management-chart-card">
         <div class="toolbar">
           <div class="left">
-            <h2 id="forecast-title">Prognose</h2>
-          </div>
-        </div>
-
-        <div class="chart-wrap">
-          <canvas id="forecast-plot"></canvas>
-        </div>
-        <p class="chart-note" id="forecast-note"></p>
-      </section>
-
-      <section class="card management-chart-card">
-        <div class="toolbar">
-          <div class="left">
             <h2 id="title">Untert&auml;gige Preissenkungen</h2>
           </div>
         </div>
@@ -306,10 +293,6 @@
       const priceLevelNoteEl = document.getElementById("price-level-note");
       const priceLevelCanvas = document.getElementById("price-level-plot");
       const priceLevelCtx = priceLevelCanvas.getContext("2d");
-      const forecastTitleEl = document.getElementById("forecast-title");
-      const forecastNoteEl = document.getElementById("forecast-note");
-      const forecastCanvas = document.getElementById("forecast-plot");
-      const forecastCtx = forecastCanvas.getContext("2d");
       const histogramTitleEl = document.getElementById("histogram-title");
       const histogramNoteEl = document.getElementById("histogram-note");
       const histogramCanvas = document.getElementById("histogram-plot");
@@ -377,7 +360,6 @@
         layout: null,
         brandLayout: null,
         priceLevelLayout: null,
-        forecastLayout: null,
         histogramLayout: null,
         date: null,
         startDate: null,
@@ -389,7 +371,6 @@
         stationBrandById: null,
         rangeBrandCache: null,
         forecastSummaryCache: new Map(),
-        forecastRequestToken: 0,
         chartEntries: [],
         rangePanelOpen: false,
       };
@@ -1052,7 +1033,6 @@
         state.rangeBrandCache = null;
         state.brandLayout = null;
         state.priceLevelLayout = null;
-        state.forecastLayout = null;
         state.histogramLayout = null;
         brandCtx.clearRect(0, 0, brandCanvas.width, brandCanvas.height);
         deltaNoteEl.textContent = "";
@@ -1062,13 +1042,6 @@
           priceLevelCanvas.width,
           priceLevelCanvas.height,
         );
-        forecastCtx.clearRect(
-          0,
-          0,
-          forecastCanvas.width,
-          forecastCanvas.height,
-        );
-        forecastNoteEl.textContent = "";
         histogramCtx.clearRect(
           0,
           0,
@@ -2140,153 +2113,6 @@
         });
       }
 
-      async function drawForecastChart() {
-        const requestToken = state.forecastRequestToken + 1;
-        state.forecastRequestToken = requestToken;
-        const targetDate = forecastTargetDate();
-        forecastTitleEl.textContent =
-          `Prognose \u00b7 ${fuelDisplayName(state.fuel)} \u00b7 ${formatLongDate(targetDate)}`;
-
-        const forecastEndDate =
-          state.endDate instanceof Date ? state.endDate : state.date;
-        const sourceDays = state.summary
-          ? await loadForecastSourceDays(forecastEndDate)
-          : [];
-        if (requestToken !== state.forecastRequestToken) return;
-
-        const series = state.summary
-          ? forecastSeries(sourceDays)
-          : { rows: [], sourceDays: [], baseDate: null };
-        const rows = series.rows || [];
-        const domain = computeForecastDomain(rows);
-        state.forecastLayout = drawPriceLevelCoordinateSystem(
-          forecastCanvas,
-          forecastCtx,
-          domain,
-        );
-        state.forecastLayout.rows = rows;
-        state.forecastLayout.targetDate = targetDate;
-        const { plot } = state.forecastLayout;
-
-        if (!rows.length) {
-          forecastNoteEl.textContent =
-            `Keine Prognose verfügbar: Für die Berechnung werden nur Statistikdaten ab dem ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} verwendet.`;
-          return;
-        }
-
-        const theme = currentChartTheme();
-        const forecastColor = FUEL_COLORS[state.fuel] || "#0f766e";
-        const xForRow = (row) => plot.left + (row.hour * plot.width) / 24;
-        const pointsFor = (valueKey) =>
-          rows
-            .map((row) => ({
-              x: xForRow(row),
-              y: Number.isFinite(row[valueKey])
-                ? yScale(domain, plot, row[valueKey])
-                : null,
-            }))
-            .filter((point) => point.y !== null);
-
-        const q1Points = pointsFor("q1");
-        const q3Points = pointsFor("q3");
-        if (q1Points.length && q3Points.length && q1Points.length === q3Points.length) {
-          forecastCtx.save();
-          forecastCtx.fillStyle = "rgba(15, 118, 110, 0.12)";
-          for (let index = 0; index < q1Points.length - 1; index++) {
-            const q1Point = q1Points[index];
-            const q3Point = q3Points[index];
-            const nextPoint = q1Points[index + 1];
-            forecastCtx.beginPath();
-            forecastCtx.rect(
-              q1Point.x,
-              Math.min(q1Point.y, q3Point.y),
-              nextPoint.x - q1Point.x,
-              Math.abs(q3Point.y - q1Point.y),
-            );
-            forecastCtx.fill();
-          }
-          forecastCtx.restore();
-        }
-
-        const drawLineSeries = (valueKey, color, dashed = false) => {
-          const points = pointsFor(valueKey);
-          if (!points.length) return;
-          forecastCtx.save();
-          forecastCtx.strokeStyle = color;
-          forecastCtx.lineWidth = 2.6;
-          forecastCtx.lineJoin = "miter";
-          forecastCtx.lineCap = "butt";
-          if (dashed) forecastCtx.setLineDash([7, 5]);
-          forecastCtx.beginPath();
-          forecastCtx.moveTo(points[0].x, points[0].y);
-          for (let index = 0; index < points.length - 1; index++) {
-            const point = points[index];
-            const nextPoint = points[index + 1];
-            forecastCtx.lineTo(nextPoint.x, point.y);
-            forecastCtx.lineTo(nextPoint.x, nextPoint.y);
-          }
-          forecastCtx.stroke();
-          forecastCtx.setLineDash([]);
-          forecastCtx.fillStyle = color;
-          points.forEach((point) => {
-            forecastCtx.beginPath();
-            forecastCtx.arc(point.x, point.y, 3, 0, Math.PI * 2);
-            forecastCtx.fill();
-          });
-          forecastCtx.restore();
-        };
-
-        drawLineSeries("median", forecastColor);
-
-        const legendItems = [
-          {
-            label: "Prognose Median",
-            color: forecastColor,
-            dashed: false,
-          },
-          {
-            label: "Typischer Bereich q1-q3",
-            color: "rgba(15, 118, 110, 0.22)",
-            fill: true,
-          },
-        ];
-        let legendX = plot.left + plot.width - 230;
-        if (legendX < plot.left) legendX = plot.left;
-        let legendY = plot.top + 8;
-        forecastCtx.font = "11px Manrope, sans-serif";
-        forecastCtx.textAlign = "left";
-        legendItems.forEach((item) => {
-          if (item.fill) {
-            forecastCtx.fillStyle = item.color;
-            forecastCtx.fillRect(legendX, legendY - 6, 22, 10);
-            forecastCtx.strokeStyle = forecastColor;
-            forecastCtx.lineWidth = 1;
-            forecastCtx.strokeRect(legendX, legendY - 6, 22, 10);
-          } else {
-            forecastCtx.strokeStyle = item.color;
-            forecastCtx.lineWidth = 3;
-            if (item.dashed) forecastCtx.setLineDash([7, 5]);
-            forecastCtx.beginPath();
-            forecastCtx.moveTo(legendX, legendY);
-            forecastCtx.lineTo(legendX + 22, legendY);
-            forecastCtx.stroke();
-            forecastCtx.setLineDash([]);
-          }
-          forecastCtx.fillStyle = theme.legendText;
-          forecastCtx.fillText(item.label, legendX + 30, legendY + 4);
-          legendY += 18;
-        });
-
-        const sourceDates = series.sourceDays.map((day) => formatISODate(day.date));
-        const firstSourceDate = sourceDates[0] || FORECAST_MIN_DATE_STR;
-        const lastSourceDate = sourceDates[sourceDates.length - 1] || firstSourceDate;
-        const baseDateLabel = series.baseDate
-          ? formatLongDate(series.baseDate)
-          : "dem letzten verfügbaren Tag";
-        forecastNoteEl.textContent =
-          `Prognosemodell für ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel}. Für die Form der Tageskurve werden die lokal verfügbaren 12:00-Uhr-bis-12:00-Uhr-Verläufe ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} berücksichtigt. Die Steuersenkung zum ${formatLongDate(parseISODate(FUEL_TAX_CHANGE_DATE_STR))} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis kalibriert wird. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
-      }
-
       function drawHistogramChart() {
         const rawRows = histogramRows();
         const summary = histogramSummary();
@@ -2658,26 +2484,6 @@
       });
       priceLevelCanvas.addEventListener("mouseleave", hideManagementTooltip);
 
-      forecastCanvas.addEventListener("mousemove", (e) => {
-        const row = nearestLineRow(
-          state.forecastLayout,
-          forecastCanvas,
-          e.clientX,
-          e.clientY,
-          "median",
-        );
-        if (!row) return hideManagementTooltip();
-        const dateLabel = state.forecastLayout?.targetDate
-          ? formatLongDate(state.forecastLayout.targetDate)
-          : "";
-        showManagementTooltip(e, "Prognose Median", [
-          `Prognosezeitpunkt: ${cycleHourLabel(row, dateLabel)}`,
-          `Prognose-Median: ${formatValue(row.median)} EUR/l`,
-          `q1-q3: ${formatValue(row.q1)} bis ${formatValue(row.q3)} EUR/l`,
-        ]);
-      });
-      forecastCanvas.addEventListener("mouseleave", hideManagementTooltip);
-
       histogramCanvas.addEventListener("mousemove", (e) => {
         const index = pickHistogramBar(e.clientX, e.clientY);
         if (index == null || !state.histogramLayout) return hideManagementTooltip();
@@ -2761,7 +2567,6 @@
           draw();
           drawBrandChart();
           drawPriceLevelChart();
-          drawForecastChart();
           drawHistogramChart();
         });
       });
@@ -2885,7 +2690,6 @@
           draw();
           drawBrandChart();
           drawPriceLevelChart();
-          drawForecastChart();
           drawHistogramChart();
         } catch (e) {
           setStatus("Management-Daten konnten nicht geladen werden.", "error");
@@ -2898,7 +2702,6 @@
           draw();
           drawBrandChart();
           drawPriceLevelChart();
-          drawForecastChart();
           drawHistogramChart();
         }
       });
@@ -2908,7 +2711,6 @@
         draw();
         drawBrandChart();
         drawPriceLevelChart();
-        drawForecastChart();
         drawHistogramChart();
       });
 
