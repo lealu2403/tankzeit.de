@@ -974,6 +974,7 @@
           return {
             label: `${String(clockHour).padStart(2, "0")}:00`,
             price: null,
+            hour: index,
             clockHour,
             date: "",
           };
@@ -982,10 +983,28 @@
 
       function renderForecastChart(series) {
         const chartRows = series?.rows?.length ? series.rows : fallbackForecastRows();
-        const pointFor = (row, valueKey) => ({
-          x: row.hour,
-          y: row[valueKey] ?? null,
-        });
+        const stepPointsFor = (valueKey) => {
+          const points = [];
+          chartRows.forEach((row, index) => {
+            const value = row[valueKey] ?? null;
+            points.push({
+              x: row.hour,
+              y: value,
+              sourceRowIndex: index,
+              isHourPoint: true,
+            });
+            const nextRow = chartRows[index + 1];
+            if (nextRow) {
+              points.push({
+                x: nextRow.hour,
+                y: value,
+                sourceRowIndex: index,
+                isHourPoint: false,
+              });
+            }
+          });
+          return points;
+        };
         const values = chartRows.flatMap((row) => [row.median, row.q1, row.q3]);
         const domain = priceLevelDomain(values);
         const ctx = document.getElementById("forecast-chart").getContext("2d");
@@ -996,32 +1015,31 @@
             datasets: [
               {
                 label: "q3",
-                data: chartRows.map((row) => pointFor(row, "q3")),
+                data: stepPointsFor("q3"),
                 borderColor: "rgba(15, 118, 110, 0)",
                 backgroundColor: "rgba(15, 118, 110, 0)",
                 pointRadius: 0,
-                stepped: "before",
                 tension: 0,
               },
               {
                 label: "Typischer Bereich q1-q3",
-                data: chartRows.map((row) => pointFor(row, "q1")),
+                data: stepPointsFor("q1"),
                 borderColor: "rgba(15, 118, 110, 0)",
                 backgroundColor: "rgba(15, 118, 110, 0.14)",
                 pointRadius: 0,
                 fill: "-1",
-                stepped: "before",
                 tension: 0,
               },
               {
                 label: "Prognose Median",
-                data: chartRows.map((row) => pointFor(row, "median")),
+                data: stepPointsFor("median"),
                 borderColor: "#0f766e",
                 backgroundColor: "#0f766e",
                 borderWidth: 2.4,
-                pointRadius: 2.5,
+                pointRadius(context) {
+                  return context.raw?.isHourPoint ? 2.5 : 0;
+                },
                 pointHoverRadius: 4,
-                stepped: "before",
                 tension: 0,
                 fill: false,
               },
@@ -1115,7 +1133,8 @@
               tooltip: {
                 callbacks: {
                   label(context) {
-                    const row = chartRows[context.dataIndex];
+                    const rowIndex = context.raw?.sourceRowIndex ?? context.dataIndex;
+                    const row = chartRows[rowIndex];
                     if (!row || context.dataset.label === "q3") return "";
                     if (context.dataset.label === "Typischer Bereich q1-q3") {
                       return `q1-q3: ${formatFuelPrice(row.q1)} bis ${formatFuelPrice(row.q3)} EUR/l`;

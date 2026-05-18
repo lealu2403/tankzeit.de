@@ -1894,8 +1894,16 @@
               median: Number.isFinite(medianDelta)
                 ? baseMedian + medianDelta
                 : null,
-              q1: Number.isFinite(q1Delta) ? baseMedian + q1Delta : null,
-              q3: Number.isFinite(q3Delta) ? baseMedian + q3Delta : null,
+              q1: Number.isFinite(q1Delta)
+                ? baseMedian + q1Delta
+                : Number.isFinite(medianDelta)
+                  ? baseMedian + medianDelta
+                  : null,
+              q3: Number.isFinite(q3Delta)
+                ? baseMedian + q3Delta
+                : Number.isFinite(medianDelta)
+                  ? baseMedian + medianDelta
+                  : null,
             };
           });
 
