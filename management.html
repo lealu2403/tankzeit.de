@@ -2150,19 +2150,31 @@
         const q1Points = pointsFor("q1");
         const q3Points = pointsFor("q3");
         if (q1Points.length && q3Points.length && q1Points.length === q3Points.length) {
+          const traceStepAreaBoundary = (points, reverse = false) => {
+            if (reverse) {
+              forecastCtx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+              for (let index = points.length - 1; index > 0; index--) {
+                const point = points[index];
+                const previousPoint = points[index - 1];
+                forecastCtx.lineTo(previousPoint.x, point.y);
+                forecastCtx.lineTo(previousPoint.x, previousPoint.y);
+              }
+              return;
+            }
+            forecastCtx.moveTo(points[0].x, points[0].y);
+            for (let index = 0; index < points.length - 1; index++) {
+              const point = points[index];
+              const nextPoint = points[index + 1];
+              forecastCtx.lineTo(nextPoint.x, point.y);
+              forecastCtx.lineTo(nextPoint.x, nextPoint.y);
+            }
+          };
+
           forecastCtx.save();
           forecastCtx.fillStyle = "rgba(15, 118, 110, 0.12)";
           forecastCtx.beginPath();
-          q1Points.forEach((point, index) => {
-            if (index === 0) {
-              forecastCtx.moveTo(point.x, point.y);
-            } else {
-              forecastCtx.lineTo(point.x, point.y);
-            }
-          });
-          [...q3Points].reverse().forEach((point) => {
-            forecastCtx.lineTo(point.x, point.y);
-          });
+          traceStepAreaBoundary(q1Points);
+          traceStepAreaBoundary(q3Points, true);
           forecastCtx.closePath();
           forecastCtx.fill();
           forecastCtx.restore();
@@ -2178,13 +2190,13 @@
           forecastCtx.lineCap = "round";
           if (dashed) forecastCtx.setLineDash([7, 5]);
           forecastCtx.beginPath();
-          points.forEach((point, index) => {
-            if (index === 0) {
-              forecastCtx.moveTo(point.x, point.y);
-            } else {
-              forecastCtx.lineTo(point.x, point.y);
-            }
-          });
+          forecastCtx.moveTo(points[0].x, points[0].y);
+          for (let index = 0; index < points.length - 1; index++) {
+            const point = points[index];
+            const nextPoint = points[index + 1];
+            forecastCtx.lineTo(nextPoint.x, point.y);
+            forecastCtx.lineTo(nextPoint.x, nextPoint.y);
+          }
           forecastCtx.stroke();
           forecastCtx.setLineDash([]);
           forecastCtx.fillStyle = color;
