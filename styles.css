@@ -668,12 +668,18 @@ p {
   -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.1);
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
   gap: 4px;
   z-index: 1000;
   padding: 0 12px;
   padding-bottom: env(safe-area-inset-bottom, 0);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-bar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -695,6 +701,7 @@ p {
   border-radius: 14px;
   transition: color 0.2s ease, background 0.2s ease, transform 0.15s ease;
   min-width: 56px;
+  flex: 0 0 auto;
 }
 
 .nav-item svg {
@@ -738,6 +745,7 @@ p {
 @media (min-width: 768px) {
   .nav-bar {
     gap: 8px;
+    justify-content: center;
   }
   .nav-item {
     flex-direction: row;
