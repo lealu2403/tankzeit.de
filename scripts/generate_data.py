@@ -113,7 +113,7 @@ def _select_ecb_fx_rate(
     return fx_day, rates_by_day[fx_day]
 
 
-def _fetch_brent_crude_snapshot() -> dict[str, object]:
+def _load_brent_crude_frame() -> pd.DataFrame:
     brent_text = _read_text_from_url(
         FRED_BRENT_CSV_URL,
         label="Brent crude (FRED/EIA)",
@@ -129,11 +129,10 @@ def _fetch_brent_crude_snapshot() -> dict[str, object]:
     brent_df = brent_df.dropna(subset=[date_col, value_col]).sort_values(date_col)
     if brent_df.empty:
         raise ValueError("Brent CSV contained no usable rows.")
+    return brent_df
 
-    latest_row = brent_df.iloc[-1]
-    brent_day = latest_row[date_col]
-    brent_usd_per_barrel = float(latest_row[value_col])
 
+def _load_ecb_usd_rates() -> Dict[date, float]:
     fx_xml = _read_text_from_url(
         ECB_FX_90D_XML_URL,
         label="ECB FX 90d",
@@ -163,25 +162,96 @@ def _fetch_brent_crude_snapshot() -> dict[str, object]:
 
     if not rates_by_day:
         raise ValueError("ECB XML contained no USD exchange rates.")
+    return rates_by_day
 
+
+def _brent_converted_row(
+    brent_day: date,
+    brent_usd_per_barrel: float,
+    rates_by_day: Dict[date, float],
+) -> dict[str, object]:
     fx_day, usd_per_eur = _select_ecb_fx_rate(rates_by_day, brent_day)
     brent_eur_per_barrel = brent_usd_per_barrel / usd_per_eur
     brent_eur_per_crude_liter = brent_eur_per_barrel / LITERS_PER_BARREL
-
     return {
-        "series_id": "DCOILBRENTEU",
-        "barrel_liters": round(LITERS_PER_BARREL, 6),
-        "brent_as_of": str(brent_day),
+        "date": str(brent_day),
         "brent_usd_per_barrel": round(brent_usd_per_barrel, 4),
         "usd_per_eur_as_of": str(fx_day),
         "usd_per_eur": round(usd_per_eur, 6),
         "brent_eur_per_barrel": round(brent_eur_per_barrel, 4),
         "brent_eur_per_crude_liter": round(brent_eur_per_crude_liter, 6),
+    }
+
+
+def _fetch_brent_crude_snapshot() -> dict[str, object]:
+    brent_df = _load_brent_crude_frame()
+    date_col, value_col = brent_df.columns[:2]
+    latest_row = brent_df.iloc[-1]
+    brent_day = latest_row[date_col]
+    brent_usd_per_barrel = float(latest_row[value_col])
+    rates_by_day = _load_ecb_usd_rates()
+
+    converted = _brent_converted_row(
+        brent_day,
+        brent_usd_per_barrel,
+        rates_by_day,
+    )
+
+    return {
+        "series_id": "DCOILBRENTEU",
+        "barrel_liters": round(LITERS_PER_BARREL, 6),
+        "brent_as_of": converted["date"],
+        "brent_usd_per_barrel": converted["brent_usd_per_barrel"],
+        "usd_per_eur_as_of": converted["usd_per_eur_as_of"],
+        "usd_per_eur": converted["usd_per_eur"],
+        "brent_eur_per_barrel": converted["brent_eur_per_barrel"],
+        "brent_eur_per_crude_liter": converted["brent_eur_per_crude_liter"],
         "generated_at": datetime.now(TZ).isoformat(timespec="seconds"),
         "sources": {
             "brent_csv": FRED_BRENT_CSV_URL,
             "fx_xml": ECB_FX_90D_XML_URL,
         },
+    }
+
+
+def _fetch_brent_crude_history(lookback_days: int = 90) -> dict[str, object]:
+    brent_df = _load_brent_crude_frame()
+    date_col, value_col = brent_df.columns[:2]
+    rates_by_day = _load_ecb_usd_rates()
+    last_fx_day = max(rates_by_day)
+    first_supported_day = max(min(rates_by_day), last_fx_day - timedelta(days=lookback_days))
+
+    rows: list[dict[str, object]] = []
+    for _, row in brent_df.iterrows():
+        brent_day = row[date_col]
+        if brent_day < first_supported_day or brent_day > last_fx_day:
+            continue
+        if not any(fx_day <= brent_day for fx_day in rates_by_day):
+            continue
+        rows.append(
+            _brent_converted_row(
+                brent_day,
+                float(row[value_col]),
+                rates_by_day,
+            )
+        )
+
+    if not rows:
+        raise ValueError("Brent history contained no usable rows for the ECB FX window.")
+
+    return {
+        "series_id": "DCOILBRENTEU",
+        "barrel_liters": round(LITERS_PER_BARREL, 6),
+        "first_date": rows[0]["date"],
+        "last_date": rows[-1]["date"],
+        "row_count": len(rows),
+        "lookback_days": lookback_days,
+        "generated_at": datetime.now(TZ).isoformat(timespec="seconds"),
+        "sources": {
+            "brent_csv": FRED_BRENT_CSV_URL,
+            "fx_xml": ECB_FX_90D_XML_URL,
+        },
+        "rows": rows,
     }
 
 
@@ -1134,6 +1204,17 @@ def generate(
         brent_path.parent.mkdir(parents=True, exist_ok=True)
         brent_path.write_text(
             json.dumps(brent_snapshot, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    try:
+        brent_history = _fetch_brent_crude_history()
+    except Exception as exc:
+        print(f"Warning: failed to refresh Brent crude history: {exc}")
+    else:
+        brent_history_path = output_root / "data" / "brent_history.json"
+        brent_history_path.parent.mkdir(parents=True, exist_ok=True)
+        brent_history_path.write_text(
+            json.dumps(brent_history, ensure_ascii=False),
             encoding="utf-8",
         )
 

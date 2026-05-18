@@ -11,6 +11,7 @@ from scripts.generate_data import (
     DateRange,
     _brand_distribution_summary,
     _daily_noon_reset_metrics,
+    _fetch_brent_crude_history,
     _fetch_brent_crude_snapshot,
     _hourly_variation,
     _load_prices,
@@ -121,6 +122,45 @@ class BrentSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot["usd_per_eur"], 1.1484)
         self.assertAlmostEqual(snapshot["brent_eur_per_barrel"], 106.1303, places=4)
         self.assertAlmostEqual(snapshot["brent_eur_per_crude_liter"], 0.667539, places=6)
+
+    @patch("scripts.generate_data._read_text_from_url")
+    def test_fetch_brent_history_keeps_rows_in_ecb_window(
+        self,
+        mock_read_text,
+    ) -> None:
+        mock_read_text.side_effect = [
+            (
+                "DATE,DCOILBRENTEU\n"
+                "2026-03-26,120.00\n"
+                "2026-03-27,121.47\n"
+                "2026-03-30,121.88\n"
+            ),
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01"
+              xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref">
+              <Cube>
+                <Cube time="2026-03-30"><Cube currency="USD" rate="1.1484"/></Cube>
+                <Cube time="2026-03-27"><Cube currency="USD" rate="1.1400"/></Cube>
+              </Cube>
+            </gesmes:Envelope>
+            """,
+        ]
+
+        history = _fetch_brent_crude_history()
+
+        self.assertEqual(history["first_date"], "2026-03-27")
+        self.assertEqual(history["last_date"], "2026-03-30")
+        self.assertEqual(history["row_count"], 2)
+        self.assertEqual(history["rows"][0]["date"], "2026-03-27")
+        self.assertEqual(history["rows"][0]["usd_per_eur_as_of"], "2026-03-27")
+        self.assertEqual(history["rows"][1]["date"], "2026-03-30")
+        self.assertEqual(history["rows"][1]["brent_usd_per_barrel"], 121.88)
+        self.assertAlmostEqual(
+            history["rows"][1]["brent_eur_per_crude_liter"],
+            0.667539,
+            places=6,
+        )
 
 
 class DailyNoonResetMetricTests(unittest.TestCase):
@@ -588,10 +628,12 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
 
     @patch("scripts.generate_data._load_prices_with_days")
     @patch("scripts.generate_data.download_stations")
+    @patch("scripts.generate_data._fetch_brent_crude_history")
     @patch("scripts.generate_data._fetch_brent_crude_snapshot")
     def test_generate_uses_noon_reference_for_management_brand_snapshot(
         self,
         mock_brent_snapshot,
+        mock_brent_history,
         mock_download_stations,
         mock_load_prices_with_days,
     ) -> None:
@@ -614,6 +656,14 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
             "usd_per_eur": 1.1484,
             "brent_eur_per_barrel": 106.1303,
             "brent_eur_per_crude_liter": 0.667539,
+        }
+        mock_brent_history.return_value = {
+            "series_id": "DCOILBRENTEU",
+            "barrel_liters": 158.987295,
+            "first_date": "2026-03-30",
+            "last_date": "2026-03-30",
+            "row_count": 1,
+            "rows": [{"date": "2026-03-30", "brent_eur_per_crude_liter": 0.667539}],
         }
         mock_load_prices_with_days.return_value = (
             pd.DataFrame(
@@ -645,6 +695,7 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
                 generate(Path(tmpdir), analysis_days_count=8)
 
             brent_path = Path(tmpdir) / "data" / "brent.json"
+            brent_history_path = Path(tmpdir) / "data" / "brent_history.json"
             summary_path = (
                 Path(tmpdir)
                 / "data2"
@@ -654,11 +705,14 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
                 / "management_boxplots.json"
             )
             brent_summary = json.loads(brent_path.read_text(encoding="utf-8"))
+            brent_history = json.loads(brent_history_path.read_text(encoding="utf-8"))
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
 
             self.assertEqual(brent_summary["barrel_liters"], 158.987295)
             self.assertEqual(brent_summary["brent_as_of"], "2026-03-30")
             self.assertEqual(brent_summary["brent_eur_per_crude_liter"], 0.667539)
+            self.assertEqual(brent_history["row_count"], 1)
+            self.assertEqual(brent_history["rows"][0]["date"], "2026-03-30")
             self.assertEqual(summary["snapshot_date"], "2026-04-02")
             self.assertEqual(summary["view_modes"]["diesel"], "cycle")
             self.assertEqual(summary["bucket_counts"]["diesel"], 25)
@@ -711,10 +765,12 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
 
     @patch("scripts.generate_data._load_prices_with_days")
     @patch("scripts.generate_data.download_stations")
+    @patch("scripts.generate_data._fetch_brent_crude_history")
     @patch("scripts.generate_data._fetch_brent_crude_snapshot")
     def test_generate_distills_noon_and_history_from_latest_available_day(
         self,
         mock_brent_snapshot,
+        mock_brent_history,
         mock_download_stations,
         mock_load_prices_with_days,
     ) -> None:
@@ -732,6 +788,14 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
             "usd_per_eur": 1.1484,
             "brent_eur_per_barrel": 106.1303,
             "brent_eur_per_crude_liter": 0.667539,
+        }
+        mock_brent_history.return_value = {
+            "series_id": "DCOILBRENTEU",
+            "barrel_liters": 158.987295,
+            "first_date": "2026-03-30",
+            "last_date": "2026-03-30",
+            "row_count": 1,
+            "rows": [{"date": "2026-03-30", "brent_eur_per_crude_liter": 0.667539}],
         }
         mock_load_prices_with_days.return_value = (
             pd.DataFrame(
@@ -799,10 +863,12 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
 
     @patch("scripts.generate_data._load_prices_with_days")
     @patch("scripts.generate_data.download_stations")
+    @patch("scripts.generate_data._fetch_brent_crude_history")
     @patch("scripts.generate_data._fetch_brent_crude_snapshot")
     def test_generate_with_one_day_analysis_loads_prior_day_for_cycle_fallback(
         self,
         mock_brent_snapshot,
+        mock_brent_history,
         mock_download_stations,
         mock_load_prices_with_days,
     ) -> None:
@@ -820,6 +886,14 @@ class RawNoonReferenceSnapshotTests(unittest.TestCase):
             "usd_per_eur": 1.1484,
             "brent_eur_per_barrel": 106.1303,
             "brent_eur_per_crude_liter": 0.667539,
+        }
+        mock_brent_history.return_value = {
+            "series_id": "DCOILBRENTEU",
+            "barrel_liters": 158.987295,
+            "first_date": "2026-03-30",
+            "last_date": "2026-03-30",
+            "row_count": 1,
+            "rows": [{"date": "2026-03-30", "brent_eur_per_crude_liter": 0.667539}],
         }
         mock_load_prices_with_days.return_value = (
             pd.DataFrame(
