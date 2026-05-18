@@ -1027,7 +1027,7 @@
                 borderColor: "rgba(15, 118, 110, 0)",
                 backgroundColor: "rgba(15, 118, 110, 0.14)",
                 pointRadius: 0,
-                fill: "-1",
+                fill: false,
                 tension: 0,
               },
               {
@@ -1146,6 +1146,45 @@
             },
           }),
           plugins: [
+            {
+              id: "stationForecastQuartileBand",
+              beforeDatasetsDraw(chart) {
+                const xScale = chart.scales.x;
+                const yScale = chart.scales.y;
+                const chartArea = chart.chartArea;
+                if (!xScale || !yScale || !chartArea) return;
+                const { ctx } = chart;
+                ctx.save();
+                ctx.fillStyle = "rgba(15, 118, 110, 0.14)";
+                for (let index = 0; index < chartRows.length - 1; index++) {
+                  const row = chartRows[index];
+                  const nextRow = chartRows[index + 1];
+                  const q1 = Number(row.q1);
+                  const q3 = Number(row.q3);
+                  if (
+                    !Number.isFinite(q1) ||
+                    !Number.isFinite(q3) ||
+                    !Number.isFinite(row.hour) ||
+                    !Number.isFinite(nextRow.hour)
+                  ) {
+                    continue;
+                  }
+                  const x1 = xScale.getPixelForValue(row.hour);
+                  const x2 = xScale.getPixelForValue(nextRow.hour);
+                  const y1 = yScale.getPixelForValue(q1);
+                  const y3 = yScale.getPixelForValue(q3);
+                  ctx.beginPath();
+                  ctx.rect(
+                    Math.min(x1, x2),
+                    Math.min(y1, y3),
+                    Math.abs(x2 - x1),
+                    Math.abs(y3 - y1),
+                  );
+                  ctx.fill();
+                }
+                ctx.restore();
+              },
+            },
             {
               id: "stationForecastMidnightDivider",
               afterDraw(chart) {
