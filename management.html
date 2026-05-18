@@ -321,6 +321,8 @@
       const BRAND_PRICE_DOMAIN = { min: 1.5, max: 3.0 };
       const APP_TIME_ZONE = "Europe/Berlin";
       const FORECAST_MIN_DATE_STR = "2026-04-02";
+      const FUEL_TAX_CHANGE_DATE_STR = "2026-05-01";
+      const FUEL_TAX_TRANSITION_CYCLE_START_STR = "2026-04-30";
 
       function currentChartTheme() {
         if (DARK_MODE_MEDIA_QUERY.matches) {
@@ -1768,8 +1770,15 @@
             : [{ date: state.date, summary: state.summary }];
         return sourceDays.filter((rangeDay) => {
           if (!rangeDay?.summary || !(rangeDay.date instanceof Date)) return false;
-          return formatISODate(rangeDay.date) >= FORECAST_MIN_DATE_STR;
+          return forecastSourceDayEligible(formatISODate(rangeDay.date));
         });
+      }
+
+      function forecastSourceDayEligible(isoDate) {
+        return (
+          isoDate >= FORECAST_MIN_DATE_STR &&
+          isoDate !== FUEL_TAX_TRANSITION_CYCLE_START_STR
+        );
       }
 
       async function loadForecastSourceDays(untilDate) {
@@ -1777,7 +1786,9 @@
         const cutoffDate = parseISODate(FORECAST_MIN_DATE_STR);
         if (untilDate < cutoffDate) return [];
 
-        const requestedDates = datesInRange(cutoffDate, untilDate);
+        const requestedDates = datesInRange(cutoffDate, untilDate).filter((date) =>
+          forecastSourceDayEligible(formatISODate(date)),
+        );
         const loadedByDate = new Map(
           sourceDaysSinceForecastCutoff().map((rangeDay) => [
             formatISODate(rangeDay.date),
@@ -1848,7 +1859,9 @@
         }
 
         const byHour = new Map();
-        sourceDays.forEach((rangeDay) => {
+        sourceDays
+          .filter((rangeDay) => forecastSourceDayEligible(formatISODate(rangeDay.date)))
+          .forEach((rangeDay) => {
           const rows = rangeDay.summary?.fuels?.[state.fuel] || [];
           rows.forEach((row) => {
             const rawHour =
@@ -2252,7 +2265,7 @@
           ? formatLongDate(series.baseDate)
           : "dem letzten verfügbaren Tag";
         forecastNoteEl.textContent =
-          `Prognosemodell für ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel} und nutzt den typischen 12:00-Uhr-bis-12:00-Uhr-Medianverlauf, der aus den lokal verfügbaren Statistikdaten ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} gelernt wurde. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
+          `Prognosemodell für ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel}. Für die Form der Tageskurve werden die lokal verfügbaren 12:00-Uhr-bis-12:00-Uhr-Verläufe ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} berücksichtigt. Die Steuersenkung zum ${formatLongDate(parseISODate(FUEL_TAX_CHANGE_DATE_STR))} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis kalibriert wird. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
       }
 
       function drawHistogramChart() {

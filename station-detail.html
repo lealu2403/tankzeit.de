@@ -159,6 +159,8 @@
       const DATA_BASE = "data2/";
       const APP_TIME_ZONE = "Europe/Berlin";
       const FORECAST_MIN_DATE_STR = "2026-04-02";
+      const FUEL_TAX_CHANGE_DATE_STR = "2026-05-01";
+      const FUEL_TAX_TRANSITION_CYCLE_START_STR = "2026-04-30";
       const BRAND_FORECAST_WEIGHT = 0.22;
       const BRAND_FORECAST_ORIENTATION_WEIGHT = 0.08;
       const BRAND_FORECAST_CORRECTION_CAP = 0.025;
@@ -611,6 +613,13 @@
         return shiftIsoDay(day, 1);
       }
 
+      function forecastSourceDayEligible(isoDate) {
+        return (
+          isoDate >= FORECAST_MIN_DATE_STR &&
+          isoDate !== FUEL_TAX_TRANSITION_CYCLE_START_STR
+        );
+      }
+
       function eachCycleStartDay(fromDay, toDay) {
         const days = [];
         let currentDay = fromDay;
@@ -633,7 +642,9 @@
         const fromDay = selectedRange.from < FORECAST_MIN_DATE_STR
           ? FORECAST_MIN_DATE_STR
           : selectedRange.from;
-        const days = eachCycleStartDay(fromDay, selectedRange.to);
+        const days = eachCycleStartDay(fromDay, selectedRange.to).filter(
+          forecastSourceDayEligible,
+        );
         const requestedDays = Array.from(new Set([previousDay(days[0]), ...days].filter(Boolean)));
         const summaries = await Promise.all(
           requestedDays.map(async (day) => ({
@@ -814,9 +825,76 @@
         };
       }
 
-      function stationForecastSeries(stats, historyRows, selectedRange, brandMarket = null) {
+      function firstFiniteNumber(...values) {
+        for (const value of values) {
+          const numeric = Number(value);
+          if (Number.isFinite(numeric)) return numeric;
+        }
+        return null;
+      }
+
+      function normalizeForecastDeltaRows(stats) {
+        const cycleRows = Array.isArray(stats?.cycle_hourly) ? stats.cycle_hourly : [];
+        if (cycleRows.length) {
+          return cycleRows
+            .map((row) => {
+              const cycleHour = Number(row?.cycle_hour);
+              const clockHour = Number(row?.clock_hour);
+              const medianDelta = firstFiniteNumber(row?.delta_median, row?.delta_avg);
+              if (
+                !Number.isFinite(cycleHour) ||
+                !Number.isFinite(clockHour) ||
+                medianDelta === null
+              ) {
+                return null;
+              }
+              const normalizedClockHour = ((Math.round(clockHour) % 24) + 24) % 24;
+              const q1Delta = firstFiniteNumber(row?.delta_min, medianDelta);
+              const q3Delta = firstFiniteNumber(row?.delta_max, medianDelta);
+              return {
+                hour: Math.round(cycleHour),
+                clockHour: normalizedClockHour,
+                label:
+                  typeof row?.label === "string" && row.label.trim()
+                    ? row.label.trim()
+                    : String(normalizedClockHour).padStart(2, "0"),
+                medianDelta,
+                q1Delta,
+                q3Delta,
+              };
+            })
+            .filter((row) => row !== null)
+            .sort((left, right) => left.hour - right.hour);
+        }
+
         const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
-        if (!hourlyRows.length || !historyRows.length) {
+        const byClockHour = new Map();
+        hourlyRows.forEach((row) => {
+          const clockHour = Number(row?.hour);
+          const delta = Number(row?.price);
+          if (Number.isFinite(clockHour) && Number.isFinite(delta)) {
+            byClockHour.set(((Math.round(clockHour) % 24) + 24) % 24, delta);
+          }
+        });
+
+        return Array.from({ length: 25 }, (_, cycleHour) => {
+          const clockHour = (12 + cycleHour) % 24;
+          const delta = byClockHour.get(clockHour);
+          if (!Number.isFinite(delta)) return null;
+          return {
+            hour: cycleHour,
+            clockHour,
+            label: String(clockHour).padStart(2, "0"),
+            medianDelta: delta,
+            q1Delta: delta,
+            q3Delta: delta,
+          };
+        }).filter((row) => row !== null);
+      }
+
+      function stationForecastSeries(stats, historyRows, selectedRange, brandMarket = null) {
+        const forecastDeltaRows = normalizeForecastDeltaRows(stats);
+        if (!forecastDeltaRows.length || !historyRows.length) {
           return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
         }
 
@@ -826,10 +904,10 @@
           : requestedFromDay;
         const toDay = selectedRange?.to || historyRows[historyRows.length - 1]?.date || "";
         const sourceDays = eachCycleStartDay(fromDay, toDay)
+          .filter(forecastSourceDayEligible)
           .map((day) => ({
             day,
             referencePrice: findHistoryPrice(historyRows, day),
-            closingPrice: findHistoryPrice(historyRows, nextDay(day)),
           }))
           .filter((day) => Number.isFinite(day.referencePrice));
 
@@ -837,54 +915,39 @@
           return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
         }
 
-        const byHour = new Map();
-        hourlyRows.forEach((row) => {
-          const hour = Number(row?.hour);
-          const delta = Number(row?.price);
-          if (Number.isFinite(hour) && Number.isFinite(delta)) {
-            byHour.set(Math.round(hour), delta);
-          }
-        });
-
         const baseSourceDay = sourceDays[sourceDays.length - 1];
         const baseMedian = Number(baseSourceDay.referencePrice);
-        const buckets = Array.from({ length: 25 }, (_, cycleHour) => {
-          const clockHour = (12 + cycleHour) % 24;
-          return {
-            hour: cycleHour,
-            clockHour,
-            label: String(clockHour).padStart(2, "0"),
-            prices: [],
-          };
-        });
+        const buckets = forecastDeltaRows.map((row) => ({
+          hour: row.hour,
+          clockHour: row.clockHour,
+          label: row.label,
+          medianPrices: [],
+          q1Prices: [],
+          q3Prices: [],
+        }));
         let brandCorrectionApplied = false;
 
-        sourceDays.forEach(({ day, referencePrice, closingPrice }) => {
+        sourceDays.forEach(({ day, referencePrice }) => {
           const brandCorrection = brandMarketCorrection(day, referencePrice, brandMarket);
           if (Math.abs(brandCorrection) > 0.0005) brandCorrectionApplied = true;
-          buckets.forEach((bucket) => {
-            const sourceHour = bucket.hour === 24 ? 12 : bucket.clockHour;
-            const delta = byHour.get(sourceHour);
-            if (!Number.isFinite(delta)) return;
+          buckets.forEach((bucket, index) => {
+            const deltaRow = forecastDeltaRows[index];
             const brandCorrectionShare = bucket.hour / 24;
-            const price =
-              bucket.hour === 0
-                ? referencePrice
-                : bucket.hour === 24 && Number.isFinite(closingPrice)
-                  ? closingPrice
-                  : referencePrice + delta;
-            if (Number.isFinite(price)) {
-              bucket.prices.push(price + brandCorrection * brandCorrectionShare);
-            }
+            const correction = brandCorrection * brandCorrectionShare;
+            bucket.medianPrices.push(baseMedian + deltaRow.medianDelta + correction);
+            bucket.q1Prices.push(baseMedian + deltaRow.q1Delta + correction);
+            bucket.q3Prices.push(baseMedian + deltaRow.q3Delta + correction);
           });
         });
 
         const rows = buckets
           .map((bucket) => {
-            const sorted = bucket.prices.sort((left, right) => left - right);
-            const rowMedian = quantile(sorted, 0.5);
-            const q1 = quantile(sorted, 0.25);
-            const q3 = quantile(sorted, 0.75);
+            const sortedMedian = bucket.medianPrices.sort((left, right) => left - right);
+            const sortedQ1 = bucket.q1Prices.sort((left, right) => left - right);
+            const sortedQ3 = bucket.q3Prices.sort((left, right) => left - right);
+            const rowMedian = quantile(sortedMedian, 0.5);
+            const q1 = quantile(sortedQ1, 0.25);
+            const q3 = quantile(sortedQ3, 0.75);
             if (!Number.isFinite(rowMedian)) return null;
             return {
               ...bucket,
@@ -1442,7 +1505,7 @@
               ? ` Zusätzlich wird die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen, sofern dafür Marktdaten verfügbar sind.`
               : " Zusätzlich wird, sofern Marktdaten verfügbar sind, die Markenposition gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen.";
             forecastNote.textContent =
-              `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)} und nutzt den Median des kumulierten 12:00-Uhr-bis-12:00-Uhr-Stationsverlaufs, der ausschließlich aus den Stationsdaten nach der Umstellung ab ${formatDate(FORECAST_MIN_DATE_STR)} gelernt wurde.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
+              `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)}. Für die Form der Tageskurve werden die verfügbaren 12:00-Uhr-bis-12:00-Uhr-Stationsverläufe ab ${formatDate(FORECAST_MIN_DATE_STR)} berücksichtigt. Die Steuersenkung zum ${formatDate(FUEL_TAX_CHANGE_DATE_STR)} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis der Station kalibriert wird.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
           } else {
             forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
           }
