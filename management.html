@@ -2186,8 +2186,8 @@
           forecastCtx.save();
           forecastCtx.strokeStyle = color;
           forecastCtx.lineWidth = 2.6;
-          forecastCtx.lineJoin = "round";
-          forecastCtx.lineCap = "round";
+          forecastCtx.lineJoin = "miter";
+          forecastCtx.lineCap = "butt";
           if (dashed) forecastCtx.setLineDash([7, 5]);
           forecastCtx.beginPath();
           forecastCtx.moveTo(points[0].x, points[0].y);

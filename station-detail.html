@@ -982,7 +982,10 @@
 
       function renderForecastChart(series) {
         const chartRows = series?.rows?.length ? series.rows : fallbackForecastRows();
-        const labels = chartRows.map((row) => row.label);
+        const pointFor = (row, valueKey) => ({
+          x: row.hour,
+          y: row[valueKey] ?? null,
+        });
         const values = chartRows.flatMap((row) => [row.median, row.q1, row.q3]);
         const domain = priceLevelDomain(values);
         const ctx = document.getElementById("forecast-chart").getContext("2d");
@@ -990,11 +993,10 @@
         forecastChart = new Chart(ctx, {
           type: "line",
           data: {
-            labels,
             datasets: [
               {
                 label: "q3",
-                data: chartRows.map((row) => row.q3 ?? null),
+                data: chartRows.map((row) => pointFor(row, "q3")),
                 borderColor: "rgba(15, 118, 110, 0)",
                 backgroundColor: "rgba(15, 118, 110, 0)",
                 pointRadius: 0,
@@ -1003,7 +1005,7 @@
               },
               {
                 label: "Typischer Bereich q1-q3",
-                data: chartRows.map((row) => row.q1 ?? null),
+                data: chartRows.map((row) => pointFor(row, "q1")),
                 borderColor: "rgba(15, 118, 110, 0)",
                 backgroundColor: "rgba(15, 118, 110, 0.14)",
                 pointRadius: 0,
@@ -1013,7 +1015,7 @@
               },
               {
                 label: "Prognose Median",
-                data: chartRows.map((row) => row.median ?? null),
+                data: chartRows.map((row) => pointFor(row, "median")),
                 borderColor: "#0f766e",
                 backgroundColor: "#0f766e",
                 borderWidth: 2.4,
@@ -1032,15 +1034,18 @@
             devicePixelRatio: chartPixelRatio(),
             scales: {
               x: {
+                type: "linear",
                 alignToPixels: true,
+                min: 0,
+                max: 24,
                 grid: {
                   color(context) {
-                    return context.index % 4 === 0
+                    return context.tick.value % 4 === 0
                       ? currentChartTheme().grid
                       : "rgba(0, 0, 0, 0)";
                   },
                   lineWidth(context) {
-                    return context.index % 4 === 0 ? 1 : 0;
+                    return context.tick.value % 4 === 0 ? 1 : 0;
                   },
                 },
                 title: {
@@ -1053,6 +1058,7 @@
                 },
                 ticks: {
                   autoSkip: false,
+                  stepSize: 1,
                   maxRotation: 0,
                   minRotation: 0,
                   padding: 8,
@@ -1061,7 +1067,7 @@
                     weight: "700",
                   },
                   callback(value, index) {
-                    const row = chartRows[index];
+                    const row = chartRows.find((candidate) => candidate.hour === value);
                     return row?.label || "";
                   },
                 },
