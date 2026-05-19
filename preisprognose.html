@@ -18,7 +18,10 @@
     />
     <link rel="stylesheet" href="styles.css?v=20260409-app-promo-v18" />
     <style>
-      .forecast-controls{margin-bottom:18px}.forecast-card #forecast-plot{height:420px!important}.forecast-card .chart-note{max-width:1120px}.market-card{margin-top:18px}.market-layout{display:grid;gap:18px}.market-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end}.market-chart-panel{display:grid;gap:14px}.market-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}.market-tabs{display:flex;flex-wrap:wrap;gap:8px}.market-tabs .btn{min-height:42px;border-radius:999px;padding:8px 13px}.market-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.market-metric{border:1px solid rgba(148,163,184,.18);border-radius:8px;padding:10px 12px;background:rgba(15,118,110,.07)}.market-metric span{display:block;color:var(--muted);font-size:.74rem;font-weight:800;text-transform:uppercase}.market-metric strong{display:block;margin-top:3px;font-size:1rem}.market-card #brent-plot{height:420px!important}.market-empty{display:grid;place-items:center;min-height:320px;color:var(--muted);text-align:center;line-height:1.45}.signal-box{display:grid;gap:14px;border:1px solid rgba(148,163,184,.22);border-radius:8px;padding:16px;background:rgba(15,23,42,.10)}.signal-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.signal-option{display:grid;gap:8px;align-content:start;min-height:124px;border:1px solid rgba(148,163,184,.16);border-radius:8px;padding:12px;background:rgba(15,23,42,.08);opacity:.48}.signal-option.active{opacity:1;border-color:rgba(20,184,166,.48);background:rgba(20,184,166,.10)}.signal-option-head{display:flex;align-items:center;gap:10px}.signal-dot{width:18px;height:18px;border-radius:999px;background:rgba(148,163,184,.42)}.signal-option.rising .signal-dot{background:#dc2626}.signal-option.neutral .signal-dot{background:#d97706}.signal-option.falling .signal-dot{background:#16a34a}.signal-option strong{font-size:.98rem}.signal-option p{margin:0;color:var(--muted);font-size:.82rem;line-height:1.42}.signal-current{margin:0;color:var(--ink);font-weight:800;line-height:1.45}.signal-explain{display:grid;gap:8px;color:var(--muted);font-size:.9rem;line-height:1.5}.signal-explain p{margin:0}.forecast-tooltip{position:fixed;z-index:1000;display:grid;gap:4px;max-width:min(280px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(148,163,184,.34);border-radius:8px;background:rgba(9,14,17,.94);color:#f8fafc;box-shadow:var(--shadow-sm);font-size:.78rem;line-height:1.35;pointer-events:none}.forecast-tooltip[hidden]{display:none}.forecast-tooltip strong{color:#fff;font-size:.8rem}.forecast-tooltip span{color:rgba(248,250,252,.86)}@media(max-width:900px){.market-top{grid-template-columns:1fr}.market-metrics,.signal-options{grid-template-columns:1fr}}@media(max-width:720px){.forecast-card #forecast-plot{height:300px!important}.market-card #brent-plot{height:320px!important}.market-actions{align-items:stretch}.market-tabs{width:100%}.market-tabs .btn{flex:1 1 auto}}
+      .forecast-controls{margin-bottom:18px}.forecast-card #forecast-plot{height:420px!important}.forecast-card .chart-note{max-width:1120px}.market-card{margin-top:18px}.market-layout{display:grid;gap:14px}.market-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px;align-items:end}.market-chart-panel{display:grid;gap:14px}.market-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}.market-tabs{display:flex;flex-wrap:wrap;gap:8px}.market-tabs .btn{min-height:42px;border-radius:999px;padding:8px 13px}.market-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.market-metric{border:1px solid rgba(148,163,184,.18);border-radius:8px;padding:10px 12px;background:rgba(15,118,110,.07)}.market-metric span{display:block;color:var(--muted);font-size:.74rem;font-weight:800;text-transform:uppercase}.market-metric strong{display:block;margin-top:3px;font-size:1rem}.market-card #brent-plot{height:420px!important}.market-empty{display:grid;place-items:center;min-height:220px;color:var(--muted);text-align:center;line-height:1.45}.market-empty[hidden]{display:none}.signal-box{display:grid;gap:14px;border:1px solid rgba(148,163,184,.22);border-radius:8px;padding:16px;background:rgba(15,23,42,.10)}.signal-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.signal-option{display:grid;gap:8px;align-content:start;min-height:124px;border:1px solid rgba(148,163,184,.16);border-radius:8px;padding:12px;background:rgba(15,23,42,.08);opacity:.48}.signal-option.active{opacity:1;border-color:rgba(20,184,166,.48);background:rgba(20,184,166,.10)}.signal-option-head{display:flex;align-items:center;gap:10px}.signal-dot{width:18px;height:18px;border-radius:999px;background:rgba(148,163,184,.42)}.signal-option.rising .signal-dot{background:#dc2626}.signal-option.neutral .signal-dot{background:#d97706}.signal-option.falling .signal-dot{background:#16a34a}.signal-option strong{font-size:.98rem}.signal-option p{margin:0;color:var(--muted);font-size:.82rem;line-height:1.42}.signal-current{margin:0;color:var(--ink);font-weight:800;line-height:1.45}.forecast-tooltip{position:fixed;z-index:1000;display:grid;gap:4px;max-width:min(280px,calc(100vw - 24px));padding:10px 12px;border:1px solid rgba(148,163,184,.34);border-radius:8px;background:rgba(9,14,17,.94);color:#f8fafc;box-shadow:var(--shadow-sm);font-size:.78rem;line-height:1.35;pointer-events:none}.forecast-tooltip[hidden]{display:none}.forecast-tooltip strong{color:#fff;font-size:.8rem}.forecast-tooltip span{color:rgba(248,250,252,.86)}@media(max-width:900px){.market-top{grid-template-columns:1fr}.market-metrics,.signal-options{grid-template-columns:1fr}}@media(max-width:720px){.forecast-card #forecast-plot{height:300px!important}.market-card #brent-plot{height:320px!important}.market-actions{align-items:stretch}.market-tabs{width:100%}.market-tabs .btn{flex:1 1 auto}}
+    </style>
+    <style>
+      .forecast-controls .toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center}.forecast-controls .control-grid{display:block;width:auto;margin:0}.forecast-controls .control-group{justify-items:start}.fuel-context{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;color:var(--muted);font-size:.82rem}.fuel-pill{border:1px solid rgba(148,163,184,.18);border-radius:999px;padding:6px 10px;background:rgba(15,23,42,.08)}.decision-card{margin-top:18px}.decision-grid{display:grid;grid-template-columns:minmax(280px,1.2fr) repeat(3,minmax(0,1fr));gap:12px}.decision-panel{display:grid;gap:8px;border:1px solid rgba(148,163,184,.18);border-radius:8px;padding:14px;background:rgba(15,23,42,.08);min-height:132px}.decision-panel.primary{background:rgba(20,184,166,.10);border-color:rgba(20,184,166,.38)}.decision-label{color:var(--muted);font-size:.74rem;font-weight:800;text-transform:uppercase}.decision-title{font-size:1.05rem;font-weight:900}.decision-text{margin:0;color:var(--muted);font-size:.88rem;line-height:1.45}.driver-list{display:grid;gap:6px}.driver-row{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:.86rem}.driver-value{color:var(--ink);font-weight:800}.scenario-buttons{display:flex;flex-wrap:wrap;gap:6px}.scenario-buttons .btn{min-height:36px;border-radius:999px;padding:7px 10px}.scenario-result{font-weight:900}@media(max-width:980px){.forecast-controls .toolbar,.decision-grid{grid-template-columns:1fr}.forecast-controls .control-group{justify-items:start}}
     </style>
   </head>
   <body>
@@ -51,7 +54,47 @@
                   E5
                 </button>
               </div>
+              <div class="fuel-context" aria-label="Aktuelle Prognose-Eckdaten">
+                <span class="fuel-pill" id="fuel-basis-pill">Basis wird geladen</span>
+                <span class="fuel-pill" id="fuel-trend-pill">Trend wird geladen</span>
+              </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card decision-card">
+        <div class="decision-grid">
+          <div class="decision-panel primary">
+            <span class="decision-label">Tankentscheidung</span>
+            <div class="decision-title" id="decision-title">Empfehlung wird geladen</div>
+            <p class="decision-text" id="decision-text">Die Prognose und das Brent-Signal werden zusammengeführt.</p>
+          </div>
+          <div class="decision-panel">
+            <span class="decision-label">Prognose-Vertrauen</span>
+            <div class="decision-title" id="confidence-title">-</div>
+            <p class="decision-text" id="confidence-text">Datengrundlage und Streuung werden bewertet.</p>
+          </div>
+          <div class="decision-panel">
+            <span class="decision-label">Was treibt den Preis?</span>
+            <div class="driver-list">
+              <div class="driver-row"><span>Tagesmuster</span><span class="driver-value" id="driver-cycle">-</span></div>
+              <div class="driver-row"><span>Brent</span><span class="driver-value" id="driver-brent">-</span></div>
+              <div class="driver-row"><span>Basisniveau</span><span class="driver-value" id="driver-basis">-</span></div>
+            </div>
+          </div>
+          <div class="decision-panel">
+            <span class="decision-label">Brent-Szenario</span>
+            <div class="scenario-buttons" aria-label="Brent-Szenario auswählen">
+              <button class="btn" data-brent-scenario="-10">-10 USD</button>
+              <button class="btn" data-brent-scenario="-5">-5 USD</button>
+              <button class="btn primary" data-brent-scenario="0">0</button>
+              <button class="btn" data-brent-scenario="5">+5 USD</button>
+              <button class="btn" data-brent-scenario="10">+10 USD</button>
+            </div>
+            <p class="decision-text">
+              Rohöl-Effekt: <span class="scenario-result" id="scenario-result">0,0 Cent/l</span>
+            </p>
           </div>
         </div>
       </section>
@@ -153,23 +196,6 @@
             </p>
           </section>
 
-          <div class="signal-explain">
-            <p>
-              Der Ölpreis ist ein wichtiger Kostenfaktor für Benzin und Diesel,
-              wirkt aber nicht 1:1 auf den Tankstellenpreis.
-            </p>
-            <p>
-              Zwischen Rohölpreis und Zapfsäule liegen Wechselkurs,
-              Raffineriepreise, Großhandel, Steuern, CO₂-Kosten, Margen und
-              lokaler Wettbewerb. Außerdem reagieren Kraftstoffpreise meist
-              zeitversetzt.
-            </p>
-            <p>
-              Die Ampel zeigt deshalb keinen sicheren Preis, sondern ob vom
-              Rohölmarkt aktuell eher steigender, neutraler oder sinkender
-              Preisdruck ausgeht.
-            </p>
-          </div>
         </div>
       </section>
     </main>
@@ -262,6 +288,16 @@
       const brentEmptyEl = document.getElementById("brent-empty");
       const brentSignalTextEl = document.getElementById("brent-signal-text");
       const brentSignalOptionEls = document.querySelectorAll("[data-signal-option]");
+      const fuelBasisPillEl = document.getElementById("fuel-basis-pill");
+      const fuelTrendPillEl = document.getElementById("fuel-trend-pill");
+      const decisionTitleEl = document.getElementById("decision-title");
+      const decisionTextEl = document.getElementById("decision-text");
+      const confidenceTitleEl = document.getElementById("confidence-title");
+      const confidenceTextEl = document.getElementById("confidence-text");
+      const driverCycleEl = document.getElementById("driver-cycle");
+      const driverBrentEl = document.getElementById("driver-brent");
+      const driverBasisEl = document.getElementById("driver-basis");
+      const scenarioResultEl = document.getElementById("scenario-result");
       const forecastTooltipEl = document.getElementById("forecast-tooltip");
 
       const state = {
@@ -274,6 +310,9 @@
         brentLayout: null,
         brentRangeDays: 30,
         brentUnit: "eur_liter",
+        brentSignal: "neutral",
+        forecastSeries: null,
+        brentScenarioUsd: 0,
         summaryCache: new Map(),
       };
 
@@ -753,6 +792,98 @@
         return ((latestValue - priorValue) / priorValue) * 100;
       }
 
+      function forecastTrend(series = state.forecastSeries) {
+        const rows = (series?.rows || []).filter((row) => Number.isFinite(row.median));
+        if (rows.length < 2) return { label: "-", delta: null, direction: "neutral" };
+        const first = rows[0].median;
+        const last = rows[rows.length - 1].median;
+        const delta = last - first;
+        let direction = "neutral";
+        if (delta > 0.015) direction = "rising";
+        if (delta < -0.015) direction = "falling";
+        return {
+          label: `${delta >= 0 ? "+" : ""}${formatValue(delta)} EUR/l`,
+          delta,
+          direction,
+        };
+      }
+
+      function brentSignalLabel(signal = state.brentSignal) {
+        return {
+          rising: "preistreibend",
+          neutral: "neutral",
+          falling: "entlastend",
+        }[signal] || "neutral";
+      }
+
+      function updateDecisionPanel() {
+        const series = state.forecastSeries;
+        const trend = forecastTrend(series);
+        const sourceDays = series?.sourceDays?.length || 0;
+        const baseMedian = Number(series?.baseMedian);
+        const brentSignal = state.brentSignal;
+
+        fuelBasisPillEl.textContent = Number.isFinite(baseMedian)
+          ? `Basis ${formatValue(baseMedian)} EUR/l`
+          : "Basis wird geladen";
+        fuelTrendPillEl.textContent = trend.delta == null
+          ? "Tagestrend wird geladen"
+          : `Tagestrend ${trend.label}`;
+
+        driverCycleEl.textContent = trend.direction === "rising"
+          ? "steigend"
+          : trend.direction === "falling"
+            ? "sinkend"
+            : "neutral";
+        driverBrentEl.textContent = brentSignalLabel(brentSignal);
+        driverBasisEl.textContent = Number.isFinite(baseMedian)
+          ? `${formatValue(baseMedian)} EUR/l`
+          : "-";
+
+        const supportiveFalling = trend.direction === "falling" || brentSignal === "falling";
+        const supportiveRising = trend.direction === "rising" || brentSignal === "rising";
+        if (supportiveRising && !supportiveFalling) {
+          decisionTitleEl.textContent = "Eher früher tanken";
+          decisionTextEl.textContent =
+            "Prognose oder Brent-Signal zeigen aktuell steigenden Preisdruck. Wenn du ohnehin tanken musst, spricht mehr für früher als später.";
+        } else if (supportiveFalling && !supportiveRising) {
+          decisionTitleEl.textContent = "Warten möglich";
+          decisionTextEl.textContent =
+            "Tagesmuster oder Brent-Signal wirken aktuell eher entlastend. Wenn der Tank noch reicht, ist Warten plausibel.";
+        } else {
+          decisionTitleEl.textContent = "Kein klares Signal";
+          decisionTextEl.textContent =
+            "Prognose und Brent-Signal zeigen kein einheitliches Bild. Die 12:00-Uhr-Regel und lokale Preise bleiben entscheidend.";
+        }
+
+        const spreadValues = (series?.rows || [])
+          .map((row) => Number(row.q3) - Number(row.q1))
+          .filter((value) => Number.isFinite(value) && value >= 0);
+        const avgSpread = spreadValues.length
+          ? spreadValues.reduce((sum, value) => sum + value, 0) / spreadValues.length
+          : null;
+        let confidence = "niedrig";
+        if (sourceDays >= 30 && Number.isFinite(avgSpread) && avgSpread <= 0.06) confidence = "hoch";
+        else if (sourceDays >= 14) confidence = "mittel";
+        confidenceTitleEl.textContent = confidence.charAt(0).toUpperCase() + confidence.slice(1);
+        confidenceTextEl.textContent =
+          `${sourceDays || "-"} historische Tage, typische Streuung ${Number.isFinite(avgSpread) ? formatValue(avgSpread) : "-"} EUR/l.`;
+
+        updateScenarioResult();
+      }
+
+      function updateScenarioResult() {
+        const latest = state.brentHistory?.rows?.[state.brentHistory.rows.length - 1];
+        const usdPerEur = Number(latest?.usd_per_eur) || 1;
+        const barrelLiters = Number(state.brentHistory?.barrel_liters) || 158.987295;
+        const cents = (state.brentScenarioUsd / usdPerEur / barrelLiters) * 100;
+        scenarioResultEl.textContent =
+          `${cents >= 0 ? "+" : ""}${new Intl.NumberFormat("de-DE", {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          }).format(cents)} Cent/l`;
+      }
+
       function updateBrentSignal() {
         const change7 = brentChangePercent(7);
         const change14 = brentChangePercent(14);
@@ -764,6 +895,7 @@
           if (change7 > 1.5) signal = "rising";
           if (change7 < -1.5) signal = "falling";
         }
+        state.brentSignal = signal;
 
         const labels = {
           rising: {
@@ -786,6 +918,7 @@
         brentSignalOptionEls.forEach((option) => {
           option.classList.toggle("active", option.getAttribute("data-signal-option") === signal);
         });
+        updateDecisionPanel();
       }
 
       function drawBrentChart() {
@@ -816,7 +949,7 @@
         const width = brentCanvas.getBoundingClientRect().width;
         const height = brentCanvas.getBoundingClientRect().height;
         const theme = currentChartTheme();
-        const plot = { left: 72, right: 18, top: 24, bottom: 42 };
+        const plot = { left: 86, right: 18, top: 24, bottom: 58 };
         plot.width = width - plot.left - plot.right;
         plot.height = height - plot.top - plot.bottom;
         const values = rows.map((row) => brentValue(row)).filter((value) => Number.isFinite(value));
@@ -830,7 +963,7 @@
         const xForIndex = (index) =>
           plot.left + (rows.length === 1 ? 0 : (index * plot.width) / (rows.length - 1));
         const yForValue = (value) => yScale(domain, plot, value);
-        state.brentLayout = { plot, domain, rows, xForIndex };
+        state.brentLayout = { plot, domain, rows, xForIndex, yForValue };
 
         brentCtx.clearRect(0, 0, width, height);
         brentCtx.strokeStyle = theme.grid;
@@ -868,6 +1001,22 @@
           brentCtx.stroke();
           brentCtx.fillText(formatLongDate(rows[index].date).slice(0, 5), x, plot.top + plot.height + 24);
         });
+
+        brentCtx.save();
+        brentCtx.fillStyle = theme.axisTitle;
+        brentCtx.font = "11px Manrope, sans-serif";
+        brentCtx.textAlign = "center";
+        brentCtx.textBaseline = "alphabetic";
+        brentCtx.fillText("Datum", plot.left + plot.width / 2, plot.top + plot.height + 46);
+        brentCtx.translate(24, plot.top + plot.height / 2);
+        brentCtx.rotate(-Math.PI / 2);
+        brentCtx.textBaseline = "middle";
+        brentCtx.fillText(
+          state.brentUnit === "usd_barrel" ? "Brent (USD/Barrel)" : "Brent (EUR/Rohöl-Liter)",
+          0,
+          0,
+        );
+        brentCtx.restore();
 
         const lineColor = "#2563eb";
         const fillGradient = brentCtx.createLinearGradient(0, plot.top, 0, plot.top + plot.height);
@@ -907,11 +1056,39 @@
         brentCtx.fill();
       }
 
+      function drawBrentHover(row) {
+        if (!state.brentLayout || !row) return;
+        const { plot, rows, xForIndex, yForValue } = state.brentLayout;
+        const index = rows.indexOf(row);
+        if (index < 0) return;
+        const x = xForIndex(index);
+        const y = yForValue(brentValue(row));
+        const lineColor = "#2563eb";
+        brentCtx.save();
+        brentCtx.setLineDash([5, 5]);
+        brentCtx.strokeStyle = "rgba(148,163,184,0.55)";
+        brentCtx.lineWidth = 1;
+        brentCtx.beginPath();
+        brentCtx.moveTo(x, plot.top);
+        brentCtx.lineTo(x, plot.top + plot.height);
+        brentCtx.stroke();
+        brentCtx.setLineDash([]);
+        brentCtx.fillStyle = lineColor;
+        brentCtx.strokeStyle = "#ffffff";
+        brentCtx.lineWidth = 2;
+        brentCtx.beginPath();
+        brentCtx.arc(x, y, 5, 0, Math.PI * 2);
+        brentCtx.fill();
+        brentCtx.stroke();
+        brentCtx.restore();
+      }
+
       function drawForecastChart() {
         const targetDate = addDays(berlinToday(), 1);
         forecastTitleEl.textContent =
           `Prognose \u00b7 ${fuelDisplayName(state.fuel)} \u00b7 ${formatLongDate(targetDate)}`;
         const series = forecastSeries(state.sourceDays);
+        state.forecastSeries = series;
         const rows = series.rows || [];
         const domain = computeForecastDomain(rows);
         state.forecastLayout = drawCoordinateSystem(domain);
@@ -1019,6 +1196,7 @@
           : "dem letzten verf\u00fcgbaren Tag";
         forecastNoteEl.textContent =
           `Prognosemodell f\u00fcr ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel}. F\u00fcr die Form der Tageskurve werden die lokal verf\u00fcgbaren 12:00-Uhr-bis-12:00-Uhr-Verl\u00e4ufe ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} ber\u00fccksichtigt. Die Steuersenkung zum ${formatLongDate(parseISODate(FUEL_TAX_CHANGE_DATE_STR))} ist im Modell ber\u00fccksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Ver\u00e4nderung im Tagesverlauf, w\u00e4hrend das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis kalibriert wird. Die schattierte Fl\u00e4che zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
+        updateDecisionPanel();
       }
 
       function cycleHourLabel(row, dateLabel = "") {
@@ -1169,21 +1347,46 @@
         });
       });
 
+      document.querySelectorAll("[data-brent-scenario]").forEach((button) => {
+        button.addEventListener("click", () => {
+          state.brentScenarioUsd = Number(button.getAttribute("data-brent-scenario")) || 0;
+          document.querySelectorAll("[data-brent-scenario]").forEach((candidate) => {
+            candidate.classList.remove("primary");
+          });
+          button.classList.add("primary");
+          updateScenarioResult();
+        });
+      });
+
       brentCanvas.addEventListener("mousemove", (event) => {
         const layout = state.brentLayout;
         if (!layout?.rows?.length) return hideForecastTooltip();
         const rect = brentCanvas.getBoundingClientRect();
         const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        if (
+          x < layout.plot.left ||
+          x > layout.plot.left + layout.plot.width ||
+          y < layout.plot.top ||
+          y > layout.plot.top + layout.plot.height
+        ) {
+          return hideForecastTooltip();
+        }
         const index = Math.round(((x - layout.plot.left) / layout.plot.width) * (layout.rows.length - 1));
         const row = layout.rows[Math.max(0, Math.min(layout.rows.length - 1, index))];
         if (!row) return hideForecastTooltip();
+        drawBrentChart();
+        drawBrentHover(row);
         showForecastTooltip(event, "Brent", [
-          `Datum: ${formatLongDate(row.date)}`,
-          `Wert: ${formatBrentValue(brentValue(row), state.brentUnit)}`,
+          `X-Achse: ${formatLongDate(row.date)}`,
+          `Y-Achse: ${formatBrentValue(brentValue(row), state.brentUnit)}`,
           `EUR/USD: ${Number.isFinite(row.usd_per_eur) ? row.usd_per_eur.toFixed(4).replace(".", ",") : "-"}`,
         ]);
       });
-      brentCanvas.addEventListener("mouseleave", hideForecastTooltip);
+      brentCanvas.addEventListener("mouseleave", () => {
+        hideForecastTooltip();
+        if (state.brentHistory?.rows?.length) drawBrentChart();
+      });
 
       window.addEventListener("resize", () => {
         if (state.sourceDays.length) drawForecastChart();
