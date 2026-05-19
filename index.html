@@ -490,7 +490,17 @@
           }
           throw new Error(`Request failed: ${response.status}`);
         }
-        const payload = await response.json();
+        const text = await response.text();
+        let payload;
+        try {
+          payload = JSON.parse(text);
+        } catch (error) {
+          if (url.startsWith(DATA_BASE) && /\bNaN\b/.test(text)) {
+            payload = JSON.parse(text.replace(/\bNaN\b/g, "null"));
+          } else {
+            throw error;
+          }
+        }
         if (isTankerkoenigRequest(url) && payload && payload.ok === false) {
           throw new Error(TANKERKOENIG_APOLOGY);
         }

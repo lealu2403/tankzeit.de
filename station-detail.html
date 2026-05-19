@@ -944,6 +944,16 @@
 
         const baseSourceDay = sourceDays[sourceDays.length - 1];
         const baseMedian = Number(baseSourceDay.referencePrice);
+        const sourceReferenceMedian = quantile(
+          sourceDays
+            .map((day) => day.referencePrice)
+            .filter((value) => Number.isFinite(value))
+            .sort((left, right) => left - right),
+          0.5,
+        );
+        const calibrationOffset = Number.isFinite(sourceReferenceMedian)
+          ? baseMedian - sourceReferenceMedian
+          : 0;
         const buckets = forecastDeltaRows.map((row) => ({
           hour: row.hour,
           clockHour: row.clockHour,
@@ -961,9 +971,9 @@
             const deltaRow = forecastDeltaRows[index];
             const brandCorrectionShare = bucket.hour / 24;
             const correction = brandCorrection * brandCorrectionShare;
-            bucket.medianPrices.push(baseMedian + deltaRow.medianDelta + correction);
-            bucket.q1Prices.push(baseMedian + deltaRow.q1Delta + correction);
-            bucket.q3Prices.push(baseMedian + deltaRow.q3Delta + correction);
+            bucket.medianPrices.push(referencePrice + deltaRow.medianDelta + correction);
+            bucket.q1Prices.push(referencePrice + deltaRow.q1Delta + correction);
+            bucket.q3Prices.push(referencePrice + deltaRow.q3Delta + correction);
           });
         });
 
@@ -978,9 +988,13 @@
             if (!Number.isFinite(rowMedian)) return null;
             return {
               ...bucket,
-              median: Number(rowMedian.toFixed(3)),
-              q1: Number((Number.isFinite(q1) ? q1 : rowMedian).toFixed(3)),
-              q3: Number((Number.isFinite(q3) ? q3 : rowMedian).toFixed(3)),
+              median: Number((rowMedian + calibrationOffset).toFixed(3)),
+              q1: Number(
+                ((Number.isFinite(q1) ? q1 : rowMedian) + calibrationOffset).toFixed(3),
+              ),
+              q3: Number(
+                ((Number.isFinite(q3) ? q3 : rowMedian) + calibrationOffset).toFixed(3),
+              ),
             };
           })
           .filter(Boolean);
@@ -1069,6 +1083,12 @@
             date: "",
           };
         });
+      }
+
+      function forecastTooltipTime(row) {
+        if (!row || !Number.isFinite(Number(row.clockHour))) return "-";
+        const hour = String(Math.round(Number(row.clockHour))).padStart(2, "0");
+        return `${formatLongDate(forecastTargetDate())} ${hour}:00`;
       }
 
       function renderForecastChart(series) {
@@ -1222,14 +1242,18 @@
               },
               tooltip: {
                 callbacks: {
+                  title() {
+                    return "Prognose Median";
+                  },
                   label(context) {
                     const rowIndex = context.raw?.sourceRowIndex ?? context.dataIndex;
                     const row = chartRows[rowIndex];
                     if (!row || context.dataset.label === "q3") return "";
-                    if (context.dataset.label === "Typischer Bereich q1-q3") {
-                      return `q1-q3: ${formatFuelPrice(row.q1)} bis ${formatFuelPrice(row.q3)} EUR/l`;
-                    }
-                    return `Prognose-Median: ${formatFuelPrice(row.median)} EUR/l`;
+                    return [
+                      `Prognosezeitpunkt: ${forecastTooltipTime(row)}`,
+                      `Prognose-Median: ${formatFuelPrice(row.median)} EUR/l`,
+                      `q1-q3: ${formatFuelPrice(row.q1)} bis ${formatFuelPrice(row.q3)} EUR/l`,
+                    ];
                   },
                 },
               },
