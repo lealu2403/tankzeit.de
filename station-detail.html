@@ -1263,12 +1263,14 @@
                   const x2 = xScale.getPixelForValue(nextRow.hour);
                   const y1 = yScale.getPixelForValue(q1);
                   const y3 = yScale.getPixelForValue(q3);
+                  const bandTop = Math.min(y1, y3);
+                  const bandHeight = Math.max(4, Math.abs(y3 - y1));
                   ctx.beginPath();
                   ctx.rect(
                     Math.min(x1, x2),
-                    Math.min(y1, y3),
+                    bandTop - (bandHeight - Math.abs(y3 - y1)) / 2,
                     Math.abs(x2 - x1),
-                    Math.abs(y3 - y1),
+                    bandHeight,
                   );
                   ctx.fill();
                 }
