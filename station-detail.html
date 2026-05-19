@@ -88,6 +88,7 @@
         <p class="chart-note station-detail-chart-note" id="price-level-note">
           Lade Preisniveau...
         </p>
+        <p class="chart-note station-detail-chart-note" id="price-level-data-note" hidden></p>
       </section>
 
       <section class="legal-card station-detail-card">
@@ -98,6 +99,7 @@
         </div>
         <div
           class="station-detail-chart-wrap"
+          id="forecast-chart-wrap"
           aria-label="Vorbereiteter Chartbereich fuer die Prognose dieser Tankstelle"
         >
           <canvas id="forecast-chart"></canvas>
@@ -514,6 +516,16 @@
         return `${DATA_BASE}${parts.y}/${parts.m}/${parts.d}/management_boxplots.json`;
       }
 
+      async function latestManagementDay() {
+        const today = berlinToday();
+        for (let offset = 0; offset < 60; offset += 1) {
+          const day = formatISODate(addDays(today, -offset));
+          const summary = await fetchManagementSummary(day);
+          if (summary) return day;
+        }
+        return "";
+      }
+
       async function fetchManagementSummary(day) {
         if (!day) return null;
         if (managementSummaryCache.has(day)) return managementSummaryCache.get(day);
@@ -615,6 +627,43 @@
       function findHistoryPrice(historyRows, day) {
         const match = historyRows.find((row) => row.date === day);
         return match ? match.price : null;
+      }
+
+      function countHistoryDaysInRange(historyRows, range) {
+        if (!range?.from || !range?.to) return 0;
+        return historyRows.filter(
+          (row) => row.date >= range.from && row.date <= range.to,
+        ).length;
+      }
+
+      function updatePriceLevelDataNotice(historyRows, selectedRange, latestDay) {
+        const note = document.getElementById("price-level-data-note");
+        const messages = [];
+        const stationEnd = historyRows[historyRows.length - 1]?.date || "";
+        const historyCount = countHistoryDaysInRange(historyRows, selectedRange);
+        const expectedDays = selectedRange?.from && selectedRange?.to
+          ? eachCycleStartDay(selectedRange.from, selectedRange.to).length
+          : 0;
+
+        if (latestDay && stationEnd && stationEnd < latestDay) {
+          messages.push(
+            `Der letzte 12:00-Uhr-Datenpunkt dieser Station ist vom ${formatDate(stationEnd)}; der aktuelle Gesamtdatenstand reicht bis ${formatDate(latestDay)}.`,
+          );
+        }
+        if (expectedDays > 0 && historyCount > 0 && historyCount < expectedDays) {
+          messages.push(
+            `Im gewaehlten Zeitraum liegen nur ${historyCount} von ${expectedDays} erwarteten Tagespunkten vor.`,
+          );
+        }
+
+        if (!messages.length) {
+          note.hidden = true;
+          note.textContent = "";
+          return;
+        }
+        note.hidden = false;
+        note.textContent =
+          `Hinweis zur Datenbasis: ${messages.join(" ")} Die Preisniveau-Historie wird trotzdem angezeigt und mit zukuenftigen Datenaktualisierungen ergaenzt.`;
       }
 
       function shiftIsoDay(day, offsetDays) {
@@ -894,35 +943,25 @@
             .sort((left, right) => left.hour - right.hour);
         }
 
-        const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
-        const byClockHour = new Map();
-        hourlyRows.forEach((row) => {
-          const clockHour = Number(row?.hour);
-          const delta = Number(row?.price);
-          if (Number.isFinite(clockHour) && Number.isFinite(delta)) {
-            byClockHour.set(((Math.round(clockHour) % 24) + 24) % 24, delta);
-          }
-        });
-
         return Array.from({ length: 25 }, (_, cycleHour) => {
           const clockHour = (12 + cycleHour) % 24;
-          const delta = byClockHour.get(clockHour);
-          if (!Number.isFinite(delta)) return null;
           return {
             hour: cycleHour,
             clockHour,
             label: String(clockHour).padStart(2, "0"),
-            medianDelta: delta,
-            q1Delta: delta,
-            q3Delta: delta,
+            medianDelta: 0,
+            q1Delta: 0,
+            q3Delta: 0,
           };
-        }).filter((row) => row !== null);
+        });
       }
 
       function stationForecastSeries(stats, historyRows, selectedRange, brandMarket = null) {
+        const cycleProfileUsed =
+          Array.isArray(stats?.cycle_hourly) && stats.cycle_hourly.length > 0;
         const forecastDeltaRows = normalizeForecastDeltaRows(stats);
         if (!forecastDeltaRows.length || !historyRows.length) {
-          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
+          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null, cycleProfileUsed };
         }
 
         const requestedFromDay = selectedRange?.from || historyRows[0]?.date || "";
@@ -939,7 +978,7 @@
           .filter((day) => Number.isFinite(day.referencePrice));
 
         if (!sourceDays.length) {
-          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null };
+          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null, cycleProfileUsed };
         }
 
         const baseSourceDay = sourceDays[sourceDays.length - 1];
@@ -1005,6 +1044,7 @@
           baseDate: baseSourceDay.day,
           baseMedian,
           brandAdjusted: brandCorrectionApplied,
+          cycleProfileUsed,
         };
       }
 
@@ -1497,9 +1537,14 @@
 
       async function loadPriceLevelChart() {
         const note = document.getElementById("price-level-note");
+        const priceLevelDataNote = document.getElementById("price-level-data-note");
         const forecastNote = document.getElementById("forecast-note");
+        const forecastChartWrap = document.getElementById("forecast-chart-wrap");
         if (!stationId) {
           clearForecastChart();
+          forecastChartWrap.hidden = true;
+          priceLevelDataNote.hidden = true;
+          priceLevelDataNote.textContent = "";
           note.textContent = "Keine Station ausgewaehlt.";
           forecastNote.textContent = "";
           return;
@@ -1516,6 +1561,7 @@
             cycle_end: historyRows[historyRows.length - 1]?.date || "",
           };
           const selectedRange = updateRangeControls(historySummary);
+          const latestDataDay = await latestManagementDay();
           let rows = normalizePriceRows(stats);
           let isFallback = false;
           const fallback = normalizeFallbackPriceRows(
@@ -1530,12 +1576,16 @@
           updateChartHeadings(selectedRange);
           if (!rows.length) {
             clearPriceLevelChart();
-            renderForecastChart({ rows: [] });
+            clearForecastChart();
+            forecastChartWrap.hidden = true;
+            priceLevelDataNote.hidden = true;
+            priceLevelDataNote.textContent = "";
             note.textContent = "Für diese Station liegt noch kein Preisniveau von 12:00 Uhr bis 12:00 Uhr vor.";
             forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
             return;
           }
           renderPriceLevelChart(rows);
+          updatePriceLevelDataNotice(historyRows, selectedRange, latestDataDay);
           const brandMarket = await loadBrandMarketDays(selectedRange, stationBrand);
           const forecast = stationForecastSeries(
             stats,
@@ -1543,7 +1593,14 @@
             selectedRange,
             brandMarket,
           );
-          renderForecastChart(forecast);
+          const hasStationForecast = forecast.rows.length && forecast.cycleProfileUsed;
+          if (hasStationForecast) {
+            forecastChartWrap.hidden = false;
+            renderForecastChart(forecast);
+          } else {
+            clearForecastChart();
+            forecastChartWrap.hidden = true;
+          }
           const availableStart = selectedRange.from;
           const availableEnd = selectedRange.to;
           note.textContent = `${fuelLabels[fuel] || fuel.toUpperCase()} - 12:00 Uhr bis 12:00 Uhr - ${formatDate(
@@ -1551,7 +1608,7 @@
           )} bis ${formatDate(availableEnd)}${
             isFallback ? " - aus Tagesprofil und Mittagspreisen abgeleitet" : ""
           }`;
-          if (forecast.rows.length) {
+          if (hasStationForecast) {
             const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
             const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
             const brandContext = stationBrand
@@ -1559,10 +1616,16 @@
               : " Zusätzlich wird, sofern Marktdaten verfügbar sind, die Markenposition gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen.";
             forecastNote.textContent =
               `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)}. Für die Form der Tageskurve werden die verfügbaren 12:00-Uhr-bis-12:00-Uhr-Stationsverläufe ab ${formatDate(FORECAST_MIN_DATE_STR)} berücksichtigt. Die Steuersenkung zum ${formatDate(FUEL_TAX_CHANGE_DATE_STR)} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis der Station kalibriert wird.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
+          } else if (forecast.rows.length && !forecast.cycleProfileUsed) {
+            forecastNote.innerHTML =
+              'Für diese Tankstelle liegen aktuell nicht genug belastbare 12:00-Uhr-bis-12:00-Uhr-Stundenverläufe vor. Deshalb kann noch keine verlässliche Median-Prognose für den Tagesverlauf berechnet werden. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfügbar.';
           } else {
             forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
           }
         } catch (err) {
+          priceLevelDataNote.hidden = true;
+          priceLevelDataNote.textContent = "";
+          forecastChartWrap.hidden = true;
           note.textContent = "Preisniveau konnte lokal nicht geladen werden.";
           forecastNote.textContent = "Prognose konnte lokal nicht geladen werden.";
         }
