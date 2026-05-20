@@ -144,25 +144,21 @@
     }
   }
 
-  async function syncBackendAlert(setting, setStatus) {
+  async function syncBackendAlert(setting) {
     if (!window.TankzeitPushAlerts) return;
     try {
       if (!setting.enabled) {
         await window.TankzeitPushAlerts.deleteAlert();
         return;
       }
-      const result = await window.TankzeitPushAlerts.syncAlert({
+      await window.TankzeitPushAlerts.syncAlert({
         enabled: setting.enabled,
         fuel: setting.fuel,
         limit: setting.limit,
         favorites: currentFavorites(),
       });
-      if (result?.skipped === "missing_backend_url") {
-        setStatus?.("Preislimit lokal gespeichert. Fuer Hintergrund-Push fehlt noch die Backend-URL.");
-      }
     } catch (err) {
-      console.warn("Backend alert sync failed", err);
-      setStatus?.("Preislimit lokal gespeichert. Hintergrund-Push konnte noch nicht verbunden werden.", "error");
+      console.warn("Background push sync failed", err);
     }
   }
 
@@ -184,23 +180,22 @@
     if (enabled) {
       ensureNotificationPermission().then((permission) => {
         if (permission === "denied") {
-          setStatus?.("Preislimit fuer alle Favoriten gespeichert. Browser-Benachrichtigungen sind jedoch blockiert.");
+          setStatus?.("Preislimit gespeichert. Browser-Benachrichtigungen sind blockiert.");
           return;
         }
         if (permission === "unsupported") {
-          setStatus?.("Preislimit fuer alle Favoriten gespeichert. Dein Browser unterstuetzt keine Web-Benachrichtigungen.");
+          setStatus?.("Preislimit gespeichert. Dein Browser unterstuetzt keine Web-Benachrichtigungen.");
           return;
         }
-        setStatus?.(`Preislimit fuer alle Favoriten gespeichert: ${fuel.toUpperCase()} bis ${formatPrice(limit)} EUR/l.`);
       });
-      syncBackendAlert(setting, setStatus);
       onSaved?.(setting);
+      syncBackendAlert(setting);
       return;
     }
 
     setStatus?.("Preislimit gespeichert, Meldung ist deaktiviert.");
-    syncBackendAlert(setting, setStatus);
     onSaved?.(setting);
+    syncBackendAlert(setting);
   }
 
   function clearGlobalControl(control, { setStatus, onSaved } = {}) {
@@ -210,8 +205,8 @@
     control.querySelector("[data-alert-fuel]").value = "e10";
     control.querySelector("[data-alert-limit]").value = "";
     setStatus?.("Preislimit geloescht.");
-    syncBackendAlert(setting, setStatus);
     onSaved?.(setting);
+    syncBackendAlert(setting);
   }
 
   function bindGlobalControl(options = {}) {
