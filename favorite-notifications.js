@@ -136,32 +136,6 @@
     }
   }
 
-  function currentFavorites() {
-    try {
-      return JSON.parse(localStorage.getItem("fav")) || [];
-    } catch (err) {
-      return [];
-    }
-  }
-
-  async function syncBackendAlert(setting) {
-    if (!window.TankzeitPushAlerts) return;
-    try {
-      if (!setting.enabled) {
-        await window.TankzeitPushAlerts.deleteAlert();
-        return;
-      }
-      await window.TankzeitPushAlerts.syncAlert({
-        enabled: setting.enabled,
-        fuel: setting.fuel,
-        limit: setting.limit,
-        favorites: currentFavorites(),
-      });
-    } catch (err) {
-      console.warn("Background push sync failed", err);
-    }
-  }
-
   function saveGlobalControl(control, { setStatus, onSaved } = {}) {
     const enabled = Boolean(control.querySelector("[data-alert-enabled]")?.checked);
     const fuel = normalizeFuel(control.querySelector("[data-alert-fuel]")?.value);
@@ -177,25 +151,22 @@
     saveSetting(setting);
     if (limitInput && limit !== null) limitInput.value = formatPrice(limit);
 
-    if (enabled) {
-      ensureNotificationPermission().then((permission) => {
-        if (permission === "denied") {
-          setStatus?.("Preislimit gespeichert. Browser-Benachrichtigungen sind blockiert.");
-          return;
-        }
-        if (permission === "unsupported") {
-          setStatus?.("Preislimit gespeichert. Dein Browser unterstuetzt keine Web-Benachrichtigungen.");
-          return;
-        }
-      });
+    if (!enabled) {
+      setStatus?.("Preislimit gespeichert, Meldung ist deaktiviert.");
       onSaved?.(setting);
-      syncBackendAlert(setting);
       return;
     }
 
-    setStatus?.("Preislimit gespeichert, Meldung ist deaktiviert.");
+    ensureNotificationPermission().then((permission) => {
+      if (permission === "denied") {
+        setStatus?.("Preislimit gespeichert. Browser-Benachrichtigungen sind blockiert.");
+        return;
+      }
+      if (permission === "unsupported") {
+        setStatus?.("Preislimit gespeichert. Dein Browser unterstuetzt keine Web-Benachrichtigungen.");
+      }
+    });
     onSaved?.(setting);
-    syncBackendAlert(setting);
   }
 
   function clearGlobalControl(control, { setStatus, onSaved } = {}) {
@@ -206,7 +177,6 @@
     control.querySelector("[data-alert-limit]").value = "";
     setStatus?.("Preislimit geloescht.");
     onSaved?.(setting);
-    syncBackendAlert(setting);
   }
 
   function bindGlobalControl(options = {}) {
@@ -229,9 +199,6 @@
       if (key.startsWith(`${stationId}:`)) delete hits[key];
     });
     saveLastHits(hits);
-
-    const setting = loadSetting();
-    if (setting.enabled) syncBackendAlert(setting);
   }
 
   function evaluatePrices({ prices, ids, favorites, setStatus }) {
