@@ -1,14 +1,25 @@
 const webpush = require("web-push");
 
+const DEMO_VAPID_PRIVATE_KEY = "6Vl2LbpYfYuoSO-R55tdpLhpJbk5KmJrzwHpj8kKRCI";
 const REPO = process.env.GITHUB_REPOSITORY;
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const TANKERKOENIG_API_KEY =
   process.env.TANKERKOENIG_API_KEY || "fe8673d1-47be-1156-77e4-040e06cb785c";
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY;
+const VAPID_PRIVATE_KEY = normalizeSecret(
+  process.env.VAPID_PRIVATE_KEY || DEMO_VAPID_PRIVATE_KEY,
+);
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:tankzeit@example.com";
 const ISSUE_TITLE_PREFIX = "[Tankzeit Preisalarm]";
 const JSON_BLOCK = /```json tankzeit-price-alert\s*([\s\S]*?)```/;
+
+function normalizeSecret(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^VAPID_PRIVATE_KEY\s*=\s*/, "")
+    .replace(/^['"`]+|['"`]+$/g, "")
+    .replace(/\s/g, "");
+}
 
 function requireEnv() {
   const missing = [];
