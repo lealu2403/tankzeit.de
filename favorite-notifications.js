@@ -166,7 +166,7 @@
     }
   }
 
-  function saveGlobalControl(control, setStatus) {
+  function saveGlobalControl(control, { setStatus, onSaved } = {}) {
     const enabled = Boolean(control.querySelector("[data-alert-enabled]")?.checked);
     const fuel = normalizeFuel(control.querySelector("[data-alert-fuel]")?.value);
     const limitInput = control.querySelector("[data-alert-limit]");
@@ -194,14 +194,16 @@
         setStatus?.(`Preislimit fuer alle Favoriten gespeichert: ${fuel.toUpperCase()} bis ${formatPrice(limit)} EUR/l.`);
       });
       syncBackendAlert(setting, setStatus);
+      onSaved?.(setting);
       return;
     }
 
     setStatus?.("Preislimit gespeichert, Meldung ist deaktiviert.");
     syncBackendAlert(setting, setStatus);
+    onSaved?.(setting);
   }
 
-  function clearGlobalControl(control, setStatus) {
+  function clearGlobalControl(control, { setStatus, onSaved } = {}) {
     const setting = { enabled: false, fuel: "e10", limit: null };
     saveSetting(setting);
     control.querySelector("[data-alert-enabled]").checked = false;
@@ -209,19 +211,20 @@
     control.querySelector("[data-alert-limit]").value = "";
     setStatus?.("Preislimit geloescht.");
     syncBackendAlert(setting, setStatus);
+    onSaved?.(setting);
   }
 
-  function bindGlobalControl({ setStatus } = {}) {
+  function bindGlobalControl(options = {}) {
     const control = document.querySelector(".favorite-alert-panel");
     if (!control) return;
     control.querySelector("[data-alert-save]")?.addEventListener("click", () => {
-      saveGlobalControl(control, setStatus);
+      saveGlobalControl(control, options);
     });
     control.querySelector("[data-alert-clear]")?.addEventListener("click", () => {
-      clearGlobalControl(control, setStatus);
+      clearGlobalControl(control, options);
     });
     control.querySelector("[data-alert-enabled]")?.addEventListener("change", () => {
-      saveGlobalControl(control, setStatus);
+      saveGlobalControl(control, options);
     });
   }
 
