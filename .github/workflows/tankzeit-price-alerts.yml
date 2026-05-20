@@ -16,6 +16,7 @@ jobs:
       run:
         working-directory: backend
     env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       VAPID_PUBLIC_KEY: BNuetuxzqWjZHA9rFpm4JQao_TFT2birrT6gMNntCjBpPtbBU19o9_IPArk7bJY2sl7gNvDWI7d1LTmU73u4kI4
       VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       VAPID_SUBJECT: mailto:tankzeit@example.com
