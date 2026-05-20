@@ -4,127 +4,90 @@
   const ANDROID_STORE_LINK = "market://details?id=de.tankzeit.android";
   const IOS_LINK = "https://apps.apple.com/de/app/tankzeit/id6759522835";
   const VEHICLE_DATA_URL = "data/adac_models_by_make.csv?v=20260503-adac-full";
-  let tankplanVehiclesPromise = null;
-  let tankplanSelectedVehicle = null;
+  const FUELS = ["diesel", "e5", "e10"];
+  let vehiclePromise = null;
+  let chosenVehicle = null;
+
+  function isTankplan() {
+    return location.pathname.endsWith("/tankplan.html");
+  }
 
   function isAndroid() {
     return /Android/i.test(navigator.userAgent || "");
-  }
-
-  function dismissPromo() {
-    document.getElementById(PROMO_ID)?.remove();
   }
 
   function rootContainer() {
     return document.querySelector("main.app, .station-shell, .legal-shell");
   }
 
-  function tankplanIcon() {
-    return `
-      <svg viewBox="0 0 24 24">
-        <path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16" />
-        <path d="M5 21h11" />
-        <path d="M9 7h3" />
-        <path d="M15 8h2.5a2 2 0 0 1 2 2v2.4" />
-        <circle cx="18" cy="17" r="3" />
-        <path d="M18 15.4V17l1.1.8" />
-      </svg>
-    `;
+  function dismissPromo() {
+    document.getElementById(PROMO_ID)?.remove();
   }
 
-  function formatIsoDate(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+  function iconTankplan() {
+    return '<svg viewBox="0 0 24 24"><path d="M6 21V5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v16" /><path d="M5 21h11" /><path d="M9 7h3" /><path d="M15 8h2.5a2 2 0 0 1 2 2v2.4" /><circle cx="18" cy="17" r="3" /><path d="M18 15.4V17l1.1.8" /></svg>';
   }
 
-  function parseIsoDate(value) {
-    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if (!match) return null;
-    return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  function formatIso(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
-  function datesBetween(startValue, endValue) {
-    const start = parseIsoDate(startValue);
-    const end = parseIsoDate(endValue);
+  function parseIso(value) {
+    const m = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+  }
+
+  function recentRange() {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    end.setDate(end.getDate() - 1);
+    const start = new Date(end);
+    start.setDate(end.getDate() - 13);
     const dates = [];
-    if (!start || !end || start > end) return dates;
     const cursor = new Date(start);
     while (cursor <= end) {
-      dates.push(formatIsoDate(cursor));
+      dates.push(formatIso(cursor));
       cursor.setDate(cursor.getDate() + 1);
     }
-    return dates;
+    return { start: formatIso(start), end: formatIso(end), dates };
   }
 
-  function tankplanSearch() {
-    const endDate = new Date();
-    endDate.setHours(0, 0, 0, 0);
-    endDate.setDate(endDate.getDate() - 1);
-    const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - 13);
-    const start = formatIsoDate(startDate);
-    const end = formatIsoDate(endDate);
-    return { start, end, dates: datesBetween(start, end), search: "" };
-  }
-
-  function fixTankplanCalculator() {
-    if (!location.pathname.endsWith("/tankplan.html")) return;
-    const parseOptionalNumber = function (value) {
-      const text = String(value ?? "").replace(",", ".").trim();
-      if (!text) return null;
-      const number = Number(text);
-      return Number.isFinite(number) ? number : null;
-    };
-    try {
-      num = parseOptionalNumber;
-    } catch (error) {
-      window.num = parseOptionalNumber;
-    }
-  }
-
-  function parseVehicleCsv(text) {
+  function parseCsv(text) {
     const rows = [];
     let row = [];
     let cell = "";
     let quoted = false;
     for (let i = 0; i < text.length; i += 1) {
-      const char = text[i];
+      const c = text[i];
       if (quoted) {
-        if (char === '"' && text[i + 1] === '"') {
+        if (c === '"' && text[i + 1] === '"') {
           cell += '"';
           i += 1;
-        } else if (char === '"') {
-          quoted = false;
-        } else {
-          cell += char;
-        }
-      } else if (char === '"') {
-        quoted = true;
-      } else if (char === ",") {
+        } else if (c === '"') quoted = false;
+        else cell += c;
+      } else if (c === '"') quoted = true;
+      else if (c === ',') {
         row.push(cell);
         cell = "";
-      } else if (char === "\n") {
+      } else if (c === "\n") {
         row.push(cell);
         rows.push(row);
         row = [];
         cell = "";
-      } else if (char !== "\r") {
-        cell += char;
-      }
+      } else if (c !== "\r") cell += c;
     }
     if (cell || row.length) {
       row.push(cell);
       rows.push(row);
     }
     const headers = rows.shift() || [];
-    return rows
-      .filter((item) => item.length > 1)
-      .map((item) => Object.fromEntries(headers.map((header, index) => [header, item[index] || ""])));
+    return rows.filter((r) => r.length > 1).map((r) => Object.fromEntries(headers.map((h, i) => [h, r[i] || ""])));
   }
 
-  function normalizeVehicleText(value) {
+  function norm(value) {
     return String(value || "")
       .toLowerCase()
       .normalize("NFD")
@@ -134,175 +97,206 @@
       .trim();
   }
 
-  function parseBuildYear(value) {
+  function parseYear(value) {
     const match = String(value || "").match(/\b(19|20)\d{2}\b/);
     return match ? Number(match[0]) : null;
   }
 
-  function tankplanVehicleMeta(vehicle) {
+  function vehicleMeta(vehicle) {
     return [vehicle.fahrzeugbezeichnung, vehicle.generation, vehicle.baujahr, vehicle.kraftstoffart]
       .filter(Boolean)
       .join(" · ");
   }
 
-  async function loadTankplanVehicles() {
-    if (!tankplanVehiclesPromise) {
-      tankplanVehiclesPromise = fetch(VEHICLE_DATA_URL, { cache: "no-store" })
+  async function vehicles() {
+    if (!vehiclePromise) {
+      vehiclePromise = fetch(VEHICLE_DATA_URL, { cache: "no-store" })
         .then((response) => {
           if (!response.ok) throw new Error("Fahrzeugdaten konnten nicht geladen werden.");
           return response.text();
         })
-        .then((text) => parseVehicleCsv(text).filter((vehicle) => vehicle.fahrzeugbezeichnung));
+        .then((text) => parseCsv(text).filter((item) => item.fahrzeugbezeichnung));
     }
-    return tankplanVehiclesPromise;
+    return vehiclePromise;
   }
 
-  function ensureBuildYearField() {
-    if (!location.pathname.endsWith("/tankplan.html")) return null;
+  function injectTankplanStyles() {
+    if (!isTankplan() || document.getElementById("tankplan-dropdown-style")) return;
+    const style = document.createElement("style");
+    style.id = "tankplan-dropdown-style";
+    style.textContent = `
+      .tankplan-model-field{position:relative;z-index:4}
+      .tankplan-suggestions[hidden]{display:none!important}
+      .tankplan-suggestions{position:absolute!important;top:calc(100% + 8px);right:0;left:0;z-index:20;display:grid;gap:6px;max-height:380px;overflow:auto;border:1px solid rgba(15,118,110,.16);border-radius:22px;background:#fff;box-shadow:0 22px 44px rgba(18,18,18,.18);padding:8px}
+      .tankplan-suggestion:hover,.tankplan-suggestion:focus{background:rgba(15,118,110,.12);outline:0}
+      .tankplan-selected{cursor:pointer}
+      .tankplan-selected:hover,.tankplan-selected:focus{background:rgba(15,118,110,.12);outline:0}
+      @media(max-width:720px){.tankplan-suggestions{position:static!important;max-height:320px}}
+    `;
+    document.head.append(style);
+  }
+
+  function ensureBuildYearField(modelField) {
     let input = document.getElementById("build-year");
     if (input) return input;
-    const modelInput = document.getElementById("model");
-    const modelField = modelInput?.closest(".tankplan-field");
-    if (!modelField) return null;
     const field = document.createElement("div");
     field.className = "tankplan-field";
-    field.innerHTML = `
-      <label for="build-year">Baujahr</label>
-      <input id="build-year" name="buildYear" inputmode="numeric" min="2000" max="2026" step="1" placeholder="z. B. 2020" />
-    `;
+    field.innerHTML = '<label for="build-year">Baujahr</label><input id="build-year" name="buildYear" inputmode="numeric" type="number" min="2000" max="2026" step="1" placeholder="z. B. 2020" />';
     modelField.insertAdjacentElement("afterend", field);
     return field.querySelector("#build-year");
   }
 
-  function selectedPreview() {
-    return document.getElementById("selected-vehicle");
+  function closeSuggestions() {
+    const suggestions = document.getElementById("suggestions");
+    if (!suggestions) return;
+    suggestions.hidden = true;
+    suggestions.replaceChildren();
   }
 
-  function prepareSelectedPreview() {
-    const preview = selectedPreview();
-    if (!preview || preview.dataset.tankplanToggleReady) return;
-    preview.dataset.tankplanToggleReady = "true";
-    preview.setAttribute("role", "button");
-    preview.setAttribute("tabindex", "0");
-    preview.setAttribute("title", "Auswahlliste öffnen");
-    preview.style.cursor = "pointer";
-    const openList = () => {
-      if (!tankplanSelectedVehicle) return;
-      preview.hidden = true;
-      renderTankplanSuggestionsWithYear({ keepSelection: true });
-    };
-    preview.addEventListener("click", openList);
-    preview.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openList();
-      }
-    });
-    document.addEventListener("click", (event) => {
-      const suggestionsEl = document.getElementById("suggestions");
-      if (!tankplanSelectedVehicle || !preview.hidden) return;
-      if (preview.contains(event.target) || suggestionsEl?.contains(event.target)) return;
-      preview.hidden = false;
-    });
-  }
-
-  async function renderTankplanSuggestionsWithYear(options = {}) {
-    const manufacturerInput = document.getElementById("manufacturer");
+  function prepareTankplanLayout() {
+    if (!isTankplan()) return null;
+    injectTankplanStyles();
     const modelInput = document.getElementById("model");
-    const buildYearInput = document.getElementById("build-year");
-    const suggestionsEl = document.getElementById("suggestions");
-    const preview = selectedPreview();
-    if (!manufacturerInput || !modelInput || !suggestionsEl) return;
+    const suggestions = document.getElementById("suggestions");
+    const modelField = modelInput?.closest(".tankplan-field");
+    if (!modelInput || !suggestions || !modelField) return null;
+    modelField.classList.add("tankplan-model-field");
+    if (suggestions.parentElement !== modelField) modelField.append(suggestions);
+    const buildYearInput = ensureBuildYearField(modelField);
+    return { modelInput, suggestions, buildYearInput };
+  }
+
+  async function renderTankplanSuggestions(options = {}) {
+    const prepared = prepareTankplanLayout();
+    if (!prepared) return;
+    const manufacturerInput = document.getElementById("manufacturer");
+    const selectedPreview = document.getElementById("selected-vehicle");
+    const { modelInput, suggestions, buildYearInput } = prepared;
 
     if (!options.keepSelection) {
-      tankplanSelectedVehicle = null;
-      if (preview) preview.hidden = true;
-    }
+      chosenVehicle = null;
+      if (typeof clearSelection === "function") clearSelection();
+      if (selectedPreview) selectedPreview.hidden = true;
+    } else if (selectedPreview) selectedPreview.hidden = true;
 
-    const manufacturer = normalizeVehicleText(manufacturerInput.value);
-    const model = normalizeVehicleText(modelInput.value);
-    const buildYear = parseBuildYear(buildYearInput?.value);
+    const manufacturer = norm(manufacturerInput?.value);
+    const model = norm(modelInput.value);
+    const year = parseYear(buildYearInput?.value);
+    suggestions.replaceChildren();
 
-    suggestionsEl.replaceChildren();
-    if (!manufacturer && !model && buildYear === null) {
-      suggestionsEl.hidden = true;
+    if (!manufacturer && !model && year === null) {
+      closeSuggestions();
+      if (typeof setStatus === "function") setStatus("Vorschläge erscheinen, sobald Hersteller oder Modell eingegeben wird.");
       return;
     }
 
-    let vehicles = [];
+    let list = [];
     try {
-      vehicles = await loadTankplanVehicles();
+      list = await vehicles();
     } catch (error) {
       if (typeof setStatus === "function") setStatus(error.message);
       return;
     }
 
-    const allMatches = vehicles
+    const allMatches = list
       .filter((vehicle) => {
-        const vehicleManufacturer = normalizeVehicleText(vehicle.hersteller);
-        const vehicleModel = normalizeVehicleText(vehicle.modell);
-        const vehicleName = normalizeVehicleText(vehicle.fahrzeugbezeichnung);
-        const vehicleYear = parseBuildYear(vehicle.baujahr);
+        const vehicleYear = parseYear(vehicle.baujahr);
         return (
-          (!manufacturer || vehicleManufacturer.includes(manufacturer)) &&
-          (!model || vehicleModel.includes(model) || vehicleName.includes(model)) &&
-          (buildYear === null || vehicleYear === buildYear)
+          (!manufacturer || norm(vehicle.hersteller).includes(manufacturer)) &&
+          (!model || norm(vehicle.modell).includes(model) || norm(vehicle.fahrzeugbezeichnung).includes(model)) &&
+          (year === null || vehicleYear === year)
         );
       })
       .sort((a, b) => {
-        const yearDifference = (parseBuildYear(b.baujahr) || 0) - (parseBuildYear(a.baujahr) || 0);
-        if (yearDifference !== 0) return yearDifference;
+        const byYear = (parseYear(b.baujahr) || 0) - (parseYear(a.baujahr) || 0);
+        if (byYear) return byYear;
         return String(a.fahrzeugbezeichnung || "").localeCompare(String(b.fahrzeugbezeichnung || ""), "de");
       });
 
     const matches = allMatches.slice(0, 250);
     if (!matches.length) {
-      suggestionsEl.hidden = true;
+      closeSuggestions();
       if (typeof setStatus === "function") setStatus("Keine passenden Fahrzeuge gefunden.");
       return;
     }
 
+    const fragment = document.createDocumentFragment();
     matches.forEach((vehicle) => {
       const button = document.createElement("button");
       button.className = "tankplan-suggestion";
       button.type = "button";
-      button.innerHTML = `<strong>${vehicle.hersteller} ${vehicle.modell}</strong><span>${tankplanVehicleMeta(vehicle)}</span>`;
+      button.innerHTML = `<strong>${vehicle.hersteller} ${vehicle.modell}</strong><span>${vehicleMeta(vehicle)}</span>`;
       button.addEventListener("click", () => {
-        tankplanSelectedVehicle = vehicle;
+        chosenVehicle = vehicle;
         if (typeof selectVehicle === "function") selectVehicle(vehicle);
-        suggestionsEl.hidden = true;
-        if (preview) preview.hidden = false;
+        const selectedYear = parseYear(vehicle.baujahr);
+        if (selectedYear && buildYearInput) buildYearInput.value = selectedYear;
+        closeSuggestions();
+        if (selectedPreview) selectedPreview.hidden = false;
       });
-      suggestionsEl.append(button);
+      fragment.append(button);
     });
-    suggestionsEl.hidden = false;
-    if (typeof setStatus === "function") {
-      setStatus(`${matches.length} von ${allMatches.length} Vorschlägen angezeigt.`);
-    }
+    suggestions.append(fragment);
+    suggestions.hidden = false;
+    if (typeof setStatus === "function") setStatus(`${matches.length} von ${allMatches.length} Vorschlägen angezeigt.`);
   }
 
   function enhanceTankplanVehicleSearch() {
-    if (!location.pathname.endsWith("/tankplan.html")) return;
-    const buildYearInput = ensureBuildYearField();
-    if (!buildYearInput) return;
-    prepareSelectedPreview();
+    const prepared = prepareTankplanLayout();
+    if (!prepared) return;
+    const manufacturerInput = document.getElementById("manufacturer");
+    const selectedPreview = document.getElementById("selected-vehicle");
+    const { modelInput, buildYearInput, suggestions } = prepared;
 
-    try {
-      renderSuggestions = renderTankplanSuggestionsWithYear;
-    } catch (error) {
-      window.renderSuggestions = renderTankplanSuggestionsWithYear;
-    }
-    window.renderSuggestions = renderTankplanSuggestionsWithYear;
+    try { renderSuggestions = renderTankplanSuggestions; } catch (error) { window.renderSuggestions = renderTankplanSuggestions; }
+    window.renderSuggestions = renderTankplanSuggestions;
 
-    const queueRender = () => {
-      tankplanSelectedVehicle = null;
-      window.clearTimeout(buildYearInput.dataset.timerId);
-      const timerId = window.setTimeout(renderTankplanSuggestionsWithYear, 120);
-      buildYearInput.dataset.timerId = String(timerId);
+    const queue = () => {
+      chosenVehicle = null;
+      window.clearTimeout(queue.timer);
+      queue.timer = window.setTimeout(() => renderTankplanSuggestions(), 120);
     };
-    buildYearInput.addEventListener("input", queueRender);
-    document.getElementById("manufacturer")?.addEventListener("input", queueRender);
-    document.getElementById("model")?.addEventListener("input", queueRender);
+
+    manufacturerInput?.addEventListener("input", queue);
+    modelInput.addEventListener("input", queue);
+    buildYearInput?.addEventListener("input", queue);
+
+    if (selectedPreview && !selectedPreview.dataset.tankplanToggleReady) {
+      selectedPreview.dataset.tankplanToggleReady = "true";
+      selectedPreview.setAttribute("role", "button");
+      selectedPreview.setAttribute("tabindex", "0");
+      selectedPreview.setAttribute("title", "Auswahlliste öffnen");
+      const open = () => {
+        if (!chosenVehicle && typeof selectedVehicle !== "undefined") chosenVehicle = selectedVehicle;
+        if (!chosenVehicle) return;
+        renderTankplanSuggestions({ keepSelection: true });
+      };
+      selectedPreview.addEventListener("click", open);
+      selectedPreview.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          open();
+        }
+      });
+    }
+
+    document.addEventListener("click", (event) => {
+      if (!suggestions.contains(event.target) && event.target !== modelInput && event.target !== manufacturerInput && event.target !== buildYearInput && event.target !== selectedPreview) {
+        closeSuggestions();
+        if (selectedPreview && (chosenVehicle || (typeof selectedVehicle !== "undefined" && selectedVehicle))) selectedPreview.hidden = false;
+      }
+    });
+  }
+
+  function fixTankplanCalculator() {
+    if (!isTankplan()) return;
+    const parseOptionalNumber = (value) => {
+      const text = String(value ?? "").replace(",", ".").trim();
+      if (!text) return null;
+      const number = Number(text);
+      return Number.isFinite(number) ? number : null;
+    };
+    try { num = parseOptionalNumber; } catch (error) { window.num = parseOptionalNumber; }
   }
 
   function dataPath(date) {
@@ -314,138 +308,97 @@
     return Number((summary.brand_distributions?.[fuel] || []).find((item) => item.brand === "Gesamtmarkt")?.median);
   }
 
-  function weekdayFromIso(date) {
-    const parsed = parseIsoDate(date);
+  function weekday(date) {
+    const parsed = parseIso(date);
     return ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"][parsed.getDay()];
   }
 
   async function repairTankplanPriceRange() {
-    if (!location.pathname.endsWith("/tankplan.html")) return;
-    const range = tankplanSearch();
-    const fuels = ["diesel", "e5", "e10"];
+    if (!isTankplan()) return;
+    const range = recentRange();
     const summaries = [];
-
-    if (window.location.search) {
-      history.replaceState(null, "", location.pathname);
-    }
-
+    if (window.location.search) history.replaceState(null, "", location.pathname);
     const statisticsNavLink = document.getElementById("statistics-nav-link");
     if (statisticsNavLink) statisticsNavLink.href = "management.html";
 
-    await Promise.all(
-      range.dates.map(async (date) => {
-        try {
-          const response = await fetch(dataPath(date), { cache: "no-store" });
-          if (response.ok) summaries.push({ date, summary: await response.json() });
-        } catch (error) {
-          // Missing daily files are skipped; the chart uses the files that exist.
-        }
-      }),
-    );
-
+    await Promise.all(range.dates.map(async (date) => {
+      try {
+        const response = await fetch(dataPath(date), { cache: "no-store" });
+        if (response.ok) summaries.push({ date, summary: await response.json() });
+      } catch (error) {}
+    }));
     if (summaries.length < 2) return;
     summaries.sort((a, b) => a.date.localeCompare(b.date));
 
-    const groups = Object.fromEntries(fuels.map((fuel) => [fuel, new Map()]));
-    const dayStats = Object.fromEntries(fuels.map((fuel) => [fuel, []]));
-
-    summaries.forEach(({ date, summary }) => {
-      fuels.forEach((fuel) => {
-        const base = overall(summary, fuel);
-        if (!Number.isFinite(base)) return;
-        const values = [];
-        (summary.fuels?.[fuel] || []).forEach((row) => {
-          const hour = Number(row.clock_hour) % 24;
-          const count = Number(row.count);
-          const delta = Number(row.median);
-          if (!Number.isFinite(hour) || !Number.isFinite(count) || !Number.isFinite(delta) || count <= 0) return;
-          const price = base + delta;
-          const bucket = groups[fuel].get(hour) || { sum: 0, count: 0 };
-          bucket.sum += price * count;
-          bucket.count += count;
-          groups[fuel].set(hour, bucket);
-          values.push({ hour, price, count });
-        });
-        if (!values.length) return;
-        const totalCount = values.reduce((sum, item) => sum + item.count, 0);
-        const averagePrice = values.reduce((sum, item) => sum + item.price * item.count, 0) / totalCount;
-        const best = values.reduce((currentBest, item) => (item.price < currentBest.price ? item : currentBest));
-        dayStats[fuel].push({ date, weekday: weekdayFromIso(date), averagePrice, bestHour: best.hour, bestPrice: best.price, count: totalCount });
+    const groups = Object.fromEntries(FUELS.map((fuel) => [fuel, new Map()]));
+    const dayStats = Object.fromEntries(FUELS.map((fuel) => [fuel, []]));
+    summaries.forEach(({ date, summary }) => FUELS.forEach((fuel) => {
+      const base = overall(summary, fuel);
+      if (!Number.isFinite(base)) return;
+      const values = [];
+      (summary.fuels?.[fuel] || []).forEach((row) => {
+        const hour = Number(row.clock_hour) % 24;
+        const count = Number(row.count);
+        const delta = Number(row.median);
+        if (!Number.isFinite(hour) || !Number.isFinite(count) || !Number.isFinite(delta) || count <= 0) return;
+        const price = base + delta;
+        const bucket = groups[fuel].get(hour) || { sum: 0, count: 0 };
+        bucket.sum += price * count;
+        bucket.count += count;
+        groups[fuel].set(hour, bucket);
+        values.push({ hour, price, count });
       });
-    });
+      if (!values.length) return;
+      const count = values.reduce((sum, item) => sum + item.count, 0);
+      const averagePrice = values.reduce((sum, item) => sum + item.price * item.count, 0) / count;
+      const best = values.reduce((current, item) => (item.price < current.price ? item : current));
+      dayStats[fuel].push({ date, weekday: weekday(date), averagePrice, bestHour: best.hour, bestPrice: best.price, count });
+    }));
 
     const slots = [];
     for (let hour = 0; hour < 24; hour += 1) {
       const prices = {};
       const counts = {};
-      fuels.forEach((fuel) => {
+      FUELS.forEach((fuel) => {
         const bucket = groups[fuel].get(hour);
         counts[fuel] = bucket?.count || 0;
         if (bucket?.count) prices[fuel] = bucket.sum / bucket.count;
       });
-      if (Object.keys(prices).length) {
-        slots.push({ hour, label: `${String(hour).padStart(2, "0")}:00`, prices, counts });
-      }
+      if (Object.keys(prices).length) slots.push({ hour, label: `${String(hour).padStart(2, "0")}:00`, prices, counts });
     }
 
     try {
       priceAnalysis = { dates: summaries.map((item) => item.date), slots, dayStats };
       if (typeof renderCharts === "function") renderCharts();
       if (typeof setStatus === "function") setStatus(`Preisanalysen für ${summaries.length} Tage sind geladen.`);
-    } catch (error) {
-      // The Tankplan page owns the chart state; if it is not present, do nothing.
-    }
+    } catch (error) {}
   }
 
   function syncTankplanNav() {
     const nav = document.querySelector(".nav-bar");
     if (!nav) return;
-    const isTankplan = location.pathname.endsWith("/tankplan.html");
-    const existingTankplanLink = Array.from(nav.querySelectorAll(".nav-item")).find((item) => item.textContent.trim() === "Tankplan");
-    if (existingTankplanLink) {
-      existingTankplanLink.id ||= "tankplan-nav-link";
-      existingTankplanLink.href = "tankplan.html";
-      if (isTankplan) {
-        existingTankplanLink.classList.add("active", "tankplan");
-        existingTankplanLink.setAttribute("aria-current", "page");
+    const active = isTankplan();
+    const existing = Array.from(nav.querySelectorAll(".nav-item")).find((item) => item.textContent.trim() === "Tankplan");
+    if (existing) {
+      existing.href = "tankplan.html";
+      if (active) {
+        existing.classList.add("active", "tankplan");
+        existing.setAttribute("aria-current", "page");
       }
       return;
     }
-    const statisticsLink = Array.from(nav.querySelectorAll(".nav-item")).find((item) => item.textContent.trim() === "Statistik");
-    if (!statisticsLink) return;
+    const statistics = Array.from(nav.querySelectorAll(".nav-item")).find((item) => item.textContent.trim() === "Statistik");
+    if (!statistics) return;
     const link = document.createElement("a");
-    link.id = "tankplan-nav-link";
     link.href = "tankplan.html";
-    link.className = `nav-item${isTankplan ? " active tankplan" : ""}`;
-    if (isTankplan) link.setAttribute("aria-current", "page");
-    link.innerHTML = `${tankplanIcon()}<span>Tankplan</span>`;
-    statisticsLink.insertAdjacentElement("afterend", link);
+    link.className = `nav-item${active ? " active tankplan" : ""}`;
+    if (active) link.setAttribute("aria-current", "page");
+    link.innerHTML = `${iconTankplan()}<span>Tankplan</span>`;
+    statistics.insertAdjacentElement("afterend", link);
   }
 
   function promoMarkup() {
-    return `
-      <div class="app-install-head">
-        <div class="app-install-copy">
-          <p class="app-install-kicker">Auch als App</p>
-          <h2>Tankzeit immer dabei</h2>
-          <p>
-            Für
-            <a class="app-install-copy-link" href="${IOS_LINK}">iPhone im App Store</a>
-            und für
-            <a class="app-install-copy-link" href="${isAndroid() ? ANDROID_STORE_LINK : ANDROID_WEB_LINK}">Android bei Google Play</a>.
-          </p>
-        </div>
-        <div class="app-install-links" aria-label="Store-Links">
-          <a class="app-install-link" href="${IOS_LINK}" aria-label="Tankzeit im App Store öffnen" title="Im App Store öffnen">
-            <img class="app-install-store-badge app-install-store-badge--apple" src="img/app-store-badge.svg" alt="Laden im App Store" width="250" height="83" decoding="async" />
-          </a>
-          <a class="app-install-link" href="${isAndroid() ? ANDROID_STORE_LINK : ANDROID_WEB_LINK}" aria-label="Tankzeit bei Google Play öffnen" title="Bei Google Play öffnen">
-            <img class="app-install-store-badge app-install-store-badge--google" src="img/google-play-badge.png" alt="Jetzt bei Google Play" width="646" height="250" decoding="async" />
-          </a>
-        </div>
-        <button class="app-install-dismiss" type="button" aria-label="App-Hinweis ausblenden">×</button>
-      </div>
-    `;
+    return `<div class="app-install-head"><div class="app-install-copy"><p class="app-install-kicker">Auch als App</p><h2>Tankzeit immer dabei</h2><p>Für <a class="app-install-copy-link" href="${IOS_LINK}">iPhone im App Store</a> und für <a class="app-install-copy-link" href="${isAndroid() ? ANDROID_STORE_LINK : ANDROID_WEB_LINK}">Android bei Google Play</a>.</p></div><div class="app-install-links" aria-label="Store-Links"><a class="app-install-link" href="${IOS_LINK}" aria-label="Tankzeit im App Store öffnen" title="Im App Store öffnen"><img class="app-install-store-badge app-install-store-badge--apple" src="img/app-store-badge.svg" alt="Laden im App Store" width="250" height="83" decoding="async" /></a><a class="app-install-link" href="${isAndroid() ? ANDROID_STORE_LINK : ANDROID_WEB_LINK}" aria-label="Tankzeit bei Google Play öffnen" title="Bei Google Play öffnen"><img class="app-install-store-badge app-install-store-badge--google" src="img/google-play-badge.png" alt="Jetzt bei Google Play" width="646" height="250" decoding="async" /></a></div><button class="app-install-dismiss" type="button" aria-label="App-Hinweis ausblenden">×</button></div>`;
   }
 
   function buildPromo() {
@@ -465,8 +418,6 @@
     promo.querySelector(".app-install-dismiss")?.addEventListener("click", dismissPromo);
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", buildPromo, { once: true });
-  }
-  buildPromo();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", buildPromo, { once: true });
+  else buildPromo();
 })();
