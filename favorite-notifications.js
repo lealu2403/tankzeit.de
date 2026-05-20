@@ -2,7 +2,10 @@
   const STORAGE_KEY = "tankzeit_global_favorite_price_alert";
   const LEGACY_STORAGE_KEY = "tankzeit_favorite_price_alerts";
   const LAST_HIT_STORAGE_KEY = "tankzeit_favorite_price_alert_hits";
+  const AUTO_CHECK_INTERVAL_MS = 5 * 60 * 1000;
   const FUELS = ["e10", "diesel"];
+  let autoCheckTimer = null;
+  let autoCheckInFlight = false;
 
   function loadJson(key, fallback) {
     try {
@@ -167,6 +170,7 @@
       }
     });
     onSaved?.(setting);
+    setTimeout(() => checkCurrentFavoritePrices({ setStatus }), 0);
   }
 
   function clearGlobalControl(control, { setStatus, onSaved } = {}) {
@@ -191,6 +195,7 @@
     control.querySelector("[data-alert-enabled]")?.addEventListener("change", () => {
       saveGlobalControl(control, options);
     });
+    startLocalAutoChecks(options);
   }
 
   function removeStation(stationId) {
@@ -234,6 +239,49 @@
       setStatus?.(`Preislimit erreicht: ${stationLabel(first.station)} - ${first.message}${suffix}`);
     }
     return hits;
+  }
+
+  async function checkCurrentFavoritePrices({ setStatus } = {}) {
+    const setting = loadSetting();
+    if (!setting.enabled || setting.limit === null || autoCheckInFlight) return [];
+
+    const ids = loadJson("ids", []);
+    const favorites = loadJson("fav", []);
+    if (!Array.isArray(ids) || !ids.length) return [];
+
+    autoCheckInFlight = true;
+    try {
+      const response = await fetch(
+        `https://creativecommons.tankerkoenig.de/json/prices.php?ids=${ids.join(",")}&apikey=fe8673d1-47be-1156-77e4-040e06cb785c`,
+      );
+      if (!response.ok) return [];
+      const payload = await response.json();
+      if (payload?.ok === false) return [];
+      return evaluatePrices({
+        prices: payload.prices || {},
+        ids,
+        favorites,
+        setStatus,
+      });
+    } catch (err) {
+      console.warn("Favorite price auto check failed", err);
+      return [];
+    } finally {
+      autoCheckInFlight = false;
+    }
+  }
+
+  function startLocalAutoChecks(options = {}) {
+    if (autoCheckTimer) return;
+    autoCheckTimer = window.setInterval(() => {
+      checkCurrentFavoritePrices(options);
+    }, AUTO_CHECK_INTERVAL_MS);
+
+    window.addEventListener("focus", () => checkCurrentFavoritePrices(options));
+    window.addEventListener("pageshow", () => checkCurrentFavoritePrices(options));
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) checkCurrentFavoritePrices(options);
+    });
   }
 
   function injectStyles() {
