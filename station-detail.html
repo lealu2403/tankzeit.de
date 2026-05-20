@@ -82,7 +82,7 @@
             <h2 id="price-level-heading">Preisniveau 12:00 Uhr bis 12:00 Uhr</h2>
           </div>
         </div>
-        <div class="station-detail-chart-wrap">
+        <div class="station-detail-chart-wrap" id="price-level-chart-wrap">
           <canvas id="price-level-chart"></canvas>
         </div>
         <p class="chart-note station-detail-chart-note" id="price-level-note">
@@ -505,8 +505,30 @@
         }
       }
 
+      async function fetchOptionalJson(url) {
+        const response = await fetch(url);
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch (error) {
+          if (url.startsWith(DATA_BASE) && /\bNaN\b/.test(text)) {
+            return JSON.parse(text.replace(/\bNaN\b/g, "null"));
+          }
+          throw error;
+        }
+      }
+
       async function fetchText(url) {
         const response = await fetch(url);
+        if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+        return response.text();
+      }
+
+      async function fetchOptionalText(url) {
+        const response = await fetch(url);
+        if (response.status === 404) return "";
         if (!response.ok) throw new Error(`Request failed: ${response.status}`);
         return response.text();
       }
@@ -664,6 +686,34 @@
         note.hidden = false;
         note.textContent =
           `Hinweis zur Datenbasis: ${messages.join(" ")} Die Preisniveau-Historie wird trotzdem angezeigt und mit zukuenftigen Datenaktualisierungen ergaenzt.`;
+      }
+
+      function updateMissingHistoryNotice(hasHistoryRows, rows) {
+        const note = document.getElementById("price-level-data-note");
+        if (hasHistoryRows || !rows.length) return false;
+        note.hidden = false;
+        note.textContent =
+          "Hinweis zur Datenbasis: Fuer diese Station liegt aktuell keine 12:00-Uhr-Tageshistorie vor. Der Preisniveau-Chart nutzt deshalb das verfuegbare 12:00-Uhr-bis-12:00-Uhr-Stundenprofil aus den Stationsdaten; die Tageshistorie wird mit zukuenftigen Datenaktualisierungen ergaenzt.";
+        return true;
+      }
+
+      function renderMissingStationDataState() {
+        const fuelName = fuelLabels[fuel] || fuel.toUpperCase();
+        clearPriceLevelChart();
+        clearForecastChart();
+        updateChartHeadings(null);
+        document.getElementById("cycle-from").disabled = true;
+        document.getElementById("cycle-to").disabled = true;
+        document.getElementById("price-level-chart-wrap").hidden = true;
+        document.getElementById("forecast-chart-wrap").hidden = true;
+        const priceLevelDataNote = document.getElementById("price-level-data-note");
+        priceLevelDataNote.hidden = false;
+        priceLevelDataNote.innerHTML =
+          `Fuer diese Tankstelle liegen aktuell noch keine auswertbaren Stationsdaten fuer ${fuelName} vor. Deshalb kann hier kein Preisniveau-Chart berechnet werden. Nutze als Orientierung die allgemeine <a href="statistik.html">Statistik</a> oder die <a href="preisprognose.html">Preisprognose</a>.`;
+        document.getElementById("price-level-note").textContent =
+          `Keine auswertbaren Stationsdaten fuer ${fuelName} verfuegbar.`;
+        document.getElementById("forecast-note").innerHTML =
+          `Keine Stationsprognose verfuegbar: Fuer diese Tankstelle liegen aktuell noch keine auswertbaren Stationsdaten fuer ${fuelName} vor. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfuegbar.`;
       }
 
       function shiftIsoDay(day, offsetDays) {
@@ -909,6 +959,37 @@
         return null;
       }
 
+      function normalizeLegacyHourlyForecastRows(stats) {
+        const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
+        const byClockHour = new Map();
+        hourlyRows.forEach((row) => {
+          const clockHour = Number(row?.hour);
+          const delta = Number(row?.price);
+          if (Number.isFinite(clockHour) && Number.isFinite(delta)) {
+            byClockHour.set(((Math.round(clockHour) % 24) + 24) % 24, delta);
+          }
+        });
+
+        if (byClockHour.size < 24) return [];
+        const deltas = Array.from(byClockHour.values());
+        const spread = Math.max(...deltas) - Math.min(...deltas);
+        if (spread < 0.005) return [];
+
+        return Array.from({ length: 25 }, (_, cycleHour) => {
+          const clockHour = (12 + cycleHour) % 24;
+          const delta = byClockHour.get(clockHour);
+          if (!Number.isFinite(delta)) return null;
+          return {
+            hour: cycleHour,
+            clockHour,
+            label: String(clockHour).padStart(2, "0"),
+            medianDelta: delta,
+            q1Delta: delta,
+            q3Delta: delta,
+          };
+        }).filter((row) => row !== null);
+      }
+
       function normalizeForecastDeltaRows(stats) {
         const cycleRows = Array.isArray(stats?.cycle_hourly) ? stats.cycle_hourly : [];
         if (cycleRows.length) {
@@ -943,25 +1024,24 @@
             .sort((left, right) => left.hour - right.hour);
         }
 
-        return Array.from({ length: 25 }, (_, cycleHour) => {
-          const clockHour = (12 + cycleHour) % 24;
-          return {
-            hour: cycleHour,
-            clockHour,
-            label: String(clockHour).padStart(2, "0"),
-            medianDelta: 0,
-            q1Delta: 0,
-            q3Delta: 0,
-          };
-        });
+        return normalizeLegacyHourlyForecastRows(stats);
       }
 
       function stationForecastSeries(stats, historyRows, selectedRange, brandMarket = null) {
         const cycleProfileUsed =
           Array.isArray(stats?.cycle_hourly) && stats.cycle_hourly.length > 0;
+        const hourlyProfileUsed =
+          !cycleProfileUsed && normalizeLegacyHourlyForecastRows(stats).length > 0;
         const forecastDeltaRows = normalizeForecastDeltaRows(stats);
         if (!forecastDeltaRows.length || !historyRows.length) {
-          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null, cycleProfileUsed };
+          return {
+            rows: [],
+            sourceDays: [],
+            baseDate: null,
+            baseMedian: null,
+            cycleProfileUsed,
+            hourlyProfileUsed,
+          };
         }
 
         const requestedFromDay = selectedRange?.from || historyRows[0]?.date || "";
@@ -978,7 +1058,14 @@
           .filter((day) => Number.isFinite(day.referencePrice));
 
         if (!sourceDays.length) {
-          return { rows: [], sourceDays: [], baseDate: null, baseMedian: null, cycleProfileUsed };
+          return {
+            rows: [],
+            sourceDays: [],
+            baseDate: null,
+            baseMedian: null,
+            cycleProfileUsed,
+            hourlyProfileUsed,
+          };
         }
 
         const baseSourceDay = sourceDays[sourceDays.length - 1];
@@ -1045,6 +1132,7 @@
           baseMedian,
           brandAdjusted: brandCorrectionApplied,
           cycleProfileUsed,
+          hourlyProfileUsed,
         };
       }
 
@@ -1551,14 +1639,24 @@
         }
         try {
           await waitForChartJs();
-          const stats = await fetchJson(`${DATA_BASE}${stationPath(stationId)}/${fuel}.json`);
-          const historyText = await fetchText(
+          const stats = await fetchOptionalJson(
+            `${DATA_BASE}${stationPath(stationId)}/${fuel}.json`,
+          );
+          if (!stats) {
+            renderMissingStationDataState();
+            return;
+          }
+          const historyText = await fetchOptionalText(
             `${DATA_BASE}${stationPath(stationId)}/${fuel}/history.csv`,
           );
           const historyRows = normalizeHistoryRows(parseCsv(historyText));
           const historySummary = {
-            cycle_start: historyRows[0]?.date || "",
-            cycle_end: historyRows[historyRows.length - 1]?.date || "",
+            cycle_start:
+              historyRows[0]?.date || stats?.cycle_summary?.cycle_start || "",
+            cycle_end:
+              historyRows[historyRows.length - 1]?.date ||
+              stats?.cycle_summary?.cycle_end ||
+              "",
           };
           const selectedRange = updateRangeControls(historySummary);
           const latestDataDay = await latestManagementDay();
@@ -1577,15 +1675,20 @@
           if (!rows.length) {
             clearPriceLevelChart();
             clearForecastChart();
+            document.getElementById("price-level-chart-wrap").hidden = true;
             forecastChartWrap.hidden = true;
             priceLevelDataNote.hidden = true;
             priceLevelDataNote.textContent = "";
             note.textContent = "Für diese Station liegt noch kein Preisniveau von 12:00 Uhr bis 12:00 Uhr vor.";
-            forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
+            forecastNote.innerHTML =
+              'Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor, um eine verlässliche Stationsprognose zu bilden. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfügbar.';
             return;
           }
+          document.getElementById("price-level-chart-wrap").hidden = false;
           renderPriceLevelChart(rows);
-          updatePriceLevelDataNotice(historyRows, selectedRange, latestDataDay);
+          if (!updateMissingHistoryNotice(historyRows.length > 0, rows)) {
+            updatePriceLevelDataNotice(historyRows, selectedRange, latestDataDay);
+          }
           const brandMarket = await loadBrandMarketDays(selectedRange, stationBrand);
           const forecast = stationForecastSeries(
             stats,
@@ -1593,7 +1696,9 @@
             selectedRange,
             brandMarket,
           );
-          const hasStationForecast = forecast.rows.length && forecast.cycleProfileUsed;
+          const hasStationForecast =
+            forecast.rows.length &&
+            (forecast.cycleProfileUsed || forecast.hourlyProfileUsed);
           if (hasStationForecast) {
             forecastChartWrap.hidden = false;
             renderForecastChart(forecast);
@@ -1608,7 +1713,7 @@
           )} bis ${formatDate(availableEnd)}${
             isFallback ? " - aus Tagesprofil und Mittagspreisen abgeleitet" : ""
           }`;
-          if (hasStationForecast) {
+          if (hasStationForecast && forecast.cycleProfileUsed) {
             const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
             const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
             const brandContext = stationBrand
@@ -1617,10 +1722,13 @@
             forecastNote.textContent =
               `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)}. Für die Form der Tageskurve werden die verfügbaren 12:00-Uhr-bis-12:00-Uhr-Stationsverläufe ab ${formatDate(FORECAST_MIN_DATE_STR)} berücksichtigt. Die Steuersenkung zum ${formatDate(FUEL_TAX_CHANGE_DATE_STR)} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis der Station kalibriert wird.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
           } else if (forecast.rows.length && !forecast.cycleProfileUsed) {
-            forecastNote.innerHTML =
-              'Für diese Tankstelle liegen aktuell nicht genug belastbare 12:00-Uhr-bis-12:00-Uhr-Stundenverläufe vor. Deshalb kann noch keine verlässliche Median-Prognose für den Tagesverlauf berechnet werden. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfügbar.';
+            const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
+            const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
+            forecastNote.textContent =
+              `Vereinfachte Stationsprognose: Für diese Tankstelle liegt aktuell kein belastbares 12:00-Uhr-bis-12:00-Uhr-Quartilprofil vor. Die Kurve nutzt deshalb das vorhandene stündliche Stationsprofil und kalibriert es auf den aktuellen 12:00-Uhr-Basispreis der Station am ${formatDate(forecast.baseDate)}. Die Darstellung ist als vorsichtige Orientierung zu verstehen; ein echter typischer Bereich zwischen q1 und q3 kann dafür noch nicht verlässlich gebildet werden. Datengrundlage für die Kalibrierung: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose, nicht um gemessene Zukunftspreise.`;
           } else {
-            forecastNote.textContent = "Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor.";
+            forecastNote.innerHTML =
+              'Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor, um eine verlässliche Stationsprognose zu bilden. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfügbar.';
           }
         } catch (err) {
           priceLevelDataNote.hidden = true;
