@@ -101,14 +101,18 @@
     if (!panel) {
       panel = document.createElement("div");
       panel.id = "github-alert-registration";
-      panel.style.cssText = "position:fixed;right:18px;bottom:92px;z-index:20;max-width:360px;padding:14px 16px;border-radius:14px;background:#ffffff;color:#1f2937;box-shadow:0 18px 45px rgba(15,23,42,.2);font:14px/1.4 Manrope,system-ui,sans-serif;";
+      panel.style.cssText = "position:fixed;right:18px;bottom:92px;z-index:9999;max-width:380px;padding:14px 16px;border-radius:14px;background:#ffffff;color:#1f2937;box-shadow:0 18px 45px rgba(15,23,42,.24);font:14px/1.4 Manrope,system-ui,sans-serif;border:1px solid rgba(15,23,42,.1);";
       document.body.appendChild(panel);
     }
     panel.innerHTML = `
       <strong style="display:block;margin-bottom:6px;">Preisalarm fast fertig</strong>
-      <span style="display:block;margin-bottom:10px;">Oeffne die GitHub-Registrierung und erstelle das Issue. Danach prueft GitHub Actions alle 30 Minuten.</span>
+      <span style="display:block;margin-bottom:10px;">Klicke auf den Button und erstelle das GitHub-Issue. Danach prueft GitHub Actions alle 30 Minuten.</span>
       <a href="${issueUrl.replaceAll("&", "&amp;")}" target="_blank" rel="noopener" style="display:inline-flex;padding:9px 12px;border-radius:10px;background:#0f766e;color:#fff;text-decoration:none;font-weight:800;">GitHub-Registrierung oeffnen</a>
+      <button type="button" data-alert-registration-close style="margin-left:8px;padding:9px 10px;border:0;border-radius:10px;background:#eef2f2;color:#111827;font-weight:800;cursor:pointer;">x</button>
     `;
+    panel.querySelector("[data-alert-registration-close]")?.addEventListener("click", () => {
+      panel.remove();
+    });
   }
 
   async function syncGithubAlert({ enabled, fuel, limit, favorites }) {
@@ -122,7 +126,6 @@
     const payload = registrationPayload({ enabled, fuel, limit, favorites, subscription });
     const issueUrl = githubIssueUrl(payload);
     showRegistrationLink(issueUrl);
-    window.open(issueUrl, "_blank", "noopener");
     return { ok: true, mode: "github_issue", issueUrl };
   }
 
