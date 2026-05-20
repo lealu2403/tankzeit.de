@@ -126,6 +126,10 @@
     style.id = "tankplan-dropdown-style";
     style.textContent = `
       .tankplan-model-field{position:relative;z-index:4}
+      .tankplan-field{align-self:start;width:100%;box-sizing:border-box}
+      .tankplan-field input{width:100%;box-sizing:border-box}
+      .tankplan-field:has(#remaining-range){align-self:start}
+      .tankplan-field:has(#remaining-range) input{width:100%;min-height:52px}
       .tankplan-suggestions[hidden]{display:none!important}
       .tankplan-suggestions{position:absolute!important;top:calc(100% + 8px);right:0;left:0;z-index:20;display:grid;gap:6px;max-height:380px;overflow:auto;border:1px solid rgba(15,118,110,.16);border-radius:22px;background:#fff;box-shadow:0 22px 44px rgba(18,18,18,.18);padding:8px}
       .tankplan-suggestion:hover,.tankplan-suggestion:focus{background:rgba(15,118,110,.12);outline:0}
