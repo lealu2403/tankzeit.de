@@ -100,7 +100,7 @@
         <div
           class="station-detail-chart-wrap"
           id="forecast-chart-wrap"
-          aria-label="Vorbereiteter Chartbereich fuer die Prognose dieser Tankstelle"
+          aria-label="Vorbereiteter Chartbereich für die Prognose dieser Tankstelle"
         >
           <canvas id="forecast-chart"></canvas>
         </div>
@@ -674,7 +674,7 @@
         }
         if (expectedDays > 0 && historyCount > 0 && historyCount < expectedDays) {
           messages.push(
-            `Im gewaehlten Zeitraum liegen nur ${historyCount} von ${expectedDays} erwarteten Tagespunkten vor.`,
+            `Im gewählten Zeitraum liegen nur ${historyCount} von ${expectedDays} erwarteten Tagespunkten vor.`,
           );
         }
 
@@ -685,7 +685,7 @@
         }
         note.hidden = false;
         note.textContent =
-          `Hinweis zur Datenbasis: ${messages.join(" ")} Die Preisniveau-Historie wird trotzdem angezeigt und mit zukuenftigen Datenaktualisierungen ergaenzt.`;
+          `Hinweis zur Datenbasis: ${messages.join(" ")} Die Preisniveau-Historie wird trotzdem angezeigt und mit zukünftigen Datenaktualisierungen ergänzt.`;
       }
 
       function updateMissingHistoryNotice(hasHistoryRows, rows) {
@@ -693,7 +693,7 @@
         if (hasHistoryRows || !rows.length) return false;
         note.hidden = false;
         note.textContent =
-          "Hinweis zur Datenbasis: Fuer diese Station liegt aktuell keine 12:00-Uhr-Tageshistorie vor. Der Preisniveau-Chart nutzt deshalb das verfuegbare 12:00-Uhr-bis-12:00-Uhr-Stundenprofil aus den Stationsdaten; die Tageshistorie wird mit zukuenftigen Datenaktualisierungen ergaenzt.";
+          "Hinweis zur Datenbasis: Für diese Station liegt aktuell keine 12:00-Uhr-Tageshistorie vor. Der Preisniveau-Chart nutzt deshalb das verfügbare 12:00-Uhr-bis-12:00-Uhr-Stundenprofil aus den Stationsdaten; die Tageshistorie wird mit zukünftigen Datenaktualisierungen ergänzt.";
         return true;
       }
 
@@ -709,11 +709,11 @@
         const priceLevelDataNote = document.getElementById("price-level-data-note");
         priceLevelDataNote.hidden = false;
         priceLevelDataNote.innerHTML =
-          `Fuer diese Tankstelle liegen aktuell noch keine auswertbaren Stationsdaten fuer ${fuelName} vor. Deshalb kann hier kein Preisniveau-Chart berechnet werden. Nutze als Orientierung die allgemeine <a href="statistik.html">Statistik</a> oder die <a href="preisprognose.html">Preisprognose</a>.`;
+          `Für diese Tankstelle liegen aktuell noch keine auswertbaren Stationsdaten für ${fuelName} vor. Deshalb kann hier kein Preisniveau-Chart berechnet werden. Nutze als Orientierung die allgemeine <a href="statistik.html">Statistik</a> oder die <a href="preisprognose.html">Preisprognose</a>.`;
         document.getElementById("price-level-note").textContent =
-          `Keine auswertbaren Stationsdaten fuer ${fuelName} verfuegbar.`;
+          `Keine auswertbaren Stationsdaten für ${fuelName} verfügbar.`;
         document.getElementById("forecast-note").innerHTML =
-          `Keine Stationsprognose verfuegbar: Fuer diese Tankstelle liegen aktuell noch keine auswertbaren Stationsdaten fuer ${fuelName} vor. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfuegbar.`;
+          `Keine Stationsprognose verfügbar: Für diese Tankstelle liegen aktuell noch keine auswertbaren Stationsdaten für ${fuelName} vor. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfügbar.`;
       }
 
       function shiftIsoDay(day, offsetDays) {
@@ -959,6 +959,111 @@
         return null;
       }
 
+      function isRuleCompliantForecastRows(rows) {
+        let previous = null;
+        for (const row of rows) {
+          if (row.hour >= 24) continue;
+          if (previous !== null && row.medianDelta > previous + 0.0005) {
+            return false;
+          }
+          previous = row.medianDelta;
+        }
+        return true;
+      }
+
+      function smoothRuleCompliantForecastRows(rows) {
+        let previousMedian = null;
+        let previousQ1 = null;
+        let previousQ3 = null;
+        let adjusted = false;
+        const smoothed = rows.map((row) => {
+          if (row.hour >= 24) {
+            return { ...row };
+          }
+          const medianDelta =
+            previousMedian === null
+              ? row.medianDelta
+              : Math.min(row.medianDelta, previousMedian);
+          const q1Delta =
+            previousQ1 === null ? row.q1Delta : Math.min(row.q1Delta, previousQ1);
+          const q3Delta =
+            previousQ3 === null ? row.q3Delta : Math.min(row.q3Delta, previousQ3);
+          if (
+            medianDelta !== row.medianDelta ||
+            q1Delta !== row.q1Delta ||
+            q3Delta !== row.q3Delta
+          ) {
+            adjusted = true;
+          }
+          previousMedian = medianDelta;
+          previousQ1 = q1Delta;
+          previousQ3 = q3Delta;
+          return { ...row, medianDelta, q1Delta, q3Delta };
+        });
+        return { rows: smoothed, adjusted };
+      }
+
+      function parseCycleForecastRows(cycleRows) {
+        return cycleRows
+          .map((row) => {
+            const cycleHour = Number(row?.cycle_hour);
+            const clockHour = Number(row?.clock_hour);
+            const medianDelta = firstFiniteNumber(row?.delta_median, row?.delta_avg);
+            if (
+              !Number.isFinite(cycleHour) ||
+              !Number.isFinite(clockHour) ||
+              medianDelta === null
+            ) {
+              return null;
+            }
+            const normalizedClockHour = ((Math.round(clockHour) % 24) + 24) % 24;
+            const q1Delta = firstFiniteNumber(row?.delta_min, medianDelta);
+            const q3Delta = firstFiniteNumber(row?.delta_max, medianDelta);
+            return {
+              hour: Math.round(cycleHour),
+              clockHour: normalizedClockHour,
+              label:
+                typeof row?.label === "string" && row.label.trim()
+                  ? row.label.trim()
+                  : String(normalizedClockHour).padStart(2, "0"),
+              medianDelta,
+              q1Delta,
+              q3Delta,
+            };
+          })
+          .filter((row) => row !== null)
+          .sort((left, right) => left.hour - right.hour);
+      }
+
+      function smoothRuleCompliantPriceRows(rows) {
+        let previousMedian = null;
+        let previousQ1 = null;
+        let previousQ3 = null;
+        let adjusted = false;
+        const smoothed = rows.map((row) => {
+          if (row.hour >= 24) {
+            return { ...row };
+          }
+          const median =
+            previousMedian === null ? row.median : Math.min(row.median, previousMedian);
+          const q1 = previousQ1 === null ? row.q1 : Math.min(row.q1, previousQ1);
+          const q3 = previousQ3 === null ? row.q3 : Math.min(row.q3, previousQ3);
+          if (median !== row.median || q1 !== row.q1 || q3 !== row.q3) {
+            adjusted = true;
+          }
+          previousMedian = median;
+          previousQ1 = q1;
+          previousQ3 = q3;
+          return {
+            ...row,
+            median,
+            q1: Math.min(q1, median),
+            q3: Math.max(q3, median),
+          };
+        });
+        return { rows: smoothed, adjusted };
+      }
+
       function normalizeLegacyHourlyForecastRows(stats) {
         const hourlyRows = Array.isArray(stats?.hourly) ? stats.hourly : [];
         const byClockHour = new Map();
@@ -975,7 +1080,7 @@
         const spread = Math.max(...deltas) - Math.min(...deltas);
         if (spread < 0.005) return [];
 
-        return Array.from({ length: 25 }, (_, cycleHour) => {
+        const rows = Array.from({ length: 25 }, (_, cycleHour) => {
           const clockHour = (12 + cycleHour) % 24;
           const delta = byClockHour.get(clockHour);
           if (!Number.isFinite(delta)) return null;
@@ -988,40 +1093,14 @@
             q3Delta: delta,
           };
         }).filter((row) => row !== null);
+        return isRuleCompliantForecastRows(rows) ? rows : [];
       }
 
       function normalizeForecastDeltaRows(stats) {
         const cycleRows = Array.isArray(stats?.cycle_hourly) ? stats.cycle_hourly : [];
         if (cycleRows.length) {
-          return cycleRows
-            .map((row) => {
-              const cycleHour = Number(row?.cycle_hour);
-              const clockHour = Number(row?.clock_hour);
-              const medianDelta = firstFiniteNumber(row?.delta_median, row?.delta_avg);
-              if (
-                !Number.isFinite(cycleHour) ||
-                !Number.isFinite(clockHour) ||
-                medianDelta === null
-              ) {
-                return null;
-              }
-              const normalizedClockHour = ((Math.round(clockHour) % 24) + 24) % 24;
-              const q1Delta = firstFiniteNumber(row?.delta_min, medianDelta);
-              const q3Delta = firstFiniteNumber(row?.delta_max, medianDelta);
-              return {
-                hour: Math.round(cycleHour),
-                clockHour: normalizedClockHour,
-                label:
-                  typeof row?.label === "string" && row.label.trim()
-                    ? row.label.trim()
-                    : String(normalizedClockHour).padStart(2, "0"),
-                medianDelta,
-                q1Delta,
-                q3Delta,
-              };
-            })
-            .filter((row) => row !== null)
-            .sort((left, right) => left.hour - right.hour);
+          const rows = parseCycleForecastRows(cycleRows);
+          return smoothRuleCompliantForecastRows(rows).rows;
         }
 
         return normalizeLegacyHourlyForecastRows(stats);
@@ -1032,6 +1111,11 @@
           Array.isArray(stats?.cycle_hourly) && stats.cycle_hourly.length > 0;
         const hourlyProfileUsed =
           !cycleProfileUsed && normalizeLegacyHourlyForecastRows(stats).length > 0;
+        const rawCycleRows = cycleProfileUsed
+          ? parseCycleForecastRows(stats.cycle_hourly)
+          : [];
+        const deltaRuleAdjusted =
+          cycleProfileUsed && !isRuleCompliantForecastRows(rawCycleRows);
         const forecastDeltaRows = normalizeForecastDeltaRows(stats);
         if (!forecastDeltaRows.length || !historyRows.length) {
           return {
@@ -1041,6 +1125,7 @@
             baseMedian: null,
             cycleProfileUsed,
             hourlyProfileUsed,
+            ruleAdjusted: false,
           };
         }
 
@@ -1065,6 +1150,7 @@
             baseMedian: null,
             cycleProfileUsed,
             hourlyProfileUsed,
+            ruleAdjusted: false,
           };
         }
 
@@ -1124,15 +1210,17 @@
             };
           })
           .filter(Boolean);
+        const smoothed = smoothRuleCompliantPriceRows(rows);
 
         return {
-          rows,
+          rows: smoothed.rows,
           sourceDays,
           baseDate: baseSourceDay.day,
           baseMedian,
           brandAdjusted: brandCorrectionApplied,
           cycleProfileUsed,
           hourlyProfileUsed,
+          ruleAdjusted: deltaRuleAdjusted || smoothed.adjusted,
         };
       }
 
@@ -1633,7 +1721,7 @@
           forecastChartWrap.hidden = true;
           priceLevelDataNote.hidden = true;
           priceLevelDataNote.textContent = "";
-          note.textContent = "Keine Station ausgewaehlt.";
+          note.textContent = "Keine Station ausgewählt.";
           forecastNote.textContent = "";
           return;
         }
