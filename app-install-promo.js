@@ -135,6 +135,7 @@
       .tankplan-suggestion:hover,.tankplan-suggestion:focus{background:rgba(15,118,110,.12);outline:0}
       .tankplan-selected{cursor:pointer}
       .tankplan-selected:hover,.tankplan-selected:focus{background:rgba(15,118,110,.12);outline:0}
+      .management-chart-card{margin-top:24px}
       .tankplan-tooltip{position:fixed;z-index:80;max-width:280px;border:1px solid rgba(15,118,110,.16);border-radius:14px;background:#fff;color:#121212;box-shadow:0 18px 34px rgba(18,18,18,.18);padding:10px 12px;font-size:.82rem;font-weight:700;pointer-events:none}
       .tankplan-tooltip strong{display:block;margin-bottom:5px;color:#121212}
       .tankplan-tooltip span{display:block;color:#666;line-height:1.35}
