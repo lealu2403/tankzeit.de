@@ -65,11 +65,22 @@
             <span class="decision-label">Tankentscheidung</span>
             <div class="decision-title" id="decision-title">Empfehlung wird geladen</div>
             <p class="decision-text" id="decision-text">Die Prognose und das Brent-Signal werden zusammengeführt.</p>
+            <p class="decision-text">
+              Die Empfehlung kombiniert das modellierte Tagesmuster mit dem
+              Brent-Signal. Zeigt eines davon klar steigenden Preisdruck und
+              keines Entlastung, spricht das eher für früheres Tanken; bei
+              entlastendem Signal kann Warten plausibel sein.
+            </p>
           </div>
           <div class="decision-panel">
             <span class="decision-label">Prognose-Vertrauen</span>
             <div class="decision-title" id="confidence-title">-</div>
             <p class="decision-text" id="confidence-text">Datengrundlage und Streuung werden bewertet.</p>
+            <p class="decision-text">
+              Das Vertrauen hängt von der Zahl historischer Tage und der
+              typischen Streuung zwischen q1 und q3 ab. Mehr Tage und eine
+              engere Spanne ergeben eine stabilere Prognose.
+            </p>
           </div>
           <div class="decision-panel">
             <span class="decision-label">Was treibt den Preis?</span>
@@ -78,6 +89,12 @@
               <div class="driver-row"><span>Brent</span><span class="driver-value" id="driver-brent">-</span></div>
               <div class="driver-row"><span>Basisniveau</span><span class="driver-value" id="driver-basis">-</span></div>
             </div>
+            <p class="decision-text">
+              Das Tagesmuster beschreibt die Richtung im 12:00-Uhr-bis-12:00-Uhr-Zyklus.
+              Brent zeigt groben Marktdruck aus Rohöl und Wechselkurs. Das
+              Basisniveau ist der aktuelle 12:00-Uhr-Gesamtmarkt-Median, auf
+              den der typische Tagesverlauf gelegt wird.
+            </p>
           </div>
         </div>
       </section>
@@ -214,6 +231,8 @@
             </div>
             <p class="decision-text">
               Der Wert rechnet die Brent-&Auml;nderung grob in Cent je Liter Roh&ouml;l um und legt sie auf die aktuelle Prognosebasis.
+              Raffinerie, Gro&szlig;handel, Steuern, Margen, lokaler Wettbewerb und
+              Zeitverzug sind darin nicht vollst&auml;ndig abgebildet.
             </p>
           </div>
           <div class="scenario-panel">
