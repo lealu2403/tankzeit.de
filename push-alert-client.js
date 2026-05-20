@@ -10,6 +10,12 @@
     ).replace(/\/$/, "");
   }
 
+  function githubAlertsConfig() {
+    const config = window.TANKZEIT_GITHUB_ALERTS || {};
+    if (!config.enabled || !config.owner || !config.repo || !config.publicKey) return null;
+    return config;
+  }
+
   function clientId() {
     let value = localStorage.getItem(CLIENT_ID_STORAGE_KEY);
     if (!value) {
@@ -27,6 +33,9 @@
   }
 
   async function getPublicKey(baseUrl) {
+    const githubConfig = githubAlertsConfig();
+    if (!baseUrl && githubConfig) return githubConfig.publicKey;
+
     const response = await fetch(`${baseUrl}/api/push/public-key`);
     if (!response.ok) throw new Error("Push public key could not be loaded");
     const payload = await response.json();
@@ -55,9 +64,71 @@
     });
   }
 
+  function registrationPayload({ enabled, fuel, limit, favorites, subscription }) {
+    return {
+      clientId: clientId(),
+      enabled: Boolean(enabled),
+      fuel,
+      limit: Number(limit),
+      favorites: (favorites || []).map((station) => ({
+        id: station.id,
+        name: station.name || station.brand || "Tankstelle",
+        brand: station.brand || "",
+      })),
+      subscription: subscription ? subscription.toJSON() : null,
+      lastSentKey: "",
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  function githubIssueUrl(payload) {
+    const config = githubAlertsConfig();
+    const title = `[Tankzeit Preisalarm] ${payload.clientId}`;
+    const body = [
+      "Bitte dieses Issue offen lassen, damit GitHub Actions den Preisalarm pruefen kann.",
+      "Wenn du den Alarm nicht mehr brauchst, kannst du dieses Issue schliessen.",
+      "",
+      "```json tankzeit-price-alert",
+      JSON.stringify(payload, null, 2),
+      "```",
+    ].join("\n");
+    const params = new URLSearchParams({ title, body });
+    return `https://github.com/${config.owner}/${config.repo}/issues/new?${params.toString()}`;
+  }
+
+  function showRegistrationLink(issueUrl) {
+    let panel = document.getElementById("github-alert-registration");
+    if (!panel) {
+      panel = document.createElement("div");
+      panel.id = "github-alert-registration";
+      panel.style.cssText = "position:fixed;right:18px;bottom:92px;z-index:20;max-width:360px;padding:14px 16px;border-radius:14px;background:#ffffff;color:#1f2937;box-shadow:0 18px 45px rgba(15,23,42,.2);font:14px/1.4 Manrope,system-ui,sans-serif;";
+      document.body.appendChild(panel);
+    }
+    panel.innerHTML = `
+      <strong style="display:block;margin-bottom:6px;">Preisalarm fast fertig</strong>
+      <span style="display:block;margin-bottom:10px;">Oeffne die GitHub-Registrierung und erstelle das Issue. Danach prueft GitHub Actions alle 30 Minuten.</span>
+      <a href="${issueUrl.replaceAll("&", "&amp;")}" target="_blank" rel="noopener" style="display:inline-flex;padding:9px 12px;border-radius:10px;background:#0f766e;color:#fff;text-decoration:none;font-weight:800;">GitHub-Registrierung oeffnen</a>
+    `;
+  }
+
+  async function syncGithubAlert({ enabled, fuel, limit, favorites }) {
+    const config = githubAlertsConfig();
+    if (!config) return { skipped: "missing_backend_url" };
+    if (!enabled) {
+      return { skipped: "github_issue_close_required" };
+    }
+
+    const subscription = await getSubscription("");
+    const payload = registrationPayload({ enabled, fuel, limit, favorites, subscription });
+    const issueUrl = githubIssueUrl(payload);
+    showRegistrationLink(issueUrl);
+    window.open(issueUrl, "_blank", "noopener");
+    return { ok: true, mode: "github_issue", issueUrl };
+  }
+
   async function syncAlert({ enabled, fuel, limit, favorites }) {
     const baseUrl = backendUrl();
-    if (!baseUrl) return { skipped: "missing_backend_url" };
+    if (!baseUrl) return syncGithubAlert({ enabled, fuel, limit, favorites });
 
     const subscription = enabled ? await getSubscription(baseUrl) : null;
     const response = await fetch(`${baseUrl}/api/alerts`, {
@@ -82,7 +153,7 @@
 
   async function deleteAlert() {
     const baseUrl = backendUrl();
-    if (!baseUrl) return { skipped: "missing_backend_url" };
+    if (!baseUrl) return { skipped: "github_issue_close_required" };
     await fetch(`${baseUrl}/api/alerts/${encodeURIComponent(clientId())}`, {
       method: "DELETE",
     });
