@@ -235,3 +235,76 @@ Zusätzlich gibt es ein Brent-Szenario. Dort kann simuliert werden, wie sich ein
 - Barrelgröße von ca. 158,99 Litern
 
 Das Ergebnis wird als grober Cent-pro-Liter-Effekt angezeigt. Es ist keine exakte Preisvorhersage, sondern eine Orientierung, wie stark ein Ölpreisimpuls theoretisch wirken könnte.
+
+## Tankplan - Bestimmung optimaler individueller Tankzeitpunkt
+
+### Datenbasis:
+
+Für die Fahrzeugdaten nutzt das Formular die Datei: `data/adac_models_by_make.csv`
+Die Datei `data/adac_models_by_make.csv` wurde aus öffentlich verfügbaren ADAC-Fahrzeugdaten aufgebaut. Grundlage ist eine modell- und herstellerbezogene Fahrzeugliste, die anschließend um Detaildaten je Fahrzeug ergänzt wurde.
+
+Im Erstellungsprozess wurden insbesondere folgende Schritte durchgeführt:
+
+1. Hersteller und Modelle wurden aus der ADAC-Datenbasis ausgelesen.
+2. Zu den einzelnen Fahrzeugvarianten wurden Detailseiten bzw. Detailinformationen abgefragt.
+3. Die relevanten technischen Daten wurden extrahiert und in einen einheitlichen CSV-Spaltenaufbau überführt.
+4. Fehlende oder nachträglich verfügbare Detaildaten, insbesondere Verbrauchs- und Tankdaten, wurden über Nachladeskripte ergänzt.
+5. Die Daten wurden anschließend im Formular über Hersteller, Modell, Fahrzeugbezeichnung, Generation, Baujahr und Kraftstoffart durchsuchbar gemacht.
+
+Die Datei dient damit als lokale Fahrzeug-Stammdatenbasis für das Tankplan-Formular. Sie enthält nicht nur Hersteller- und Modellnamen, sondern auch die für die Berechnung notwendigen technischen Felder wie `tankgroesse_1`, `verbrauch_l_pro_100_km` und `kraftstoffart`.
+
+Aus dieser Datei werden insbesondere folgende Felder verwendet:
+- `tankgroesse_1`
+- `verbrauch_l_pro_100_km`
+- `kraftstoffart`
+- `Fahrzeugbezeichnung`, `Hersteller`, `Modell` und `Generation` für die Auswahl
+
+Für die Preisstatistik nutzt das Formular die täglichen Auswertungsdateien:
+`data2/YYYY/MM/DD/management_boxplots.json`
+
+Dabei wird standardmäßig ein Zeitraum der letzten 14 Tage herangezogen. Aus diesen Tagesdateien wird die Preisstruktur je Kraftstoffart ausgewertet.
+Berechnung der Restreichweite:
+
+Wenn der Nutzer keine Restreichweite eingibt, wird sie aus Fahrzeugdaten und gefahrenen Kilometern berechnet:
+- theoretische `Volltank-Reichweite = tankgroesse_1 / verbrauch_l_pro_100_km * 100`
+- berechnete Restreichweite = theoretische Volltank-Reichweite - gefahrene Kilometer seit letzter Tankfüllung
+
+Wenn der Nutzer eine Restreichweite eingibt, wird dieser Wert direkt als Ausgangswert verwendet.
+Unterschied Wochenkilometer und Tageskilometer: 
+
+Bei Eingabe einer Wochenkilometerleistung wird die Fahrleistung gleichmäßig auf sieben Tage verteilt:
+    - `Tagesfahrleistung = Wochenkilometer / 7`
+
+Bei Eingabe der Tageskilometer wird dagegen ein konkretes Wochenprofil verwendet. Für jedes zukünftige Datum wird anhand des Wochentags der passende  Tageswert abgezogen. Sobald Tageskilometer eingetragen sind, haben sie Vorrang vor der pauschalen Wochenkilometerleistung.
+
+### Berücksichtigung der Preisstatistik
+
+Die Preisstatistik wird aus den management_boxplots.json-Dateien der letzten 14 Tage geladen. Für Diesel, Super E5 und Super E10 werden die Medianwerte aus der Statistik verwendet.
+Daraus berechnet das Formular:
+durchschnittliche Preise je Uhrzeit im 24-Stunden-Zyklus
+durchschnittliche Preise je Wochentag
+günstigste Uhrzeiten je Tag
+günstige und teure Tage im Vergleich
+Für die Tankempfehlung wird zunächst bestimmt, bis zu welchem Tag getankt werden muss, damit die Restreichweite von 50 km nicht unterschritten wird. Innerhalb dieses zulässigen Zeitfensters wird anhand der 14-Tage-Preisstatistik der günstigste geeignete Tag und die passende günstige Uhrzeit ausgewählt.
+
+### Manuelle Kraftstoffauswahl und Sonderfälle
+
+Die Kraftstoffart des Fahrzeugs wird grundsätzlich aus dem Feld `kraftstoffart` der Datei `data/adac_models_by_make.csv` übernommen.
+
+Wenn ein Fahrzeug mit einer Super-Kraftstoffart ausgewählt wird, kann der Nutzer die für die Berechnung verwendete Kraftstoffart manuell präzisieren. Zur Auswahl stehen:
+
+- Super E5
+- Super E10
+- Super Plus
+
+Die Tankzeitpunktvorhersage wird anschließend auf Basis der vom Nutzer gewählten Kraftstoffart berechnet.
+
+Wenn für die gewählte oder abgeleitete Kraftstoffart keine Preisstatistik verfügbar ist, wird keine Tankempfehlung berechnet. Stattdessen erhält der Nutzer den Hinweis:
+
+`Ups, leider ist die Kraftstoffsorte des gewählten Fahrzeugs nicht verfügbar ☹️.`
+
+Wenn für das gewählte Fahrzeug notwendige Stammdaten fehlen, insbesondere `tankgroesse_1` oder `verbrauch_l_pro_100_km`, kann die Restreichweite nicht zuverlässig berechnet werden. In diesem Fall erhält der Nutzer den Hinweis, dass für das gewählte Fahrzeug Verbrauch oder Tankgröße fehlen und ein Fahrzeug mit vollständigen ADAC-Detaildaten ausgewählt werden soll.
+
+Wenn ein Fahrzeug mit der Kraftstoffart `Strom` ausgewählt wird, wird keine Tankzeitpunktvorhersage auf Basis der Kraftstoffpreise erstellt. Stattdessen erhält der Nutzer einen gesonderten Hinweis für E-Fahrzeuge mit Verweis auf Woladen:
+
+`Ups. Leider ist die Kraftstoffsorte des gewählten Fahrzeugs nicht verfügbar ☹️. Du fährst ein E-Auto! Kennst Du schon Woladen? Hier findest Du Schnellladesäulen mit der besten Aufenthaltsqualität. Woladen zeigt dir die nächstgelegenen Stationen in Deutschland übersichtlich in Liste und Karte und kennt Angebote vor Ort wie Supermarkt, Bäckerei oder Restaurant in der direkten Umgebung. Ohne Ladeweile.`
