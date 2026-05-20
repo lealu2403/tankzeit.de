@@ -404,6 +404,41 @@
         return sortedValues[base] + rest * (next - sortedValues[base]);
       }
 
+      function daysBetweenIso(laterDay, earlierDay) {
+        const later = parseISODate(laterDay);
+        const earlier = parseISODate(earlierDay);
+        if (!(later instanceof Date) || !(earlier instanceof Date)) return 0;
+        return Math.max(
+          0,
+          Math.round((later.getTime() - earlier.getTime()) / 86400000),
+        );
+      }
+
+      function recencyWeight(ageInDays) {
+        const age = Math.max(0, Number(ageInDays) || 0);
+        return 0.35 + 0.65 * Math.exp(-age / 7);
+      }
+
+      function weightedQuantile(weightedValues, q) {
+        const values = weightedValues
+          .map((entry) => ({
+            value: Number(entry?.value),
+            weight: Number(entry?.weight),
+          }))
+          .filter((entry) => Number.isFinite(entry.value) && entry.weight > 0)
+          .sort((left, right) => left.value - right.value);
+        if (!values.length) return null;
+        const totalWeight = values.reduce((sum, entry) => sum + entry.weight, 0);
+        if (!(totalWeight > 0)) return null;
+        const threshold = totalWeight * q;
+        let cumulative = 0;
+        for (const entry of values) {
+          cumulative += entry.weight;
+          if (cumulative >= threshold) return entry.value;
+        }
+        return values[values.length - 1].value;
+      }
+
       function median(values) {
         const sorted = values
           .filter((value) => Number.isFinite(value))
@@ -1156,11 +1191,12 @@
 
         const baseSourceDay = sourceDays[sourceDays.length - 1];
         const baseMedian = Number(baseSourceDay.referencePrice);
-        const sourceReferenceMedian = quantile(
+        const sourceReferenceMedian = weightedQuantile(
           sourceDays
-            .map((day) => day.referencePrice)
-            .filter((value) => Number.isFinite(value))
-            .sort((left, right) => left - right),
+            .map((day) => ({
+              value: day.referencePrice,
+              weight: recencyWeight(daysBetweenIso(baseSourceDay.day, day.day)),
+            })),
           0.5,
         );
         const calibrationOffset = Number.isFinite(sourceReferenceMedian)
@@ -1177,26 +1213,33 @@
         let brandCorrectionApplied = false;
 
         sourceDays.forEach(({ day, referencePrice }) => {
+          const dayWeight = recencyWeight(daysBetweenIso(baseSourceDay.day, day));
           const brandCorrection = brandMarketCorrection(day, referencePrice, brandMarket);
           if (Math.abs(brandCorrection) > 0.0005) brandCorrectionApplied = true;
           buckets.forEach((bucket, index) => {
             const deltaRow = forecastDeltaRows[index];
             const brandCorrectionShare = bucket.hour / 24;
             const correction = brandCorrection * brandCorrectionShare;
-            bucket.medianPrices.push(referencePrice + deltaRow.medianDelta + correction);
-            bucket.q1Prices.push(referencePrice + deltaRow.q1Delta + correction);
-            bucket.q3Prices.push(referencePrice + deltaRow.q3Delta + correction);
+            bucket.medianPrices.push({
+              value: referencePrice + deltaRow.medianDelta + correction,
+              weight: dayWeight,
+            });
+            bucket.q1Prices.push({
+              value: referencePrice + deltaRow.q1Delta + correction,
+              weight: dayWeight,
+            });
+            bucket.q3Prices.push({
+              value: referencePrice + deltaRow.q3Delta + correction,
+              weight: dayWeight,
+            });
           });
         });
 
         const rows = buckets
           .map((bucket) => {
-            const sortedMedian = bucket.medianPrices.sort((left, right) => left - right);
-            const sortedQ1 = bucket.q1Prices.sort((left, right) => left - right);
-            const sortedQ3 = bucket.q3Prices.sort((left, right) => left - right);
-            const rowMedian = quantile(sortedMedian, 0.5);
-            const q1 = quantile(sortedQ1, 0.25);
-            const q3 = quantile(sortedQ3, 0.75);
+            const rowMedian = weightedQuantile(bucket.medianPrices, 0.5);
+            const q1 = weightedQuantile(bucket.q1Prices, 0.25);
+            const q3 = weightedQuantile(bucket.q3Prices, 0.75);
             if (!Number.isFinite(rowMedian)) return null;
             return {
               ...bucket,
@@ -1808,12 +1851,12 @@
               ? ` Zusätzlich wird die Markenposition von ${stationBrand} gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen, sofern dafür Marktdaten verfügbar sind.`
               : " Zusätzlich wird, sofern Marktdaten verfügbar sind, die Markenposition gegenüber Gesamtmarkt sowie Hoch- und Niedrigpreisgruppe als vorsichtige statistische Korrektur einbezogen.";
             forecastNote.textContent =
-              `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)}. Für die Form der Tageskurve werden die verfügbaren 12:00-Uhr-bis-12:00-Uhr-Stationsverläufe ab ${formatDate(FORECAST_MIN_DATE_STR)} berücksichtigt. Die Steuersenkung zum ${formatDate(FUEL_TAX_CHANGE_DATE_STR)} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis der Station kalibriert wird.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
+              `Prognosemodell für diese Station: Die Prognose startet preislich vom 12:00-Uhr-Referenzpreis der Station am ${formatDate(forecast.baseDate)}. Für die Form der Tageskurve werden die verfügbaren 12:00-Uhr-bis-12:00-Uhr-Stationsverläufe ab ${formatDate(FORECAST_MIN_DATE_STR)} berücksichtigt. Neuere Tage werden stärker gewichtet: Gewicht = 0,35 + 0,65 * exp(-Alter/7). Die Steuersenkung zum ${formatDate(FUEL_TAX_CHANGE_DATE_STR)} ist im Modell berücksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Veränderung im Tagesverlauf, während das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis der Station kalibriert wird.${brandContext} Dadurch wird die reine Stationshistorie über einen längeren Zeitraum mit marktspezifischen Preisniveau-Unterschieden abgeglichen, damit die kurzfristige Prognose nicht nur den eigenen Verlauf, sondern auch die typische Marktposition der Marke widerspiegelt. Die schattierte Fläche zeigt den typischen Bereich zwischen q1 und q3. Aktuelle Basis: ${formatFuelPrice(forecast.baseMedian)} EUR/l Median; Datengrundlage: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis historischer Stations- und Marktdaten, nicht um gemessene Zukunftspreise.`;
           } else if (forecast.rows.length && !forecast.cycleProfileUsed) {
             const sourceStart = forecast.sourceDays[0]?.day || selectedRange.from;
             const sourceEnd = forecast.sourceDays[forecast.sourceDays.length - 1]?.day || selectedRange.to;
             forecastNote.textContent =
-              `Vereinfachte Stationsprognose: Für diese Tankstelle liegt aktuell kein belastbares 12:00-Uhr-bis-12:00-Uhr-Quartilprofil vor. Die Kurve nutzt deshalb das vorhandene stündliche Stationsprofil und kalibriert es auf den aktuellen 12:00-Uhr-Basispreis der Station am ${formatDate(forecast.baseDate)}. Die Darstellung ist als vorsichtige Orientierung zu verstehen; ein echter typischer Bereich zwischen q1 und q3 kann dafür noch nicht verlässlich gebildet werden. Datengrundlage für die Kalibrierung: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose, nicht um gemessene Zukunftspreise.`;
+              `Vereinfachte Stationsprognose: Für diese Tankstelle liegt aktuell kein belastbares 12:00-Uhr-bis-12:00-Uhr-Quartilprofil vor. Die Kurve nutzt deshalb das vorhandene stündliche Stationsprofil und kalibriert es auf den aktuellen 12:00-Uhr-Basispreis der Station am ${formatDate(forecast.baseDate)}. Neuere Tage werden stärker gewichtet: Gewicht = 0,35 + 0,65 * exp(-Alter/7). Die Darstellung ist als vorsichtige Orientierung zu verstehen; ein echter typischer Bereich zwischen q1 und q3 kann dafür noch nicht verlässlich gebildet werden. Datengrundlage für die Kalibrierung: ${forecast.sourceDays.length} Tag(e), ${formatDate(sourceStart)} bis ${formatDate(sourceEnd)}. Es handelt sich um eine modellierte Kurzfrist-Prognose, nicht um gemessene Zukunftspreise.`;
           } else {
             forecastNote.innerHTML =
               'Keine Prognose verfügbar: Für diese Station liegen noch nicht genug Stationsdaten vor, um eine verlässliche Stationsprognose zu bilden. Die allgemeine <a href="preisprognose.html">Preisprognose</a> nutzt aggregierte Gesamtdaten und bleibt als Orientierung verfügbar.';

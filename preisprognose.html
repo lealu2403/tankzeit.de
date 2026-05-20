@@ -596,6 +596,39 @@
         return sortedValues[lower] * (1 - weight) + sortedValues[upper] * weight;
       }
 
+      function daysBetween(laterDate, earlierDate) {
+        if (!(laterDate instanceof Date) || !(earlierDate instanceof Date)) return 0;
+        return Math.max(
+          0,
+          Math.round((laterDate.getTime() - earlierDate.getTime()) / 86400000),
+        );
+      }
+
+      function recencyWeight(ageInDays) {
+        const age = Math.max(0, Number(ageInDays) || 0);
+        return 0.35 + 0.65 * Math.exp(-age / 7);
+      }
+
+      function weightedQuantile(weightedValues, percentile) {
+        const values = weightedValues
+          .map((entry) => ({
+            value: Number(entry?.value),
+            weight: Number(entry?.weight),
+          }))
+          .filter((entry) => Number.isFinite(entry.value) && entry.weight > 0)
+          .sort((left, right) => left.value - right.value);
+        if (!values.length) return null;
+        const totalWeight = values.reduce((sum, entry) => sum + entry.weight, 0);
+        if (!(totalWeight > 0)) return null;
+        const threshold = totalWeight * percentile;
+        let cumulative = 0;
+        for (const entry of values) {
+          cumulative += entry.weight;
+          if (cumulative >= threshold) return entry.value;
+        }
+        return values[values.length - 1].value;
+      }
+
       function sanitizeRelativeValue(valueInEuro) {
         const numeric = Number(valueInEuro);
         return Number.isFinite(numeric) ? numeric : 0;
@@ -658,6 +691,7 @@
         sourceDays
           .filter((rangeDay) => forecastSourceDayEligible(formatISODate(rangeDay.date)))
           .forEach((rangeDay) => {
+            const dayWeight = recencyWeight(daysBetween(baseDay.date, rangeDay.date));
             const rows = rangeDay.summary?.fuels?.[state.fuel] || [];
             rows.forEach((row) => {
               const rawHour = row.cycle_hour !== undefined ? row.cycle_hour : row.hour;
@@ -674,9 +708,13 @@
                 q1Deltas: [],
                 q3Deltas: [],
               };
-              bucket.medianDeltas.push(Number(adjusted.median));
-              if (Number.isFinite(Number(adjusted.q1))) bucket.q1Deltas.push(Number(adjusted.q1));
-              if (Number.isFinite(Number(adjusted.q3))) bucket.q3Deltas.push(Number(adjusted.q3));
+              bucket.medianDeltas.push({ value: Number(adjusted.median), weight: dayWeight });
+              if (Number.isFinite(Number(adjusted.q1))) {
+                bucket.q1Deltas.push({ value: Number(adjusted.q1), weight: dayWeight });
+              }
+              if (Number.isFinite(Number(adjusted.q3))) {
+                bucket.q3Deltas.push({ value: Number(adjusted.q3), weight: dayWeight });
+              }
               byHour.set(hour, bucket);
             });
           });
@@ -684,12 +722,12 @@
         const rows = Array.from(byHour.values())
           .sort((left, right) => left.hour - right.hour)
           .map((row) => {
-            const medianDelta = quantile(row.medianDeltas.sort((a, b) => a - b), 0.5);
+            const medianDelta = weightedQuantile(row.medianDeltas, 0.5);
             const q1Delta = row.q1Deltas.length
-              ? quantile(row.q1Deltas.sort((a, b) => a - b), 0.5)
+              ? weightedQuantile(row.q1Deltas, 0.5)
               : null;
             const q3Delta = row.q3Deltas.length
-              ? quantile(row.q3Deltas.sort((a, b) => a - b), 0.5)
+              ? weightedQuantile(row.q3Deltas, 0.5)
               : null;
             return {
               ...row,
@@ -1273,7 +1311,7 @@
           ? formatLongDate(series.baseDate)
           : "dem letzten verf\u00fcgbaren Tag";
         forecastNoteEl.textContent =
-          `Prognosemodell f\u00fcr ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel}. F\u00fcr die Form der Tageskurve werden die lokal verf\u00fcgbaren 12:00-Uhr-bis-12:00-Uhr-Verl\u00e4ufe ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} ber\u00fccksichtigt. Die Steuersenkung zum ${formatLongDate(parseISODate(FUEL_TAX_CHANGE_DATE_STR))} ist im Modell ber\u00fccksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Ver\u00e4nderung im Tagesverlauf, w\u00e4hrend das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis kalibriert wird. Die schattierte Fl\u00e4che zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
+          `Prognosemodell f\u00fcr ${formatLongDate(targetDate)}: Die Prognose startet preislich vom 12:00-Uhr-Gesamtmarkt-Median am ${baseDateLabel}. F\u00fcr die Form der Tageskurve werden die lokal verf\u00fcgbaren 12:00-Uhr-bis-12:00-Uhr-Verl\u00e4ufe ab ${formatLongDate(parseISODate(FORECAST_MIN_DATE_STR))} ber\u00fccksichtigt. Neuere Tage werden st\u00e4rker gewichtet: Gewicht = 0,35 + 0,65 * exp(-Alter/7). Die Steuersenkung zum ${formatLongDate(parseISODate(FUEL_TAX_CHANGE_DATE_STR))} ist im Modell ber\u00fccksichtigt: Der einmalige Preiseffekt rund um den Wechsel wird nicht als normaler Tagesrhythmus gewertet. Die historischen Daten liefern damit die typische Ver\u00e4nderung im Tagesverlauf, w\u00e4hrend das absolute Preisniveau auf den aktuellen 12:00-Uhr-Basispreis kalibriert wird. Die schattierte Fl\u00e4che zeigt den typischen Bereich zwischen q1 und q3: oberhalb der Kurve liegt der obere typische Bereich bis q3, unterhalb der Kurve der untere typische Bereich bis q1. Aktuelle Basis: ${formatValue(series.baseMedian)} EUR/l Median; Datengrundlage: ${sourceDates.length} Tag(e), ${formatLongDate(parseISODate(firstSourceDate))} bis ${formatLongDate(parseISODate(lastSourceDate))}. Es handelt sich um eine modellierte Kurzfrist-Prognose auf Basis aggregierter Marktdaten, nicht um gemessene Zukunftspreise.`;
         updateDecisionPanel();
       }
 
