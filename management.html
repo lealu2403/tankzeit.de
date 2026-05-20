@@ -2064,6 +2064,7 @@
             if (index === 0) {
               priceLevelCtx.moveTo(point.x, point.y);
             } else {
+              priceLevelCtx.lineTo(point.x, points[index - 1].y);
               priceLevelCtx.lineTo(point.x, point.y);
             }
           });
@@ -2141,7 +2142,7 @@
         const w = histogramCanvas.getBoundingClientRect().width;
         const h = histogramCanvas.getBoundingClientRect().height;
         const theme = currentChartTheme();
-        const plot = { left: 62, right: 18, top: 24, bottom: 46 };
+        const plot = { left: 86, right: 18, top: 24, bottom: 46 };
         plot.width = w - plot.left - plot.right;
         plot.height = h - plot.top - plot.bottom;
         const bucketMinutes = histogramBucketMinutes();
@@ -2158,6 +2159,8 @@
         histogramCtx.fillStyle = theme.axisText;
         histogramCtx.lineWidth = 1;
         histogramCtx.font = "12px Manrope, sans-serif";
+        histogramCtx.textAlign = "right";
+        histogramCtx.textBaseline = "middle";
 
         const tickCount = 5;
         for (let index = 0; index < tickCount; index += 1) {
@@ -2168,11 +2171,11 @@
           histogramCtx.moveTo(plot.left, y);
           histogramCtx.lineTo(plot.left + plot.width, y);
           histogramCtx.stroke();
-          histogramCtx.fillText(formatCount(roundedValue), 10, y + 4);
+          histogramCtx.fillText(formatCount(roundedValue), plot.left - 14, y);
         }
 
         histogramCtx.save();
-        histogramCtx.translate(18, plot.top + plot.height / 2);
+        histogramCtx.translate(24, plot.top + plot.height / 2);
         histogramCtx.rotate(-Math.PI / 2);
         histogramCtx.textAlign = "center";
         histogramCtx.fillStyle = theme.axisTitle;
@@ -2237,6 +2240,8 @@
         const hourStep = plot.width < 540 ? 3 : 2;
         const labelStep = bucketsPerHour * hourStep;
         histogramCtx.fillStyle = theme.tickText;
+        histogramCtx.textAlign = "left";
+        histogramCtx.textBaseline = "alphabetic";
         rows.forEach((row, index) => {
           if (index % labelStep !== 0) return;
           const x = plot.left + (index + 0.5) * slotWidth;
