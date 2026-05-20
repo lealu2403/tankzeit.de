@@ -515,7 +515,7 @@
         showTankplanTooltip(event, "Niedrigste Preise im 24h-Zyklus", [
           `Uhrzeit: ${String(slot.hour).padStart(2, "0")}:00 Uhr`,
           `${fuelName(active)}: ${formatPrice(slot.prices[active])} EUR/l`,
-          `Messpunkte: ${slot.counts?.[active] || 0}`
+          `Messpunkte: ${Number(slot.counts?.[active] || 0).toLocaleString("de-DE")}`
         ]);
       });
       cycleChart.addEventListener("mouseleave", hideTankplanTooltip);
