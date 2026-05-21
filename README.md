@@ -100,7 +100,7 @@ Bei Fragen kontaktieren Sie bitte Raphael Volz (raphael.volz@hs-pforzheim.de). A
 
 # Neue Funktionen und Prognosemodell, individueller Tankzeitpunkt, Benachrichtigungen und vieles mehr
 
-Dieser Abschnitt beschreibt die neuen Auswertungsfunktionen, die Stationsdetailseite und die Logik hinter der Preisprognose sowie weitere Funktionen, die im Rahmen des Kurses Softwareentwicklung und Datenanalyse von folgenden Anwendern programmiert wurde:
+Dieser Abschnitt beschreibt die neuen Auswertungsfunktionen, die Stationsdetailseite und die Logik hinter der Preisprognose sowie weitere Funktionen, die im Rahmen des Kurses Softwareentwicklung und Datenanalyse von folgenden Anwendern entwickelt wurden:
 - Freya Kemter
 - Marcel Konrad
 - Lena Paschke
