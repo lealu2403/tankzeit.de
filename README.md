@@ -308,3 +308,43 @@ Wenn für das gewählte Fahrzeug notwendige Stammdaten fehlen, insbesondere `tan
 Wenn ein Fahrzeug mit der Kraftstoffart `Strom` ausgewählt wird, wird keine Tankzeitpunktvorhersage auf Basis der Kraftstoffpreise erstellt. Stattdessen erhält der Nutzer einen gesonderten Hinweis für E-Fahrzeuge mit Verweis auf Woladen:
 
 `Ups. Leider ist die Kraftstoffsorte des gewählten Fahrzeugs nicht verfügbar ☹️. Du fährst ein E-Auto! Kennst Du schon Woladen? Hier findest Du Schnellladesäulen mit der besten Aufenthaltsqualität. Woladen zeigt dir die nächstgelegenen Stationen in Deutschland übersichtlich in Liste und Karte und kennt Angebote vor Ort wie Supermarkt, Bäckerei oder Restaurant in der direkten Umgebung. Ohne Ladeweile.`
+
+## Merge Workflow und Stationssuche
+
+### Merge Workflow mit Volzinnovation
+
+Für die Synchronisierung mit `volzinnovation/tankzeit.de` wurde der Upstream-Stand nicht direkt auf `master` überschrieben. Stattdessen wurde ein prüfbarer Merge Workflow verwendet, damit die bestehende Arbeit in `lealu2403/tankzeit.de` erhalten bleibt.
+
+Der Ablauf war:
+
+1. Vor dem Sync wurde eine Sicherheitsbranch `backup-before-upstream-sync-2026-05-09` vom damaligen `master` angelegt.
+2. Die fehlenden Upstream-Commits aus `volzinnovation/tankzeit.de:master` wurden über Sync-Branches und Pull Requests in den Fork geholt.
+3. Die finale Zusammenführung lief über den Branch `codex/merge-volzinnovation-master` und den Pull Request `#14`.
+4. Konflikte wurden bewusst im Pull Request gelöst, nicht per Force-Push oder Reset auf `master`.
+
+Die echten Inhaltskonflikte lagen in `index.html`, `e10.html`, `favoriten.html` und `styles.css`. Beibehalten wurden die fork-seitigen Erweiterungen für Stationsdetail-URLs mit Brand-Übergabe und die Favoriten-Benachrichtigungen. Gleichzeitig wurden die upstream-seitigen Tabellen-, Favoriten-, Rabatt- und Datenupdates übernommen. Geprüft wurde danach, dass keine Git-Konfliktmarker mehr vorhanden sind, `git diff --check --cached` sauber läuft und die Inline-Skripte aus `index.html`, `e10.html` und `favoriten.html` syntaktisch parsebar bleiben.
+
+### Standortwahl auf Diesel und E10
+
+Die Diesel-Seite (`index.html`) und die E10-Seite (`e10.html`) nutzen denselben Ablauf. Ein Standort wird erst nach einer aktiven Nutzerentscheidung bestimmt. Beim Laden der Seite wird also nicht automatisch nach der Browser-Position gefragt.
+
+Es gibt zwei Wege:
+
+- Über **Ort oder PLZ**: Das Formular ruft `searchManualLocation()` auf. Die Eingabe wird an `TankzeitStationCatalog.geocodeLocationQuery()` übergeben. Diese Funktion fragt OpenStreetMap/Nominatim mit `countrycodes=de` ab, nimmt den ersten Treffer mit gültigen Koordinaten und speichert die Eingabe pro Kraftstoff in `localStorage` unter `tankzeit_location_query_${FUEL}`. Danach lädt `loadStations(lat, lng)` die Stationen für diese Koordinaten.
+- Über **Standort abrufen**: Der Button ruft `requestLocation()` auf. Diese Funktion nutzt `navigator.geolocation.watchPosition()`, zeigt währenddessen Statusmeldungen an und bricht nach `LOCATION_DEADLINE_MS` ab, wenn keine Position kommt. Bei Erfolg werden die Browser-Koordinaten ebenfalls an `loadStations(lat, lng)` übergeben. Bei verweigerter, nicht verfügbarer oder abgelaufener Standortabfrage erscheint eine passende Fehlermeldung.
+
+`loadStations()` setzt zuerst `currentCenter` und übergibt den Mittelpunkt an `TankzeitStationCatalog.setDistanceCenter()`. Danach wird die Tankerkönig-Live-API mit einem Radius von 10 km abgefragt. Es werden nur geöffnete Stationen berücksichtigt, die für den gewählten Kraftstoff einen Preis liefern. Ist die Live-API nicht erreichbar, fällt die Seite auf das lokale `data/stations.json` zurück, sucht dort nahe Stationen im gleichen Radius und deaktiviert die Preissortierung, weil dann keine Livepreise verfügbar sind.
+
+### Distanzspalte
+
+Die Distanz wird in `station-catalog.js` berechnet. Grundlage ist die Haversine-Formel zwischen dem gewählten Mittelpunkt und den Koordinaten der jeweiligen Tankstelle. Die Ausgabe erfolgt als Kilometerwert, bei kurzen Distanzen mit einer Nachkommastelle.
+
+Die Tabellen auf Diesel und E10 haben jetzt die Spalten `Favorit`, `Name`, `Distanz`, `Tankzeit` und `Preis`. Beim Rendern bekommt jede Zeile `data-lat`, `data-lng` und `data-dist`. Die Distanzzelle wird direkt nach dem Namen eingefügt und mit `data-distance-column="true"` markiert. Zusätzlich sorgt `installDistanceColumn()` dafür, dass Header und Zellen auch dann vorhanden bleiben, wenn die Tabelle später neu gerendert wird. Ein `MutationObserver` aktualisiert die Distanzspalte nach Änderungen im Tabellenkörper.
+
+Die Standardsortierung ist `Distanz`. Wird auf `Preis` sortiert, dient die Distanz als zweite Sortierung. Wenn Livepreise fehlen, wird automatisch wieder auf Distanzsortierung gewechselt.
+
+### Entfernen der Spalte Preisverlauf
+
+Die Spalte `Preisverlauf` wurde aus `index.html` und `e10.html` entfernt. Damit sind auch die früheren `Details`-Links auf `chart.html` weggefallen. Die Tabelle besteht seitdem nur noch aus Favorit, Name, Distanz, Tankzeit und Preis; die Status- und Leerzeilen verwenden entsprechend `colspan="5"`.
+
+Die Statistikabfrage bleibt erhalten, wird aber nur noch genutzt, um die Spalte `Tankzeit` mit dem günstigsten Zeitfenster zu füllen und Zeilen im aktuellen günstigen Zeitfenster hervorzuheben. Die separate Preisverlauf-Detailseite ist nicht mehr Teil des Diesel/E10-Flows; `chart.html` wurde im zugehörigen Cleanup entfernt.
