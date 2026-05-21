@@ -135,11 +135,14 @@
       .tankplan-suggestion:hover,.tankplan-suggestion:focus{background:rgba(15,118,110,.12);outline:0}
       .tankplan-selected{cursor:pointer}
       .tankplan-selected:hover,.tankplan-selected:focus{background:rgba(15,118,110,.12);outline:0}
+      .tankplan-actions{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center}
+      .tankplan-reset{border:1px solid rgba(15,118,110,.28);border-radius:22px;background:#fff;color:#0f766e;cursor:pointer;font:inherit;font-weight:900;min-height:56px;padding:0 20px}
+      .tankplan-reset:hover,.tankplan-reset:focus{background:rgba(15,118,110,.08);outline:0}
       .management-chart-card{margin-top:24px}
       .tankplan-tooltip{position:fixed;z-index:80;max-width:280px;border:1px solid rgba(15,118,110,.16);border-radius:14px;background:#fff;color:#121212;box-shadow:0 18px 34px rgba(18,18,18,.18);padding:10px 12px;font-size:.82rem;font-weight:700;pointer-events:none}
       .tankplan-tooltip strong{display:block;margin-bottom:5px;color:#121212}
       .tankplan-tooltip span{display:block;color:#666;line-height:1.35}
-      @media(max-width:720px){.tankplan-suggestions{position:static!important;max-height:320px}}
+      @media(max-width:720px){.tankplan-suggestions{position:static!important;max-height:320px}.tankplan-actions{grid-template-columns:1fr}}
     `;
     document.head.append(style);
   }
@@ -541,6 +544,62 @@
     }
   }
 
+  function resetTankplanForm() {
+    ["manufacturer", "model", "build-year", "driven-km", "weekly-distance", "remaining-range"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.value = "";
+    });
+    document.querySelectorAll(".daily-distance").forEach((input) => { input.value = ""; });
+    closeSuggestions();
+
+    const selectedPreview = document.getElementById("selected-vehicle");
+    if (selectedPreview) selectedPreview.hidden = true;
+    const fuelChoice = document.getElementById("fuel-choice");
+    if (fuelChoice) fuelChoice.hidden = true;
+    document.querySelectorAll("[data-fuel-choice]").forEach((button) => button.classList.remove("is-active"));
+
+    const weeklyDetail = document.getElementById("weekly-detail");
+    const weeklyToggle = document.getElementById("weekly-detail-toggle");
+    const weeklySum = document.getElementById("weekly-detail-sum");
+    if (weeklyDetail) weeklyDetail.hidden = true;
+    if (weeklyToggle) {
+      weeklyToggle.setAttribute("aria-expanded", "false");
+      weeklyToggle.classList.remove("is-active");
+    }
+    if (weeklySum) weeklySum.textContent = "Summe: 0 km pro Woche";
+
+    const result = document.getElementById("result-card");
+    if (result) {
+      result.hidden = true;
+      result.replaceChildren();
+    }
+
+    chosenVehicle = null;
+    try { selectedVehicle = null; } catch (error) {}
+    try { selectedFuelChoice = null; } catch (error) {}
+    if (typeof setStatus === "function") setStatus("Eingaben wurden zur\u00fcckgesetzt.");
+  }
+
+  function enhanceTankplanResetButton() {
+    if (!isTankplan()) return;
+    const form = document.getElementById("tankplan-form");
+    const submit = form?.querySelector(".tankplan-submit");
+    if (!form || !submit || document.getElementById("tankplan-reset")) return;
+
+    const actions = document.createElement("div");
+    actions.className = "tankplan-actions";
+    submit.insertAdjacentElement("beforebegin", actions);
+    actions.append(submit);
+
+    const reset = document.createElement("button");
+    reset.id = "tankplan-reset";
+    reset.className = "tankplan-reset";
+    reset.type = "button";
+    reset.textContent = "Zur\u00fccksetzen";
+    reset.addEventListener("click", resetTankplanForm);
+    actions.append(reset);
+  }
+
   function syncTankplanNav() {
     const nav = document.querySelector(".nav-bar");
     if (!nav) return;
@@ -572,6 +631,7 @@
     fixTankplanCalculator();
     syncTankplanNav();
     enhanceTankplanVehicleSearch();
+    enhanceTankplanResetButton();
     enhanceTankplanChartTooltips();
     window.setTimeout(async () => {
       await repairTankplanPriceRange();
