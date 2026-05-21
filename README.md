@@ -348,5 +348,7 @@ Die Standardsortierung ist `Distanz`. Wird auf `Preis` sortiert, dient die Dista
 ### Entfernen der Spalte Preisverlauf
 
 Die Spalte `Preisverlauf` wurde aus `index.html` und `e10.html` entfernt. Damit sind auch die früheren `Details`-Links auf `chart.html` weggefallen. Die Tabelle besteht seitdem nur noch aus Favorit, Name, Distanz, Tankzeit und Preis; die Status- und Leerzeilen verwenden entsprechend `colspan="5"`.
-
 Die Statistikabfrage bleibt erhalten, wird aber nur noch genutzt, um die Spalte `Tankzeit` mit dem günstigsten Zeitfenster zu füllen und Zeilen im aktuellen günstigen Zeitfenster hervorzuheben. Die separate Preisverlauf-Detailseite ist nicht mehr Teil des Diesel/E10-Flows; `chart.html` wurde im zugehörigen Cleanup entfernt.
+
+
+
