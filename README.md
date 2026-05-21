@@ -355,7 +355,7 @@ Die Standardsortierung ist `Distanz`. Wird auf `Preis` sortiert, dient die Dista
 Die Spalte `Preisverlauf` wurde aus `index.html` und `e10.html` entfernt. Damit sind auch die früheren `Details`-Links auf `chart.html` weggefallen. Die Tabelle besteht seitdem nur noch aus Favorit, Name, Distanz, Tankzeit und Preis; die Status- und Leerzeilen verwenden entsprechend `colspan="5"`.
 Die Statistikabfrage bleibt erhalten, wird aber nur noch genutzt, um die Spalte `Tankzeit` mit dem günstigsten Zeitfenster zu füllen und Zeilen im aktuellen günstigen Zeitfenster hervorzuheben. Die separate Preisverlauf-Detailseite ist nicht mehr Teil des Diesel/E10-Flows; `chart.html` wurde im zugehörigen Cleanup entfernt.
 
-## Preislimit-Benachrichtigung
+### Preislimit-Benachrichtigung
 
 Für Favoritentankstellen kann ein globales Preislimit für E10 oder Diesel gesetzt werden. Dieses Preislimit wird lokal im Browser gespeichert und gilt für alle ausgewählten Favoriten.
 Die Prüfung erfolgt über die aktuellen Livepreise der gespeicherten Tankstellen. Beim Öffnen der Favoriten-Seite, nach dem Speichern des Preislimits und anschließend in regelmäßigen Abständen werden die Preise erneut abgefragt. Zusätzlich wird wieder geprüft, sobald die Seite erneut geöffnet oder wieder aktiv wird.
