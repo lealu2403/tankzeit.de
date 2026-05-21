@@ -315,6 +315,8 @@ Wenn ein Fahrzeug mit der Kraftstoffart `Strom` ausgewählt wird, wird keine Tan
 
 Für die Synchronisierung mit `volzinnovation/tankzeit.de` wurde der Upstream-Stand nicht direkt auf `master` überschrieben. Stattdessen wurde ein prüfbarer Merge Workflow verwendet, damit die bestehende Arbeit in `lealu2403/tankzeit.de` erhalten bleibt.
 
+Dieser Merge Workflow läuft täglich, damit neue Updates aus `volzinnovation/tankzeit.de` regelmäßig mitgenommen werden und als reviewbare Änderungen im Fork landen, ohne die eigene Arbeit auf `master` direkt zu überschreiben.
+
 Der Ablauf war:
 
 1. Vor dem Sync wurde eine Sicherheitsbranch `backup-before-upstream-sync-2026-05-09` vom damaligen `master` angelegt.
